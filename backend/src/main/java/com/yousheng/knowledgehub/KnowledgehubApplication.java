@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class KnowledgehubApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(KnowledgehubApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(KnowledgehubApplication.class, args);
+    }
 
 }
