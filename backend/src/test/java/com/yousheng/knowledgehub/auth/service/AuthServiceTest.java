@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,6 +21,9 @@ public class AuthServiceTest {
 
 	@Autowired
 	private AuthService authService;
+
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	@Autowired
 	private AppUserMapper appUserMapper;
@@ -60,5 +64,66 @@ public class AuthServiceTest {
 
 		BizException ex = assertThrows(BizException.class, () -> authService.register(duplicate));
 		assertEquals(ErrorCode.USERNAME_EXISTS, ex.getErrorCode());
+	}
+
+	@Test
+	void login_success() {
+		RegisterRequest req = new RegisterRequest("charlie", "MySecret123", "Charlie");
+		authService.register(req);
+
+		var resp = authService.login("charlie", "MySecret123");
+
+		assertNotNull(resp);
+		assertEquals("charlie", resp.username());
+		assertEquals("Charlie", resp.nickname());
+	}
+
+	@Test
+	void login_wrongPassword() {
+		RegisterRequest req = new RegisterRequest("dave", "RightPass1", "Dave");
+		authService.register(req);
+
+		BizException ex = assertThrows(BizException.class, () -> authService.login("dave", "WrongPass"));
+		assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
+	}
+
+	@Test
+	void login_userNotFound() {
+		BizException ex = assertThrows(BizException.class, () -> authService.login("nonexist", "whatever"));
+		assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
+	}
+
+	@Test
+	void login_disabledUser() {
+		RegisterRequest req = new RegisterRequest("ellen", "Pwd12345", "Ellen");
+		authService.register(req);
+
+		LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
+		wrapper.eq(AppUser::getUsername, "ellen");
+		AppUser saved = appUserMapper.selectOne(wrapper);
+		assertNotNull(saved);
+
+		saved.setStatus("DISABLED");
+		appUserMapper.updateById(saved);
+
+		BizException ex = assertThrows(BizException.class, () -> authService.login("ellen", "Pwd12345"));
+		assertEquals(ErrorCode.USER_DISABLED, ex.getErrorCode());
+	}
+
+	@Test
+	void login_disabledUserWithWrongPassword() {
+		RegisterRequest req = new RegisterRequest("frank", "RightPass123", "Frank");
+		authService.register(req);
+
+		LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
+		wrapper.eq(AppUser::getUsername, "frank");
+		AppUser saved = appUserMapper.selectOne(wrapper);
+		assertNotNull(saved);
+
+		saved.setStatus("DISABLED");
+		appUserMapper.updateById(saved);
+
+		BizException ex = assertThrows(BizException.class, () -> authService.login("frank", "WrongPass456"));
+		assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
 	}
 }

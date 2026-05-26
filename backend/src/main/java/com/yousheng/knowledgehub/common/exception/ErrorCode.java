@@ -16,8 +16,10 @@ public enum ErrorCode {
 
     UNAUTHORIZED(40100, "请先登录", HttpStatus.UNAUTHORIZED),
     TOKEN_INVALID(40101, "Token 无效或已过期", HttpStatus.UNAUTHORIZED),
+    INVALID_CREDENTIALS(40102, "用户名或密码错误", HttpStatus.UNAUTHORIZED),
 
     FORBIDDEN(40300, "无权限", HttpStatus.FORBIDDEN),
+    USER_DISABLED(40301, "用户被禁用", HttpStatus.FORBIDDEN),
 
     NOT_FOUND(40400, "资源不存在", HttpStatus.NOT_FOUND),
     NOTE_NOT_FOUND(40401, "笔记不存在", HttpStatus.NOT_FOUND),

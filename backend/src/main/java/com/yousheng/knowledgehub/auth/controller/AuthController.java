@@ -1,5 +1,7 @@
 package com.yousheng.knowledgehub.auth.controller;
 
+import com.yousheng.knowledgehub.auth.dto.LoginRequest;
+import com.yousheng.knowledgehub.auth.dto.LoginResponse;
 import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
 import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.auth.service.AuthService;
@@ -20,5 +22,12 @@ public class AuthController {
     @PostMapping("/register")
     public ApiResponse<RegisterResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
         return ApiResponse.ok(authService.register(registerRequest));
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+        String username = loginRequest.username();
+        String password = loginRequest.password();
+        return ApiResponse.ok(authService.login(username, password));
     }
 }

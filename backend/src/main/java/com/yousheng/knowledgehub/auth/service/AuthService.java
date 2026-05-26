@@ -1,6 +1,8 @@
 package com.yousheng.knowledgehub.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.yousheng.knowledgehub.auth.dto.LoginResponse;
 import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
 import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
@@ -31,7 +33,7 @@ public class AuthService {
                 ? registerRequest.username()
                 : registerRequest.nickname();
 
-        LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<AppUser> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(AppUser::getUsername, username);
 
         Long existCnt = appUserMapper.selectCount(wrapper);
@@ -64,5 +66,32 @@ public class AuthService {
         );
 
         return registerResponse;
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponse login(String username, String password) {
+        LambdaQueryWrapper<AppUser> queryByUsername = new LambdaQueryWrapper<>();
+        queryByUsername.eq(AppUser::getUsername, username);
+        AppUser user = appUserMapper.selectOne(queryByUsername);
+        if (user == null) {
+            throw new BizException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new BizException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        if (!UserStatus.ENABLED.name().equals(user.getStatus())) {
+            throw new BizException(ErrorCode.USER_DISABLED);
+        }
+
+        LoginResponse loginResponse = new LoginResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getRole()
+        );
+
+        return loginResponse;
     }
 }
