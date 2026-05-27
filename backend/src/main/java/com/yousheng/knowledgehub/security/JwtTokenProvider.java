@@ -1,6 +1,8 @@
 package com.yousheng.knowledgehub.security;
 
 import com.yousheng.knowledgehub.config.security.JwtProperties;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,39 @@ public class JwtTokenProvider {
         return new JwtToken(token, jwtProperties.getExpireSeconds());
     }
 
+    public boolean validateToken(String token) {
+        try {
+            parseClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public Long getUserId(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get("userId", Long.class);
+    }
+
+    public String getUsername(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get("username", String.class);
+    }
+
+    public String getRole(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get("role", String.class);
+    }
+
     private SecretKey getSecretKey() {
         return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSecretKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
