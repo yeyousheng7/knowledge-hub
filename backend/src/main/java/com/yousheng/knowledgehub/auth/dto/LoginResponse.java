@@ -1,9 +1,9 @@
 package com.yousheng.knowledgehub.auth.dto;
 
 public record LoginResponse(
-        Long id,
-        String username,
-        String nickname,
-        String role
+        String accessToken,
+        String tokenType,
+        long expiresIn,
+        LoginUserResponse user
 ) {
 }

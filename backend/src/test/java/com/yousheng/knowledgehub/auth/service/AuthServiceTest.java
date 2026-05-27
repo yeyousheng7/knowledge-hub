@@ -5,6 +5,7 @@ import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
 import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.security.JwtConstants;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,8 +75,13 @@ public class AuthServiceTest {
 		var resp = authService.login("charlie", "MySecret123");
 
 		assertNotNull(resp);
-		assertEquals("charlie", resp.username());
-		assertEquals("Charlie", resp.nickname());
+		assertEquals("charlie", resp.user().username());
+		assertEquals("Charlie", resp.user().nickname());
+
+		assertNotNull(resp.accessToken());
+		assertFalse(resp.accessToken().isBlank());
+		assertEquals(JwtConstants.TOKEN_TYPE_BEARER, resp.tokenType());
+		assertEquals(86400, resp.expiresIn());
 	}
 
 	@Test

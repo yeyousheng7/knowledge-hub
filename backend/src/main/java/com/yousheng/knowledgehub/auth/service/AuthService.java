@@ -3,10 +3,14 @@ package com.yousheng.knowledgehub.auth.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.yousheng.knowledgehub.auth.dto.LoginResponse;
+import com.yousheng.knowledgehub.auth.dto.LoginUserResponse;
 import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
 import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.security.JwtConstants;
+import com.yousheng.knowledgehub.security.JwtToken;
+import com.yousheng.knowledgehub.security.JwtTokenProvider;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserRole;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
@@ -24,6 +28,7 @@ import java.time.LocalDateTime;
 public class AuthService {
     private final AppUserMapper appUserMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
     public RegisterResponse register(RegisterRequest registerRequest) {
@@ -85,11 +90,22 @@ public class AuthService {
             throw new BizException(ErrorCode.USER_DISABLED);
         }
 
-        LoginResponse loginResponse = new LoginResponse(
+        JwtToken jwtToken = jwtTokenProvider.generateAccessToken(
                 user.getId(),
                 user.getUsername(),
-                user.getNickname(),
                 user.getRole()
+        );
+
+        LoginResponse loginResponse = new LoginResponse(
+                jwtToken.accessToken(),
+                JwtConstants.TOKEN_TYPE_BEARER,
+                jwtToken.expiresIn(),
+                new LoginUserResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getNickname(),
+                        user.getRole()
+                )
         );
 
         return loginResponse;

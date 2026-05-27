@@ -5,3 +5,8 @@ spring:
     password: your_password
   flyway:
     enabled: true
+
+app:
+  jwt:
+    secret: local-dev-jwt-secret-change-me-at-least-32-bytes
+    expire-seconds: 86400
