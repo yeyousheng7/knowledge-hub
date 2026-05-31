@@ -7,6 +7,7 @@ spring:
     enabled: true
 
 app:
+  invite-code: ${APP_INVITE_CODE:dev-invite-code}
   jwt:
     secret: local-dev-jwt-secret-change-me-at-least-32-bytes
     expire-seconds: 86400

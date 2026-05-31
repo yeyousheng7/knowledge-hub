@@ -5,6 +5,7 @@ import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
 import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.config.InviteCodeProperties;
 import com.yousheng.knowledgehub.security.JwtConstants;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
@@ -32,6 +33,9 @@ public class AuthServiceTest {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Autowired
+	private InviteCodeProperties inviteCodeProperties;
+
 	@BeforeEach
 	void setUp() {
 		jdbcTemplate.execute("DELETE FROM app_user");
@@ -39,7 +43,7 @@ public class AuthServiceTest {
 
 	@Test
 	void register_success() {
-		RegisterRequest request = new RegisterRequest("alice", "Password123", "Alice");
+		RegisterRequest request = registerRequest("alice", "Password123", "Alice");
 
 		RegisterResponse response = authService.register(request);
 
@@ -58,8 +62,8 @@ public class AuthServiceTest {
 
 	@Test
 	void register_duplicateUsername() {
-		RegisterRequest first = new RegisterRequest("bob", "Password123", "Bobby");
-		RegisterRequest duplicate = new RegisterRequest("bob", "Password456", "Bob 2");
+		RegisterRequest first = registerRequest("bob", "Password123", "Bobby");
+		RegisterRequest duplicate = registerRequest("bob", "Password456", "Bob 2");
 
 		authService.register(first);
 
@@ -69,7 +73,7 @@ public class AuthServiceTest {
 
 	@Test
 	void login_success() {
-		RegisterRequest req = new RegisterRequest("charlie", "MySecret123", "Charlie");
+		RegisterRequest req = registerRequest("charlie", "MySecret123", "Charlie");
 		authService.register(req);
 
 		var resp = authService.login("charlie", "MySecret123");
@@ -86,7 +90,7 @@ public class AuthServiceTest {
 
 	@Test
 	void login_wrongPassword() {
-		RegisterRequest req = new RegisterRequest("dave", "RightPass1", "Dave");
+		RegisterRequest req = registerRequest("dave", "RightPass1", "Dave");
 		authService.register(req);
 
 		BizException ex = assertThrows(BizException.class, () -> authService.login("dave", "WrongPass"));
@@ -101,7 +105,7 @@ public class AuthServiceTest {
 
 	@Test
 	void login_disabledUser() {
-		RegisterRequest req = new RegisterRequest("ellen", "Pwd12345", "Ellen");
+		RegisterRequest req = registerRequest("ellen", "Pwd12345", "Ellen");
 		authService.register(req);
 
 		LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
@@ -118,7 +122,7 @@ public class AuthServiceTest {
 
 	@Test
 	void login_disabledUserWithWrongPassword() {
-		RegisterRequest req = new RegisterRequest("frank", "RightPass123", "Frank");
+		RegisterRequest req = registerRequest("frank", "RightPass123", "Frank");
 		authService.register(req);
 
 		LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
@@ -131,5 +135,9 @@ public class AuthServiceTest {
 
 		BizException ex = assertThrows(BizException.class, () -> authService.login("frank", "WrongPass456"));
 		assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
+	}
+
+	private RegisterRequest registerRequest(String username, String password, String nickname) {
+		return new RegisterRequest(username, password, nickname, inviteCodeProperties.getInviteCode());
 	}
 }

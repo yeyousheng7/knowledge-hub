@@ -17,6 +17,9 @@ public record RegisterRequest(
 
         @Size(min = 3, max = 30, message = "昵称长度必须在 3 到 30 个字符之间")
         @Pattern(regexp = ".*\\S.*", message = "昵称不能全为空白")
-        String nickname
+        String nickname,
+
+        @NotBlank(message = "邀请码不能为空")
+        String inviteCode
 ) {
 }

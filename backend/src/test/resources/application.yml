@@ -8,6 +8,7 @@ spring:
     enabled: false
 
 app:
+  invite-code: test-invite-code
   jwt:
     secret: test-jwt-secret-change-me-at-least-32-bytes
     expire-seconds: 86400

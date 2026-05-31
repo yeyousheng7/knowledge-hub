@@ -1,17 +1,11 @@
 package com.yousheng.knowledgehub.auth.controller;
 
-import com.yousheng.knowledgehub.auth.dto.LoginRequest;
-import com.yousheng.knowledgehub.auth.dto.LoginResponse;
-import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
-import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
+import com.yousheng.knowledgehub.auth.dto.*;
 import com.yousheng.knowledgehub.auth.service.AuthService;
 import com.yousheng.knowledgehub.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
 @RestController
@@ -29,5 +23,10 @@ public class AuthController {
         String username = loginRequest.username();
         String password = loginRequest.password();
         return ApiResponse.ok(authService.login(username, password));
+    }
+
+    @GetMapping("/me")
+    public ApiResponse<LoginUserResponse> me() {
+        return ApiResponse.ok(authService.getCurrentUser());
     }
 }

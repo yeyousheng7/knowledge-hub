@@ -6,6 +6,7 @@ server:
   port: 8080
 
 app:
+  invite-code: ${APP_INVITE_CODE}
   jwt:
     secret: ${JWT_SECRET}
     expire-seconds: ${JWT_EXPIRE_SECONDS:86400}

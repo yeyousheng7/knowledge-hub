@@ -8,6 +8,8 @@ import com.yousheng.knowledgehub.auth.dto.RegisterRequest;
 import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.config.InviteCodeProperties;
+import com.yousheng.knowledgehub.security.CurrentUser;
 import com.yousheng.knowledgehub.security.JwtConstants;
 import com.yousheng.knowledgehub.security.JwtToken;
 import com.yousheng.knowledgehub.security.JwtTokenProvider;
@@ -29,6 +31,7 @@ public class AuthService {
     private final AppUserMapper appUserMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final InviteCodeProperties inviteCodeProperties;
 
     @Transactional
     public RegisterResponse register(RegisterRequest registerRequest) {
@@ -38,7 +41,11 @@ public class AuthService {
                 ? registerRequest.username()
                 : registerRequest.nickname();
 
-        LambdaQueryWrapper<AppUser> wrapper = Wrappers.lambdaQuery();
+        if(!inviteCodeProperties.getInviteCode().equals(registerRequest.inviteCode())) {
+            throw new BizException(ErrorCode.INVALID_INVITE_CODE);
+        }
+
+        LambdaQueryWrapper<AppUser> wrapper = Wrappers.lambdaQuery(AppUser.class);
         wrapper.eq(AppUser::getUsername, username);
 
         Long existCnt = appUserMapper.selectCount(wrapper);
@@ -75,7 +82,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(String username, String password) {
-        LambdaQueryWrapper<AppUser> queryByUsername = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<AppUser> queryByUsername = Wrappers.lambdaQuery(AppUser.class);
         queryByUsername.eq(AppUser::getUsername, username);
         AppUser user = appUserMapper.selectOne(queryByUsername);
         if (user == null) {
@@ -109,5 +116,28 @@ public class AuthService {
         );
 
         return loginResponse;
+    }
+
+    @Transactional(readOnly = true)
+    public LoginUserResponse getCurrentUser() {
+        Long userId = CurrentUser.getUserId();
+        AppUser user = appUserMapper.selectById(userId);
+        if(user == null) {
+            // 这里不返回 USER_NOT_FOUND
+            // 返回 UNAUTHORIZED 代表当前 Token 对应的身份已失效
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if(!UserStatus.ENABLED.name().equals(user.getStatus())) {
+            throw new BizException(ErrorCode.USER_DISABLED);
+        }
+
+        return new LoginUserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getRole()
+        );
+
     }
 }
