@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-@MapperScan("com.yousheng.knowledgehub.user.mapper")
+@MapperScan("com.yousheng.knowledgehub.**.mapper")
 public class KnowledgehubApplication {
 
     public static void main(String[] args) {

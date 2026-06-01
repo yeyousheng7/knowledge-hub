@@ -41,7 +41,7 @@ public class AuthService {
                 ? registerRequest.username()
                 : registerRequest.nickname();
 
-        if(!inviteCodeProperties.getInviteCode().equals(registerRequest.inviteCode())) {
+        if (!inviteCodeProperties.getInviteCode().equals(registerRequest.inviteCode())) {
             throw new BizException(ErrorCode.INVALID_INVITE_CODE);
         }
 
@@ -122,13 +122,13 @@ public class AuthService {
     public LoginUserResponse getCurrentUser() {
         Long userId = CurrentUser.getUserId();
         AppUser user = appUserMapper.selectById(userId);
-        if(user == null) {
+        if (user == null) {
             // 这里不返回 USER_NOT_FOUND
             // 返回 UNAUTHORIZED 代表当前 Token 对应的身份已失效
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
 
-        if(!UserStatus.ENABLED.name().equals(user.getStatus())) {
+        if (!UserStatus.ENABLED.name().equals(user.getStatus())) {
             throw new BizException(ErrorCode.USER_DISABLED);
         }
 
