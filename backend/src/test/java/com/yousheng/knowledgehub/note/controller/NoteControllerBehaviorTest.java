@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -159,11 +160,11 @@ class NoteControllerBehaviorTest {
         String longContent = "a".repeat(100_001);
 
         String body = """
-            {
-              "title": "Too Long Content",
-              "contentMd": "%s"
-            }
-            """.formatted(longContent);
+                {
+                  "title": "Too Long Content",
+                  "contentMd": "%s"
+                }
+                """.formatted(longContent);
 
         mockMvc.perform(post("/api/v1/notes")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
@@ -171,6 +172,80 @@ class NoteControllerBehaviorTest {
                         .content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void getMyNoteDetail_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/notes/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getMyNoteDetail_ownNote_returns200() throws Exception {
+        AppUser user = createEnabledUser("note_detail_owner", "NoteDetailOwner", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Detail Note", "# detail content", "detail summary", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.title").value("Detail Note"))
+                .andExpect(jsonPath("$.data.contentMd").value("# detail content"))
+                .andExpect(jsonPath("$.data.summary").value("detail summary"));
+    }
+
+    @Test
+    void getMyNoteDetail_notExists_returns40401() throws Exception {
+        AppUser user = createEnabledUser("note_detail_missing", "NoteDetailMissing", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", 999_999L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void getMyNoteDetail_otherUsersNote_returns40401() throws Exception {
+        AppUser owner = createEnabledUser("note_detail_owner_2", "NoteDetailOwner2", "USER");
+        AppUser viewer = createEnabledUser("note_detail_viewer", "NoteDetailViewer", "USER");
+        String viewerToken = jwtTokenProvider.generateAccessToken(viewer.getId(), viewer.getUsername(), viewer.getRole()).accessToken();
+
+        Long noteId = insertNote(owner.getId(), "Other User Note", "other content", "other summary", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + viewerToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void getMyNoteDetail_deletedNote_returns40401() throws Exception {
+        AppUser user = createEnabledUser("note_detail_deleted", "NoteDetailDeleted", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Deleted Note", "deleted content", "deleted summary", 1, LocalDateTime.now());
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void getMyNoteDetail_disabledUserWithValidToken_returns40301() throws Exception {
+        AppUser user = createDisabledUser("note_detail_disabled", "NoteDetailDisabled", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Disabled User Note", "disabled content", "disabled summary", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
     }
 
     private AppUser createEnabledUser(String username, String nickname, String role) {
@@ -194,5 +269,35 @@ class NoteControllerBehaviorTest {
         user.setStatus(UserStatus.DISABLED.name());
         appUserMapper.updateById(user);
         return user;
+    }
+
+    private Long insertNote(
+            Long userId,
+            String title,
+            String contentMd,
+            String summary,
+            int deleted,
+            LocalDateTime deletedAt
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                """
+                        INSERT INTO note (
+                                user_id, title, content_md, summary, visibility,
+                                created_at, updated_at, published_at, moderation_status,
+                                moderated_at, deleted, deleted_at
+                        ) VALUES (?, ?, ?, ?, 'PRIVATE', ?, ?, NULL, 'NORMAL', NULL, ?, ?)
+                        """,
+                userId,
+                title,
+                contentMd,
+                summary,
+                now,
+                now,
+                deleted,
+                deletedAt
+        );
+
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 }

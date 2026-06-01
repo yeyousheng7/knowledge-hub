@@ -1,9 +1,12 @@
 package com.yousheng.knowledgehub.note.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.NoteCreateRequest;
 import com.yousheng.knowledgehub.note.dto.NoteCreateResponse;
+import com.yousheng.knowledgehub.note.dto.NoteDetailResponse;
 import com.yousheng.knowledgehub.note.entity.Note;
 import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
 import com.yousheng.knowledgehub.note.enums.NoteVisibility;
@@ -26,15 +29,7 @@ public class NoteService {
 
     @Transactional
     public NoteCreateResponse createNote(NoteCreateRequest request) {
-        Long userId = CurrentUser.getUserId();
-        AppUser user = appUserMapper.selectById(userId);
-        if (user == null) {
-            throw new BizException(ErrorCode.UNAUTHORIZED);
-        }
-
-        if (!UserStatus.ENABLED.name().equals(user.getStatus())) {
-            throw new BizException(ErrorCode.USER_DISABLED);
-        }
+        Long userId = requireCurrentEnabledUserId();
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -59,5 +54,47 @@ public class NoteService {
                 note.getCreatedAt(),
                 note.getUpdatedAt()
         );
+    }
+
+    public NoteDetailResponse getMyNoteDetail(Long noteId) {
+        Long userId = requireCurrentEnabledUserId();
+
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, 0);
+
+        Note note = noteMapper.selectOne(query);
+
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        return new NoteDetailResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getContentMd(),
+                note.getSummary(),
+                note.getVisibility(),
+                note.getModerationStatus(),
+                note.getCreatedAt(),
+                note.getUpdatedAt(),
+                note.getPublishedAt()
+        );
+
+    }
+
+    private Long requireCurrentEnabledUserId() {
+        Long userId = CurrentUser.getUserId();
+        AppUser user = appUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (!UserStatus.ENABLED.name().equals(user.getStatus())) {
+            throw new BizException(ErrorCode.USER_DISABLED);
+        }
+
+        return userId;
     }
 }
