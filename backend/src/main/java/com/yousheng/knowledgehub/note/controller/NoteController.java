@@ -42,4 +42,10 @@ public class NoteController {
     ) {
         return ApiResponse.ok(noteService.updateNote(noteId, noteUpdateRequest));
     }
+
+    @DeleteMapping("/{noteId}")
+    public ApiResponse<Void> delete(@PathVariable Long noteId) {
+        noteService.deleteNote(noteId);
+        return ApiResponse.ok();
+    }
 }

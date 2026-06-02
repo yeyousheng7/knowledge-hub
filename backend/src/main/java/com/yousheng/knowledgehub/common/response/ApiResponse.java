@@ -12,6 +12,11 @@ public record ApiResponse<T>(
         return new ApiResponse<>(success.getCode(), success.getDefaultMsg(), data);
     }
 
+    public static <T> ApiResponse<T> ok() {
+        ErrorCode success = ErrorCode.SUCCESS;
+        return new ApiResponse<>(success.getCode(), success.getDefaultMsg(), null);
+    }
+
     public static <T> ApiResponse<T> fail(ErrorCode errorCode, T data) {
         return new ApiResponse<>(errorCode.getCode(), errorCode.getDefaultMsg(), data);
     }

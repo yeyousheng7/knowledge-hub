@@ -479,6 +479,111 @@ class NoteControllerBehaviorTest {
                 .andExpect(jsonPath("$.code").value(40301));
     }
 
+    @Test
+    void deleteNote_withToken_deletesOwnNote_returns200() throws Exception {
+        AppUser user = createEnabledUser("note_delete_owner", "NoteDeleteOwner", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Delete Me", "delete content", "delete summary", 0, null);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        Integer deleted = jdbcTemplate.queryForObject("SELECT deleted FROM note WHERE id = ?", Integer.class, noteId);
+        LocalDateTime deletedAt = jdbcTemplate.queryForObject("SELECT deleted_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        assertThat(deleted).isEqualTo(1);
+        assertThat(deletedAt).isNotNull();
+    }
+
+    @Test
+    void deleteNote_withoutToken_returns401() throws Exception {
+        Long noteId = insertNote(createEnabledUser("note_delete_unauth", "NoteDeleteUnauth", "USER").getId(), "Delete Me", "delete content", "delete summary", 0, null);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deleteNote_otherUsersNote_returns40401() throws Exception {
+        AppUser owner = createEnabledUser("note_delete_owner_2", "NoteDeleteOwner2", "USER");
+        AppUser viewer = createEnabledUser("note_delete_viewer", "NoteDeleteViewer", "USER");
+        String viewerToken = jwtTokenProvider.generateAccessToken(viewer.getId(), viewer.getUsername(), viewer.getRole()).accessToken();
+
+        Long noteId = insertNote(owner.getId(), "Owner Delete Note", "owner content", "owner summary", 0, null);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + viewerToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void deleteNote_deletedNote_returns40401() throws Exception {
+        AppUser user = createEnabledUser("note_delete_deleted", "NoteDeleteDeleted", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Deleted Note", "deleted content", "deleted summary", 1, LocalDateTime.now());
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void deleteNote_withDisabledUser_returns40301() throws Exception {
+        AppUser user = createDisabledUser("note_delete_disabled", "NoteDeleteDisabled", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Disabled Delete Note", "disabled content", "disabled summary", 0, null);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void deleteNote_thenDetail_returns40401() throws Exception {
+        AppUser user = createEnabledUser("note_delete_detail", "NoteDeleteDetail", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Detail Gone", "detail content", "detail summary", 0, null);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void deleteNote_thenListDoesNotReturnDeletedNote() throws Exception {
+        AppUser user = createEnabledUser("note_delete_list", "NoteDeleteList", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long deletedNoteId = insertNote(user.getId(), "Deleted In List", "deleted content", "deleted summary", 0, null);
+        insertNote(user.getId(), "Remaining Note", "remaining content", "remaining summary", 0, null);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", deletedNoteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Remaining Note"));
+    }
+
     private AppUser createEnabledUser(String username, String nickname, String role) {
         LocalDateTime now = LocalDateTime.now();
 

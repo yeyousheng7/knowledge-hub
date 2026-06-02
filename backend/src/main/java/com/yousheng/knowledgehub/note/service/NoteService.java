@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -137,6 +138,26 @@ public class NoteService {
                 note.getUpdatedAt(),
                 note.getPublishedAt()
         );
+    }
+
+    @Transactional
+    public void deleteNote(Long noteId) {
+        Long userId = requireCurrentEnabledUserId();
+        LocalDateTime now = LocalDateTime.now();
+
+        Note updateNote = new Note();
+        updateNote.setDeleted(DELETED);
+        updateNote.setDeletedAt(now);
+
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, NOT_DELETED);
+
+        int affectedRows = noteMapper.update(updateNote, query);
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
     }
 
     private NoteListItemResponse toListItemResponse(Note note) {
