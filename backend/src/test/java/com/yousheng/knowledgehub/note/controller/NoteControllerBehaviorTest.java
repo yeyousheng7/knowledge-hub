@@ -92,6 +92,69 @@ class NoteControllerBehaviorTest {
     }
 
     @Test
+    void listNotes_withToken_returnsOwnActiveNotesInOrder() throws Exception {
+        AppUser owner = createEnabledUser("note_list_owner", "NoteListOwner", "USER");
+        AppUser otherUser = createEnabledUser("note_list_other", "NoteListOther", "USER");
+        String token = jwtTokenProvider.generateAccessToken(owner.getId(), owner.getUsername(), owner.getRole()).accessToken();
+
+        LocalDateTime baseTime = LocalDateTime.of(2026, 1, 1, 12, 0);
+        LocalDateTime deletedTime = baseTime.plusMinutes(50);
+
+        insertNote(owner.getId(), "Active Note Latest", "content latest", "summary latest", baseTime.plusMinutes(30), baseTime.plusMinutes(30), 0, null);
+        insertNote(otherUser.getId(), "Other User Note", "other content", "other summary", baseTime.plusMinutes(40), baseTime.plusMinutes(40), 0, null);
+        insertNote(owner.getId(), "Deleted Own Note", "deleted content", "deleted summary", baseTime.plusMinutes(50), deletedTime, 1, deletedTime);
+        insertNote(owner.getId(), "Active Note Tie First", "content tie first", "summary tie first", baseTime.plusMinutes(20), baseTime.plusMinutes(20), 0, null);
+        insertNote(owner.getId(), "Active Note Tie Second", "content tie second", "summary tie second", baseTime.plusMinutes(20), baseTime.plusMinutes(20), 0, null);
+        insertNote(owner.getId(), "Active Note Oldest", "content oldest", "summary oldest", baseTime.plusMinutes(10), baseTime.plusMinutes(10), 0, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(4))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(20))
+                .andExpect(jsonPath("$.data.items.length()").value(4))
+                .andExpect(jsonPath("$.data.items[0].title").value("Active Note Latest"))
+                .andExpect(jsonPath("$.data.items[1].title").value("Active Note Tie Second"))
+                .andExpect(jsonPath("$.data.items[2].title").value("Active Note Tie First"))
+                .andExpect(jsonPath("$.data.items[3].title").value("Active Note Oldest"));
+    }
+
+    @Test
+    void listNotes_withInvalidPageOrSize_returns40001() throws Exception {
+        AppUser user = createEnabledUser("note_list_invalid_param", "NoteListInvalidParam", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        mockMvc.perform(get("/api/v1/notes?page=0&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=101")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void listNotes_withDisabledUser_returns40301() throws Exception {
+        AppUser user = createDisabledUser("note_list_disabled", "NoteListDisabled", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void listNotes_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createNote_withoutToken_returns401() throws Exception {
         String body = """
                 {
@@ -280,6 +343,19 @@ class NoteControllerBehaviorTest {
             LocalDateTime deletedAt
     ) {
         LocalDateTime now = LocalDateTime.now();
+        return insertNote(userId, title, contentMd, summary, now, now, deleted, deletedAt);
+    }
+
+    private Long insertNote(
+            Long userId,
+            String title,
+            String contentMd,
+            String summary,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            int deleted,
+            LocalDateTime deletedAt
+    ) {
         jdbcTemplate.update(
                 """
                         INSERT INTO note (
@@ -292,8 +368,8 @@ class NoteControllerBehaviorTest {
                 title,
                 contentMd,
                 summary,
-                now,
-                now,
+                createdAt,
+                updatedAt,
                 deleted,
                 deletedAt
         );

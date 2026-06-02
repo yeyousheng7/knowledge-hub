@@ -2,11 +2,10 @@ package com.yousheng.knowledgehub.note.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
-import com.yousheng.knowledgehub.note.dto.NoteCreateRequest;
-import com.yousheng.knowledgehub.note.dto.NoteCreateResponse;
-import com.yousheng.knowledgehub.note.dto.NoteDetailResponse;
+import com.yousheng.knowledgehub.note.dto.*;
 import com.yousheng.knowledgehub.note.entity.Note;
 import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
 import com.yousheng.knowledgehub.note.enums.NoteVisibility;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RequiredArgsConstructor
 @Service
@@ -56,6 +56,7 @@ public class NoteService {
         );
     }
 
+    @Transactional(readOnly = true)
     public NoteDetailResponse getMyNoteDetail(Long noteId) {
         Long userId = requireCurrentEnabledUserId();
 
@@ -82,6 +83,44 @@ public class NoteService {
                 note.getPublishedAt()
         );
 
+    }
+
+    @Transactional(readOnly = true)
+    public NoteListResponse listMyNotes(long page, long size) {
+        Long userId = requireCurrentEnabledUserId();
+        Page<Note> pageParam = Page.of(page, size);
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, 0)
+                .orderByDesc(Note::getUpdatedAt)
+                .orderByDesc(Note::getId);
+
+        Page<Note> notePage = noteMapper.selectPage(pageParam, query);
+
+        List<NoteListItemResponse> items = notePage.getRecords()
+                .stream()
+                .map(this::toListItemResponse)
+                .toList();
+
+        return new NoteListResponse(
+                items,
+                notePage.getTotal(),
+                notePage.getCurrent(),
+                notePage.getSize()
+        );
+    }
+
+    private NoteListItemResponse toListItemResponse(Note note) {
+        return new NoteListItemResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getSummary(),
+                note.getVisibility(),
+                note.getModerationStatus(),
+                note.getCreatedAt(),
+                note.getUpdatedAt(),
+                note.getPublishedAt()
+        );
     }
 
     private Long requireCurrentEnabledUserId() {

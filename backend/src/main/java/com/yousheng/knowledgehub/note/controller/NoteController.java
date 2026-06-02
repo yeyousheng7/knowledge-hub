@@ -4,12 +4,17 @@ import com.yousheng.knowledgehub.common.response.ApiResponse;
 import com.yousheng.knowledgehub.note.dto.NoteCreateRequest;
 import com.yousheng.knowledgehub.note.dto.NoteCreateResponse;
 import com.yousheng.knowledgehub.note.dto.NoteDetailResponse;
+import com.yousheng.knowledgehub.note.dto.NoteListResponse;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
+@Validated
 @RestController
 @RequestMapping("/api/v1/notes")
 public class NoteController {
@@ -23,5 +28,13 @@ public class NoteController {
     @GetMapping("/{noteId}")
     public ApiResponse<NoteDetailResponse> detail(@PathVariable Long noteId) {
         return ApiResponse.ok(noteService.getMyNoteDetail(noteId));
+    }
+
+    @GetMapping
+    public ApiResponse<NoteListResponse> list(
+            @Min(1) @RequestParam(defaultValue = "1") long page,
+            @Min(1) @Max(100) @RequestParam(defaultValue = "20") long size
+    ) {
+        return ApiResponse.ok(noteService.listMyNotes(page, size));
     }
 }
