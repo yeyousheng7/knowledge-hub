@@ -110,6 +110,39 @@ public class NoteService {
         );
     }
 
+    @Transactional
+    public NoteDetailResponse updateNote(Long noteId, NoteUpdateRequest request) {
+        Long userId = requireCurrentEnabledUserId();
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, 0);
+
+        Note note = noteMapper.selectOne(query);
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        note.setTitle(request.title().trim());
+        note.setContentMd(request.contentMd());
+        note.setSummary(request.summary());
+        note.setUpdatedAt(LocalDateTime.now());
+
+        noteMapper.updateById(note);
+
+        return new NoteDetailResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getContentMd(),
+                note.getSummary(),
+                note.getVisibility(),
+                note.getModerationStatus(),
+                note.getCreatedAt(),
+                note.getUpdatedAt(),
+                note.getPublishedAt()
+        );
+    }
+
     private NoteListItemResponse toListItemResponse(Note note) {
         return new NoteListItemResponse(
                 note.getId(),

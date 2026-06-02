@@ -1,10 +1,7 @@
 package com.yousheng.knowledgehub.note.controller;
 
 import com.yousheng.knowledgehub.common.response.ApiResponse;
-import com.yousheng.knowledgehub.note.dto.NoteCreateRequest;
-import com.yousheng.knowledgehub.note.dto.NoteCreateResponse;
-import com.yousheng.knowledgehub.note.dto.NoteDetailResponse;
-import com.yousheng.knowledgehub.note.dto.NoteListResponse;
+import com.yousheng.knowledgehub.note.dto.*;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -36,5 +33,13 @@ public class NoteController {
             @Min(1) @Max(100) @RequestParam(defaultValue = "20") long size
     ) {
         return ApiResponse.ok(noteService.listMyNotes(page, size));
+    }
+
+    @PutMapping("/{noteId}")
+    public ApiResponse<NoteDetailResponse> update(
+            @PathVariable Long noteId,
+            @Valid @RequestBody NoteUpdateRequest noteUpdateRequest
+    ) {
+        return ApiResponse.ok(noteService.updateNote(noteId, noteUpdateRequest));
     }
 }

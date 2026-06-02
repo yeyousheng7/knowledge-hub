@@ -16,8 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -307,6 +306,170 @@ class NoteControllerBehaviorTest {
 
         mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void updateNote_withToken_updatesOwnNote_returns200() throws Exception {
+        AppUser user = createEnabledUser("note_update_owner", "NoteUpdateOwner", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Old Title", "old content", "old summary", 0, null);
+
+        String body = """
+                {
+                  "title": "  New Title  ",
+                  "contentMd": "# new content",
+                  "summary": "new summary"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.title").value("New Title"))
+                .andExpect(jsonPath("$.data.contentMd").value("# new content"))
+                .andExpect(jsonPath("$.data.summary").value("new summary"));
+
+        String dbTitle = jdbcTemplate.queryForObject("SELECT title FROM note WHERE id = ?", String.class, noteId);
+        String dbContent = jdbcTemplate.queryForObject("SELECT content_md FROM note WHERE id = ?", String.class, noteId);
+        String dbSummary = jdbcTemplate.queryForObject("SELECT summary FROM note WHERE id = ?", String.class, noteId);
+
+        assertThat(dbTitle).isEqualTo("New Title");
+        assertThat(dbContent).isEqualTo("# new content");
+        assertThat(dbSummary).isEqualTo("new summary");
+    }
+
+    @Test
+    void updateNote_withoutToken_returns401() throws Exception {
+        Long dummyId = 1L;
+        String body = """
+                {
+                  "title": "New Title",
+                  "contentMd": "# new content"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", dummyId)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void updateNote_otherUsersNote_returns40401() throws Exception {
+        AppUser owner = createEnabledUser("note_update_owner2", "NoteUpdateOwner2", "USER");
+        AppUser viewer = createEnabledUser("note_update_viewer", "NoteUpdateViewer", "USER");
+        String viewerToken = jwtTokenProvider.generateAccessToken(viewer.getId(), viewer.getUsername(), viewer.getRole()).accessToken();
+
+        Long noteId = insertNote(owner.getId(), "Owner Note", "owner content", "owner summary", 0, null);
+
+        String body = """
+                {
+                  "title": "Hacker Title",
+                  "contentMd": "# hacked"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + viewerToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void updateNote_deletedNote_returns40401() throws Exception {
+        AppUser user = createEnabledUser("note_update_deleted", "NoteUpdateDeleted", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Deleted Note", "deleted content", "deleted summary", 1, LocalDateTime.now());
+
+        String body = """
+                {
+                  "title": "New Title",
+                  "contentMd": "# new content"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void updateNote_emptyTitle_returns40001() throws Exception {
+        AppUser user = createEnabledUser("note_update_empty_title", "NoteUpdateEmptyTitle", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Some Title", "content", "summary", 0, null);
+
+        String body = """
+                {
+                  "title": "   ",
+                  "contentMd": "# new content"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void updateNote_tooLongContent_returns40001() throws Exception {
+        AppUser user = createEnabledUser("note_update_too_long", "NoteUpdateTooLong", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Some Title", "content", "summary", 0, null);
+
+        String longContent = "a".repeat(100_001);
+
+        String body = """
+                {
+                  "title": "Valid Title",
+                  "contentMd": "%s"
+                }
+                """.formatted(longContent);
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void updateNote_withDisabledUser_returns40301() throws Exception {
+        AppUser user = createDisabledUser("note_update_disabled", "NoteUpdateDisabled", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        Long noteId = insertNote(user.getId(), "Disabled Note", "disabled content", "disabled summary", 0, null);
+
+        String body = """
+                {
+                  "title": "New Title",
+                  "contentMd": "# new content"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
     }
