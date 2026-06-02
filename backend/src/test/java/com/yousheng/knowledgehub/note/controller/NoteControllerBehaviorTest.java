@@ -316,6 +316,9 @@ class NoteControllerBehaviorTest {
         String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
 
         Long noteId = insertNote(user.getId(), "Old Title", "old content", "old summary", 0, null);
+        LocalDateTime originalUpdatedAt = jdbcTemplate.queryForObject("SELECT updated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        Thread.sleep(100);
 
         String body = """
                 {
@@ -339,10 +342,12 @@ class NoteControllerBehaviorTest {
         String dbTitle = jdbcTemplate.queryForObject("SELECT title FROM note WHERE id = ?", String.class, noteId);
         String dbContent = jdbcTemplate.queryForObject("SELECT content_md FROM note WHERE id = ?", String.class, noteId);
         String dbSummary = jdbcTemplate.queryForObject("SELECT summary FROM note WHERE id = ?", String.class, noteId);
+        LocalDateTime updatedUpdatedAt = jdbcTemplate.queryForObject("SELECT updated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
 
         assertThat(dbTitle).isEqualTo("New Title");
         assertThat(dbContent).isEqualTo("# new content");
         assertThat(dbSummary).isEqualTo("new summary");
+        assertThat(updatedUpdatedAt).isAfter(originalUpdatedAt);
     }
 
     @Test

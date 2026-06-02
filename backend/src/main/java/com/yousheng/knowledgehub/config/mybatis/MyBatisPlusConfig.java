@@ -1,4 +1,4 @@
-package com.yousheng.knowledgehub.config;
+package com.yousheng.knowledgehub.config.mybatis;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;

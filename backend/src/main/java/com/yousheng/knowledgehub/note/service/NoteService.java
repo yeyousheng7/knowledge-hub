@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -26,12 +25,12 @@ import java.util.List;
 public class NoteService {
     private final AppUserMapper appUserMapper;
     private final NoteMapper noteMapper;
+    private static final int NOT_DELETED = 0;
+    private static final int DELETED = 1;
 
     @Transactional
     public NoteCreateResponse createNote(NoteCreateRequest request) {
         Long userId = requireCurrentEnabledUserId();
-
-        LocalDateTime now = LocalDateTime.now();
 
         Note note = new Note();
         note.setUserId(userId);
@@ -40,9 +39,7 @@ public class NoteService {
         note.setSummary(request.summary());
         note.setVisibility(NoteVisibility.PRIVATE.name());
         note.setModerationStatus(NoteModerationStatus.NORMAL.name());
-        note.setCreatedAt(now);
-        note.setUpdatedAt(now);
-        note.setDeleted(0);
+        note.setDeleted(NOT_DELETED);
 
         noteMapper.insert(note);
 
@@ -63,7 +60,7 @@ public class NoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, 0);
+                .eq(Note::getDeleted, NOT_DELETED);
 
         Note note = noteMapper.selectOne(query);
 
@@ -91,7 +88,7 @@ public class NoteService {
         Page<Note> pageParam = Page.of(page, size);
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, 0)
+                .eq(Note::getDeleted, NOT_DELETED)
                 .orderByDesc(Note::getUpdatedAt)
                 .orderByDesc(Note::getId);
 
@@ -116,7 +113,7 @@ public class NoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, 0);
+                .eq(Note::getDeleted, NOT_DELETED);
 
         Note note = noteMapper.selectOne(query);
         if (note == null) {
@@ -126,7 +123,6 @@ public class NoteService {
         note.setTitle(request.title().trim());
         note.setContentMd(request.contentMd());
         note.setSummary(request.summary());
-        note.setUpdatedAt(LocalDateTime.now());
 
         noteMapper.updateById(note);
 

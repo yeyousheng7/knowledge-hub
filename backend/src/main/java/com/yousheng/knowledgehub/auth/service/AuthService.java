@@ -23,8 +23,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 @RequiredArgsConstructor
 @Service
 public class AuthService {
@@ -54,7 +52,6 @@ public class AuthService {
         }
 
         String passwordHash = passwordEncoder.encode(password);
-        LocalDateTime now = LocalDateTime.now();
 
         AppUser appUser = new AppUser();
         appUser.setUsername(username);
@@ -62,8 +59,6 @@ public class AuthService {
         appUser.setNickname(nickname);
         appUser.setRole(UserRole.USER.name());
         appUser.setStatus(UserStatus.ENABLED.name());
-        appUser.setCreatedAt(now);
-        appUser.setUpdatedAt(now);
 
         try {
             appUserMapper.insert(appUser);
@@ -71,13 +66,11 @@ public class AuthService {
             throw new BizException(ErrorCode.USERNAME_EXISTS);
         }
 
-        RegisterResponse registerResponse = new RegisterResponse(
+        return new RegisterResponse(
                 appUser.getId(),
                 appUser.getUsername(),
                 appUser.getNickname()
         );
-
-        return registerResponse;
     }
 
     @Transactional(readOnly = true)
