@@ -229,6 +229,48 @@ public class NoteService {
         return toDetailResponse(note);
     }
 
+    @Transactional(readOnly = true)
+    public PublicNoteListResponse listPublicNotes(long page, long size) {
+        Page<Note> pageParam = Page.of(page, size);
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .eq(Note::getDeleted, NOT_DELETED)
+                .isNotNull(Note::getPublishedAt)
+                .orderByDesc(Note::getPublishedAt)
+                .orderByDesc(Note::getId);
+
+        Page<Note> notePage = noteMapper.selectPage(pageParam, query);
+
+        List<PublicNoteListItemResponse> items = notePage.getRecords()
+                .stream()
+                .map(this::toPublicListItemResponse)
+                .toList();
+
+        return new PublicNoteListResponse(
+                items,
+                notePage.getTotal(),
+                notePage.getCurrent(),
+                notePage.getSize()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PublicNoteDetailResponse getPublicNoteDetail(Long noteId) {
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .isNotNull(Note::getPublishedAt)
+                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .eq(Note::getDeleted, NOT_DELETED);
+        Note note = noteMapper.selectOne(query);
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        return toPublicDetailResponse(note);
+    }
+
     private NoteListItemResponse toListItemResponse(Note note) {
         return new NoteListItemResponse(
                 note.getId(),
@@ -253,6 +295,27 @@ public class NoteService {
                 note.getCreatedAt(),
                 note.getUpdatedAt(),
                 note.getPublishedAt()
+        );
+    }
+
+    private PublicNoteListItemResponse toPublicListItemResponse(Note note) {
+        return new PublicNoteListItemResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getSummary(),
+                note.getPublishedAt(),
+                note.getUpdatedAt()
+        );
+    }
+
+    private PublicNoteDetailResponse toPublicDetailResponse(Note note) {
+        return new PublicNoteDetailResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getContentMd(),
+                note.getSummary(),
+                note.getPublishedAt(),
+                note.getUpdatedAt()
         );
     }
 
