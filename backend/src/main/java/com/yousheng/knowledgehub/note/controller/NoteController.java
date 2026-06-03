@@ -48,4 +48,14 @@ public class NoteController {
         noteService.deleteNote(noteId);
         return ApiResponse.ok();
     }
+
+    @PostMapping("/{noteId}/publish")
+    public ApiResponse<NoteDetailResponse> publish(@PathVariable Long noteId) {
+        return ApiResponse.ok(noteService.publishNote(noteId));
+    }
+
+    @PostMapping("/{noteId}/unpublish")
+    public ApiResponse<NoteDetailResponse> unpublish(@PathVariable Long noteId) {
+        return ApiResponse.ok(noteService.unpublishNote(noteId));
+    }
 }

@@ -1,6 +1,7 @@
 package com.yousheng.knowledgehub.note.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yousheng.knowledgehub.common.exception.BizException;
@@ -160,10 +161,92 @@ public class NoteService {
         }
     }
 
+    @Transactional
+    public NoteDetailResponse publishNote(Long noteId) {
+        Long userId = requireCurrentEnabledUserId();
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, NOT_DELETED);
+
+        Note note = noteMapper.selectOne(query);
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        if (NoteVisibility.PUBLIC.name().equals(note.getVisibility())) {
+            return toDetailResponse(note);
+        }
+
+        note.setVisibility(NoteVisibility.PUBLIC.name());
+        note.setPublishedAt(LocalDateTime.now());
+
+        Note updateNote = new Note();
+        int affectedRows = noteMapper.update(updateNote, new LambdaUpdateWrapper<Note>()
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, NOT_DELETED)
+                .set(Note::getVisibility, note.getVisibility())
+                .set(Note::getPublishedAt, note.getPublishedAt()));
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        note.setUpdatedAt(updateNote.getUpdatedAt());
+        return toDetailResponse(note);
+    }
+
+    @Transactional
+    public NoteDetailResponse unpublishNote(Long noteId) {
+        Long userId = requireCurrentEnabledUserId();
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, NOT_DELETED);
+
+        Note note = noteMapper.selectOne(query);
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        if (NoteVisibility.PRIVATE.name().equals(note.getVisibility())) {
+            return toDetailResponse(note);
+        }
+
+        note.setVisibility(NoteVisibility.PRIVATE.name());
+
+        Note updateNote = new Note();
+        int affectedRows = noteMapper.update(updateNote, new LambdaUpdateWrapper<Note>()
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, NOT_DELETED)
+                .set(Note::getVisibility, note.getVisibility()));
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        note.setUpdatedAt(updateNote.getUpdatedAt());
+        return toDetailResponse(note);
+    }
+
     private NoteListItemResponse toListItemResponse(Note note) {
         return new NoteListItemResponse(
                 note.getId(),
                 note.getTitle(),
+                note.getSummary(),
+                note.getVisibility(),
+                note.getModerationStatus(),
+                note.getCreatedAt(),
+                note.getUpdatedAt(),
+                note.getPublishedAt()
+        );
+    }
+
+    private NoteDetailResponse toDetailResponse(Note note) {
+        return new NoteDetailResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getContentMd(),
                 note.getSummary(),
                 note.getVisibility(),
                 note.getModerationStatus(),
