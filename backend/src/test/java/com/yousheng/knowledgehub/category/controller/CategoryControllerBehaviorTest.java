@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -176,6 +177,145 @@ class CategoryControllerBehaviorTest {
                 .andExpect(jsonPath("$.data.items[0].name").value("Owner Cat"));
     }
 
+    // ---- deleteCategory ----
+
+    @Test
+    void deleteCategory_withValidToken_deletesCategory() throws Exception {
+        AppUser user = createEnabledUser("cat_del_1", "CatDel1", "USER");
+        String token = tokenOf(user);
+
+        Long categoryId = insertCategory(user.getId(), "To Delete");
+
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        // 验证删除后分类列表不再返回该分类
+        mockMvc.perform(get("/api/v1/categories")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.items.length()").value(0));
+    }
+
+    @Test
+    void deleteCategory_withNotes_clearsNoteCategoryId() throws Exception {
+        AppUser user = createEnabledUser("cat_del_note", "CatDelNote", "USER");
+        String token = tokenOf(user);
+
+        Long categoryId = insertCategory(user.getId(), "With Notes");
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                """
+                INSERT INTO note (user_id, title, content_md, summary, visibility, category_id,
+                    created_at, updated_at, published_at, moderation_status,
+                    moderated_at, deleted, deleted_at)
+                VALUES (?, ?, ?, ?, 'PRIVATE', ?, ?, ?, NULL, 'NORMAL', NULL, 0, NULL)
+                """,
+                user.getId(), "Note In Cat", "content", "summary", categoryId, now, now
+        );
+        Long noteId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        // 验证该分类下的 Note 变成未分类
+        Long dbCategoryId = jdbcTemplate.queryForObject(
+                "SELECT category_id FROM note WHERE id = ?", Long.class, noteId);
+        assertEquals(null, dbCategoryId);
+
+        // 验证分类已软删除
+        Integer dbDeleted = jdbcTemplate.queryForObject(
+                "SELECT deleted FROM category WHERE id = ?", Integer.class, categoryId);
+        assertEquals(1, dbDeleted);
+    }
+
+    @Test
+    void deleteCategory_withOtherUserCategory_returns404() throws Exception {
+        AppUser owner = createEnabledUser("cat_del_owner", "CatDelOwner", "USER");
+        AppUser other = createEnabledUser("cat_del_other", "CatDelOther", "USER");
+        String otherToken = tokenOf(other);
+
+        Long ownerCategoryId = insertCategory(owner.getId(), "Owner Category");
+
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", ownerCategoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40403));
+    }
+
+    @Test
+    void deleteCategory_thenRecreateWithSameName_succeeds() throws Exception {
+        AppUser user = createEnabledUser("cat_del_recreate", "CatDelRecreate", "USER");
+        String token = tokenOf(user);
+
+        Long categoryId = insertCategory(user.getId(), "Spring");
+
+        // 删除分类
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        // 重新创建同名分类
+        String body = """
+                {
+                  "name": "Spring"
+                }
+                """;
+        mockMvc.perform(post("/api/v1/categories")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.name").value("Spring"));
+    }
+
+    @Test
+    void deleteCategory_alreadyDeletedOrNotExists_returns40403() throws Exception {
+        AppUser user = createEnabledUser("cat_del_404", "CatDel404", "USER");
+        String token = tokenOf(user);
+
+        Long categoryId = insertCategory(user.getId(), "Gone");
+
+        // 第一次删除成功
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk());
+
+        // 重复删除已删除的分类
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40403));
+
+        // 删除不存在的分类
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", 999_999L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40403));
+    }
+
+    @Test
+    void deleteCategory_withDisabledUser_returns403() throws Exception {
+        AppUser user = createEnabledUser("cat_del_disabled", "CatDelDisabled", "USER");
+        Long categoryId = insertCategory(user.getId(), "Disabled Cat");
+
+        user.setStatus(UserStatus.DISABLED.name());
+        appUserMapper.updateById(user);
+        String token = tokenOf(user);
+
+        mockMvc.perform(delete("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
     // ---- helpers ----
 
     private AppUser createEnabledUser(String username, String nickname, String role) {
@@ -202,7 +342,7 @@ class CategoryControllerBehaviorTest {
         ).accessToken();
     }
 
-    private void insertCategory(Long userId, String name) {
+    private Long insertCategory(Long userId, String name) {
         LocalDateTime now = LocalDateTime.now();
         jdbcTemplate.update(
                 "INSERT INTO category (user_id, name, created_at, updated_at, deleted, deleted_marker, deleted_at) VALUES (?, ?, ?, ?, 0, 0, NULL)",
@@ -211,5 +351,6 @@ class CategoryControllerBehaviorTest {
                 now,
                 now
         );
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 }

@@ -33,4 +33,11 @@ public class CategoryController {
     public ApiResponse<CategoryCreateResponse> create(@Valid @RequestBody CategoryCreateRequest categoryCreateRequest) {
         return ApiResponse.ok(categoryService.createCategory(categoryCreateRequest));
     }
+
+    @Operation(summary = "删除笔记分类")
+    @DeleteMapping("/{categoryId}")
+    public ApiResponse<Void> delete(@PathVariable Long categoryId) {
+        categoryService.deleteCategory(categoryId);
+        return ApiResponse.ok();
+    }
 }

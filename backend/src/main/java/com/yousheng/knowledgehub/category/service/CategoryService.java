@@ -1,6 +1,7 @@
 package com.yousheng.knowledgehub.category.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.yousheng.knowledgehub.category.dto.CategoryCreateRequest;
 import com.yousheng.knowledgehub.category.dto.CategoryCreateResponse;
@@ -10,6 +11,8 @@ import com.yousheng.knowledgehub.category.entity.Category;
 import com.yousheng.knowledgehub.category.mapper.CategoryMapper;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.note.entity.Note;
+import com.yousheng.knowledgehub.note.mapper.NoteMapper;
 import com.yousheng.knowledgehub.security.CurrentUser;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
@@ -19,6 +22,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -26,7 +30,9 @@ import java.util.List;
 public class CategoryService {
     private final AppUserMapper appUserMapper;
     private final CategoryMapper categoryMapper;
+    private final int DELETED = 1;
     private final int NOT_DELETED = 0;
+    private final NoteMapper noteMapper;
 
     @Transactional
     public CategoryCreateResponse createCategory(CategoryCreateRequest request) {
@@ -75,6 +81,33 @@ public class CategoryService {
                 })
                 .toList();
         return new CategoryListResponse(items);
+    }
+
+    @Transactional
+    public void deleteCategory(Long categoryId) {
+        Long userId = requireCurrentEnabledUserId();
+        LocalDateTime now = LocalDateTime.now();
+        LambdaUpdateWrapper<Category> deleteCategory = Wrappers.lambdaUpdate(Category.class)
+                .eq(Category::getUserId, userId)
+                .eq(Category::getId, categoryId)
+                .eq(Category::getDeleted, NOT_DELETED)
+                .set(Category::getDeleted, DELETED)
+                .set(Category::getDeletedAt, now)
+                .set(Category::getDeletedMarker, categoryId);
+
+        int affectedRows = categoryMapper.update(new Category(), deleteCategory);
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+
+        // 将已在 categoryId 下的 note 设置为未分类 - category = null 代表未分类
+        LambdaUpdateWrapper<Note> updateNote = Wrappers.lambdaUpdate(Note.class)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getCategoryId, categoryId)
+                .eq(Note::getDeleted, NOT_DELETED)
+                .set(Note::getCategoryId, null);
+
+        noteMapper.update(new Note(), updateNote);
     }
 
     private Long requireCurrentEnabledUserId() {
