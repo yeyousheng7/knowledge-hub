@@ -67,6 +67,7 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 |------|------|------|
 | POST | `/api/v1/categories` | 创建分类 |
 | GET | `/api/v1/categories` | 获取我的分类列表 |
+| PUT | `/api/v1/categories/{categoryId}` | 更新分类名称 |
 | DELETE | `/api/v1/categories/{categoryId}` | 删除分类 |
 
 ### 笔记相关

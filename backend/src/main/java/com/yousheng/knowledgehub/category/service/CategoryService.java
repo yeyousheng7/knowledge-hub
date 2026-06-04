@@ -3,10 +3,7 @@ package com.yousheng.knowledgehub.category.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.yousheng.knowledgehub.category.dto.CategoryCreateRequest;
-import com.yousheng.knowledgehub.category.dto.CategoryCreateResponse;
-import com.yousheng.knowledgehub.category.dto.CategoryListItemResponse;
-import com.yousheng.knowledgehub.category.dto.CategoryListResponse;
+import com.yousheng.knowledgehub.category.dto.*;
 import com.yousheng.knowledgehub.category.entity.Category;
 import com.yousheng.knowledgehub.category.mapper.CategoryMapper;
 import com.yousheng.knowledgehub.common.exception.BizException;
@@ -81,6 +78,41 @@ public class CategoryService {
                 })
                 .toList();
         return new CategoryListResponse(items);
+    }
+
+    @Transactional
+    public CategoryUpdateResponse updateCategory(Long categoryId, CategoryUpdateRequest request) {
+        Long userId = requireCurrentEnabledUserId();
+        String newName = request.name().trim();
+
+        LambdaUpdateWrapper<Category> updateWrapper = Wrappers.lambdaUpdate(Category.class)
+                .eq(Category::getUserId, userId)
+                .eq(Category::getId, categoryId)
+                .eq(Category::getDeleted, NOT_DELETED)
+                .set(Category::getName, newName);
+
+        int affectedRows = 0;
+        try {
+            affectedRows = categoryMapper.update(new Category(), updateWrapper);
+        } catch (DuplicateKeyException e) {
+            throw new BizException(ErrorCode.CATEGORY_NAME_EXISTS);
+        }
+
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+
+        LambdaQueryWrapper<Category> queryByCategory = Wrappers.lambdaQuery(Category.class)
+                .eq(Category::getUserId, userId)
+                .eq(Category::getId, categoryId)
+                .eq(Category::getDeleted, NOT_DELETED);
+        Category category = categoryMapper.selectOne(queryByCategory);
+        return new CategoryUpdateResponse(
+                category.getId(),
+                category.getName(),
+                category.getCreatedAt(),
+                category.getUpdatedAt()
+        );
     }
 
     @Transactional

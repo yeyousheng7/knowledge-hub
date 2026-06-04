@@ -14,6 +14,7 @@
 |--------|------|------|-------------|
 | POST | /api/v1/categories | Yes | 创建分类 |
 | GET | /api/v1/categories | Yes | 获取我的分类列表 |
+| PUT | /api/v1/categories/{categoryId} | Yes | 更新分类名称 |
 | DELETE | /api/v1/categories/{categoryId} | Yes | 删除分类 |
 
 ## Private Note

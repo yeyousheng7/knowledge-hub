@@ -16,9 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -209,11 +207,11 @@ class CategoryControllerBehaviorTest {
         LocalDateTime now = LocalDateTime.now();
         jdbcTemplate.update(
                 """
-                INSERT INTO note (user_id, title, content_md, summary, visibility, category_id,
-                    created_at, updated_at, published_at, moderation_status,
-                    moderated_at, deleted, deleted_at)
-                VALUES (?, ?, ?, ?, 'PRIVATE', ?, ?, ?, NULL, 'NORMAL', NULL, 0, NULL)
-                """,
+                        INSERT INTO note (user_id, title, content_md, summary, visibility, category_id,
+                            created_at, updated_at, published_at, moderation_status,
+                            moderated_at, deleted, deleted_at)
+                        VALUES (?, ?, ?, ?, 'PRIVATE', ?, ?, ?, NULL, 'NORMAL', NULL, 0, NULL)
+                        """,
                 user.getId(), "Note In Cat", "content", "summary", categoryId, now, now
         );
         Long noteId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
@@ -314,6 +312,96 @@ class CategoryControllerBehaviorTest {
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    // ---- updateCategory ----
+
+    @Test
+    void updateCategory_withValidToken_updatesName() throws Exception {
+        AppUser user = createEnabledUser("cat_upd_1", "CatUpd1", "USER");
+        String token = tokenOf(user);
+
+        Long categoryId = insertCategory(user.getId(), "Old Name");
+
+        String body = """
+                {
+                  "name": "  New Name  "
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").value(categoryId.intValue()))
+                .andExpect(jsonPath("$.data.name").value("New Name"))
+                .andExpect(jsonPath("$.data.createdAt").exists())
+                .andExpect(jsonPath("$.data.updatedAt").exists());
+
+        String dbName = jdbcTemplate.queryForObject(
+                "SELECT name FROM category WHERE id = ? AND deleted = 0", String.class, categoryId);
+        assertEquals("New Name", dbName);
+    }
+
+    @Test
+    void updateCategory_withDuplicateName_returns409() throws Exception {
+        AppUser user = createEnabledUser("cat_upd_dup", "CatUpdDup", "USER");
+        String token = tokenOf(user);
+
+        insertCategory(user.getId(), "Spring");
+        Long categoryId = insertCategory(user.getId(), "Java");
+
+        String body = """
+                {
+                  "name": "Spring"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/categories/{categoryId}", categoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(40902));
+    }
+
+    @Test
+    void updateCategory_withOtherUserCategory_returns404() throws Exception {
+        AppUser owner = createEnabledUser("cat_upd_owner", "CatUpdOwner", "USER");
+        AppUser other = createEnabledUser("cat_upd_other", "CatUpdOther", "USER");
+        String otherToken = tokenOf(other);
+
+        Long ownerCategoryId = insertCategory(owner.getId(), "Owner Category");
+
+        String body = """
+                {
+                  "name": "Hacked"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/categories/{categoryId}", ownerCategoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40403));
+    }
+
+    @Test
+    void updateCategory_withoutToken_returns401() throws Exception {
+        String body = """
+                {
+                  "name": "Unauth"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/categories/{categoryId}", 1L)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
     }
 
     // ---- helpers ----

@@ -1,8 +1,6 @@
 package com.yousheng.knowledgehub.category.controller;
 
-import com.yousheng.knowledgehub.category.dto.CategoryCreateRequest;
-import com.yousheng.knowledgehub.category.dto.CategoryCreateResponse;
-import com.yousheng.knowledgehub.category.dto.CategoryListResponse;
+import com.yousheng.knowledgehub.category.dto.*;
 import com.yousheng.knowledgehub.category.service.CategoryService;
 import com.yousheng.knowledgehub.common.response.ApiResponse;
 import com.yousheng.knowledgehub.config.openapi.OpenApiConfig;
@@ -39,5 +37,14 @@ public class CategoryController {
     public ApiResponse<Void> delete(@PathVariable Long categoryId) {
         categoryService.deleteCategory(categoryId);
         return ApiResponse.ok();
+    }
+
+    @Operation(summary = "更新笔记分类")
+    @PutMapping("/{categoryId}")
+    public ApiResponse<CategoryUpdateResponse> update(
+            @PathVariable Long categoryId,
+            @Valid @RequestBody CategoryUpdateRequest categoryUpdateRequest
+    ) {
+        return ApiResponse.ok(categoryService.updateCategory(categoryId, categoryUpdateRequest));
     }
 }
