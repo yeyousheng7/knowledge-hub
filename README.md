@@ -4,7 +4,7 @@
 
 KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdown 知识库系统。支持多用户使用，用户可以创建私有 Markdown 笔记并选择将部分笔记发布为公开内容。
 
-当前阶段已完成认证基础设施和 Note MVP，覆盖注册登录、私有笔记 CRUD、发布/取消发布和公开阅读。分类和标签模块仍在规划中。
+当前阶段已完成认证基础设施、Note MVP 和 Category 分类模块，覆盖注册登录、私有笔记 CRUD、分类管理、发布/取消发布和公开阅读。
 
 ## 技术栈
 
@@ -34,12 +34,20 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 - 密码 BCrypt 加密
 - 未登录返回 401，无权限返回 403，统一 JSON 响应
 
+### Category 笔记分类
+
+- 创建分类（同用户下未删除分类名唯一）
+- 我的分类列表（按 updatedAt 倒序）
+- 删除分类（软删除，不物理删除）
+- 删除分类后，该分类下的 Note 自动变为未分类
+- 删除分类后可重新创建同名分类
+
 ### Note 私有笔记管理
 
-- 创建私有笔记
-- 我的笔记列表（分页，按 updatedAt 倒序）
-- 我的笔记详情
-- 更新笔记
+- 创建私有笔记（支持 categoryId 绑定分类）
+- 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId 筛选）
+- 我的笔记详情（返回 categoryId）
+- 更新笔记（支持 categoryId）
 - 软删除笔记
 - 发布笔记
 - 取消发布笔记
@@ -52,6 +60,33 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 ## API 文档
 
 详见 [docs/api.md](docs/api.md)。
+
+### 分类相关
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/categories` | 创建分类 |
+| GET | `/api/v1/categories` | 获取我的分类列表 |
+| DELETE | `/api/v1/categories/{categoryId}` | 删除分类 |
+
+### 笔记相关
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId） |
+| GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId 筛选） |
+| GET | `/api/v1/notes/{noteId}` | 笔记详情 |
+| PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId） |
+| DELETE | `/api/v1/notes/{noteId}` | 软删除笔记 |
+| POST | `/api/v1/notes/{noteId}/publish` | 发布笔记 |
+| POST | `/api/v1/notes/{noteId}/unpublish` | 取消发布 |
+
+### 公开笔记
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/public/notes` | 公开笔记列表 |
+| GET | `/api/v1/public/notes/{noteId}` | 公开笔记详情 |
 
 ## 本地运行
 
@@ -122,7 +157,7 @@ cd backend
 mvnw.cmd test
 ```
 
-测试基于 MockMvc 进行行为测试，覆盖 Auth 认证和 Note 模块的核心业务规则。
+测试基于 MockMvc 进行行为测试，覆盖 Auth 认证、Category 分类和 Note 模块的核心业务规则。
 
 ## 核心设计说明
 
@@ -143,13 +178,16 @@ mvnw.cmd test
 - 私有接口不存在 / 别人的 / 已删除统一返回 `NOTE_NOT_FOUND`，不暴露资源存在性
 - 公开接口严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态
 - 重复发布不刷新 `publishedAt`，防止用户通过反复发布刷公开首页排序
+- **Category 是用户私有资源**，接口强制校验分类属于当前用户且未删除
+- 同一用户下未删除分类名唯一（通过 `deleted_marker` 实现，删除后可复用同名）
+- Note 绑定/更新分类时必须校验分类属于当前用户且未删除，传 null 表示取消分类
+- Note 列表支持按 categoryId 筛选，只能筛选自己的分类
 
 ## 当前暂不做
 
 以下功能为未来规划，当前版本未实现：
 
 - refresh token / token 黑名单
-- Category 分类模块
 - Tag 标签模块
 - Search 搜索
 - Admin 管理后台（用户管理/笔记下架）
