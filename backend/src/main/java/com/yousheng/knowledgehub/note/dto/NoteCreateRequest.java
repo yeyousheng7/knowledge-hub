@@ -16,6 +16,9 @@ public record NoteCreateRequest(
 
         @Schema(description = "笔记摘要，最大 300 字符")
         @Size(max = 300, message = "摘要不能超过 300 个字符")
-        String summary
+        String summary,
+
+        @Schema(description = "分类 ID，null 表示未分类")
+        Long categoryId
 ) {
 }

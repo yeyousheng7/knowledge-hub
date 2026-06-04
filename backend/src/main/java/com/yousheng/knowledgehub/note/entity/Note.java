@@ -23,6 +23,8 @@ public class Note {
 
     private String summary;
 
+    private Long categoryId;
+
     private String visibility;
 
     @TableField(fill = FieldFill.INSERT)

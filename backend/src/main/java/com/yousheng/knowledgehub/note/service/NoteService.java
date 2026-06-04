@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yousheng.knowledgehub.category.entity.Category;
+import com.yousheng.knowledgehub.category.mapper.CategoryMapper;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.*;
@@ -27,6 +29,7 @@ import java.util.List;
 public class NoteService {
     private final AppUserMapper appUserMapper;
     private final NoteMapper noteMapper;
+    private final CategoryMapper categoryMapper;
     private static final int NOT_DELETED = 0;
     private static final int DELETED = 1;
 
@@ -34,11 +37,14 @@ public class NoteService {
     public NoteCreateResponse createNote(NoteCreateRequest request) {
         Long userId = requireCurrentEnabledUserId();
 
+        validateCategoryBelongsToCurrentUser(userId, request.categoryId());
+
         Note note = new Note();
         note.setUserId(userId);
         note.setTitle(request.title().trim());
         note.setContentMd(request.contentMd());
         note.setSummary(request.summary());
+        note.setCategoryId(request.categoryId());
         note.setVisibility(NoteVisibility.PRIVATE.name());
         note.setModerationStatus(NoteModerationStatus.NORMAL.name());
         note.setDeleted(NOT_DELETED);
@@ -50,6 +56,7 @@ public class NoteService {
                 note.getTitle(),
                 note.getVisibility(),
                 note.getModerationStatus(),
+                note.getCategoryId(),
                 note.getCreatedAt(),
                 note.getUpdatedAt()
         );
@@ -70,17 +77,7 @@ public class NoteService {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
         }
 
-        return new NoteDetailResponse(
-                note.getId(),
-                note.getTitle(),
-                note.getContentMd(),
-                note.getSummary(),
-                note.getVisibility(),
-                note.getModerationStatus(),
-                note.getCreatedAt(),
-                note.getUpdatedAt(),
-                note.getPublishedAt()
-        );
+        return toDetailResponse(note);
 
     }
 
@@ -112,6 +109,7 @@ public class NoteService {
     @Transactional
     public NoteDetailResponse updateNote(Long noteId, NoteUpdateRequest request) {
         Long userId = requireCurrentEnabledUserId();
+
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
@@ -122,23 +120,25 @@ public class NoteService {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
         }
 
-        note.setTitle(request.title().trim());
-        note.setContentMd(request.contentMd());
-        note.setSummary(request.summary());
+        validateCategoryBelongsToCurrentUser(userId, request.categoryId());
 
-        noteMapper.updateById(note);
+        LambdaUpdateWrapper<Note> updateWrapper = Wrappers.lambdaUpdate(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, NOT_DELETED)
+                .set(Note::getTitle, request.title().trim())
+                .set(Note::getContentMd, request.contentMd())
+                .set(Note::getSummary, request.summary())
+                .set(Note::getCategoryId, request.categoryId());
 
-        return new NoteDetailResponse(
-                note.getId(),
-                note.getTitle(),
-                note.getContentMd(),
-                note.getSummary(),
-                note.getVisibility(),
-                note.getModerationStatus(),
-                note.getCreatedAt(),
-                note.getUpdatedAt(),
-                note.getPublishedAt()
-        );
+        int affectedRows =  noteMapper.update(new Note(), updateWrapper);
+        if(affectedRows == 0) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        // 暂时再次查询
+        Note updateNote = noteMapper.selectOne(query);
+        return toDetailResponse(updateNote);
     }
 
     @Transactional
@@ -276,6 +276,7 @@ public class NoteService {
                 note.getId(),
                 note.getTitle(),
                 note.getSummary(),
+                note.getCategoryId(),
                 note.getVisibility(),
                 note.getModerationStatus(),
                 note.getCreatedAt(),
@@ -290,6 +291,7 @@ public class NoteService {
                 note.getTitle(),
                 note.getContentMd(),
                 note.getSummary(),
+                note.getCategoryId(),
                 note.getVisibility(),
                 note.getModerationStatus(),
                 note.getCreatedAt(),
@@ -331,5 +333,20 @@ public class NoteService {
         }
 
         return userId;
+    }
+
+    private void validateCategoryBelongsToCurrentUser(Long userId, Long categoryId) {
+        if (categoryId == null) {
+            return;
+        }
+
+        LambdaQueryWrapper<Category> query = Wrappers.lambdaQuery(Category.class)
+                .eq(Category::getId, categoryId)
+                .eq(Category::getUserId, userId)
+                .eq(Category::getDeleted, NOT_DELETED);
+
+        if (categoryMapper.selectCount(query) == 0) {
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
     }
 }

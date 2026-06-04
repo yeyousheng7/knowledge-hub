@@ -11,6 +11,8 @@ public record NoteCreateResponse(
         String visibility,
         @Schema(description = "内容治理状态，NORMAL 表示正常，TAKEN_DOWN 表示已下架")
         String moderationStatus,
+        @Schema(description = "分类ID，null 表示未分类")
+        Long categoryId,
         @Schema(description = "创建时间")
         LocalDateTime createdAt,
         @Schema(description = "更新时间")

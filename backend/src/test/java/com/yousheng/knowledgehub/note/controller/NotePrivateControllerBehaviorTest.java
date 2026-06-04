@@ -7,10 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -141,6 +138,72 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
                         .content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void createNote_withValidCategory_returnsCategoryId() throws Exception {
+        AppUser user = createEnabledUser("note_cat_valid", "NoteCatValid", "USER");
+        String token = tokenOf(user);
+        Long categoryId = insertCategory(user.getId(), "Tech");
+
+        String body = """
+                {
+                  "title": "Note With Category",
+                  "contentMd": "# hello",
+                  "summary": "summary text",
+                  "categoryId": %d
+                }
+                """.formatted(categoryId);
+
+        mockMvc.perform(post("/api/v1/notes")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.title").value("Note With Category"))
+                .andExpect(jsonPath("$.data.categoryId").value(categoryId.intValue()))
+                .andExpect(jsonPath("$.data.id").exists());
+
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM note
+                        WHERE user_id = ?
+                          AND title = ?
+                          AND category_id = ?
+                          AND deleted = 0
+                        """,
+                Integer.class,
+                user.getId(),
+                "Note With Category",
+                categoryId
+        );
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    void createNote_withOtherUserCategory_returns404() throws Exception {
+        AppUser owner = createEnabledUser("note_cat_owner", "NoteCatOwner", "USER");
+        AppUser other = createEnabledUser("note_cat_other", "NoteCatOther", "USER");
+        String otherToken = tokenOf(other);
+        Long categoryId = insertCategory(owner.getId(), "Owner Category");
+
+        String body = """
+                {
+                  "title": "Steal Category",
+                  "contentMd": "# hello",
+                  "summary": "summary text",
+                  "categoryId": %d
+                }
+                """.formatted(categoryId);
+
+        mockMvc.perform(post("/api/v1/notes")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40403));
     }
 
     @Test
@@ -447,6 +510,103 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
                         .content(body))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void updateNote_withValidCategory_returnsCategoryId() throws Exception {
+        AppUser user = createEnabledUser("note_upd_cat_valid", "NoteUpdCatValid", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Old Title", "old content", "old summary", 0, null);
+        Long categoryId = insertCategory(user.getId(), "Update Category");
+
+        String body = """
+                {
+                  "title": "Updated Title",
+                  "contentMd": "# updated",
+                  "categoryId": %d
+                }
+                """.formatted(categoryId);
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.categoryId").value(categoryId.intValue()));
+
+        Long dbCategoryId = jdbcTemplate.queryForObject(
+                "SELECT category_id FROM note WHERE id = ?", Long.class, noteId);
+        assertThat(dbCategoryId).isEqualTo(categoryId);
+    }
+
+    @Test
+    void updateNote_withNullCategory_clearsCategory() throws Exception {
+        AppUser user = createEnabledUser("note_upd_clear_cat", "NoteUpdClearCat", "USER");
+        String token = tokenOf(user);
+        Long categoryId = insertCategory(user.getId(), "To Be Cleared");
+        Long noteId = insertNote(user.getId(), "Note With Cat", "content", "summary", 0, null, categoryId);
+
+        String body = """
+                {
+                  "title": "Category Cleared",
+                  "contentMd": "# cleared",
+                  "categoryId": null
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        Long dbCategoryId = jdbcTemplate.queryForObject(
+                "SELECT category_id FROM note WHERE id = ?", Long.class, noteId);
+        assertThat(dbCategoryId).isNull();
+    }
+
+    @Test
+    void updateNote_noteNotAccessible_withInvalidCategory_returns40401() throws Exception {
+        AppUser owner = createEnabledUser("note_upd_nf_owner", "NoteUpdNfOwner", "USER");
+        AppUser other = createEnabledUser("note_upd_nf_other", "NoteUpdNfOther", "USER");
+        String otherToken = tokenOf(other);
+        Long ownerCategoryId = insertCategory(owner.getId(), "Owner Category");
+
+        String body = """
+                {
+                  "title": "Hack Attempt",
+                  "contentMd": "# hacked",
+                  "categoryId": %d
+                }
+                """.formatted(ownerCategoryId);
+
+        // non-existent note + invalid category → NOTE_NOT_FOUND, not CATEGORY_NOT_FOUND
+        mockMvc.perform(put("/api/v1/notes/{noteId}", 999_999L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+
+        // other user's note + invalid category → NOTE_NOT_FOUND
+        Long ownerNoteId = insertNote(owner.getId(), "Owner Note", "owner content", "owner summary", 0, null);
+        mockMvc.perform(put("/api/v1/notes/{noteId}", ownerNoteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+
+        // deleted note + invalid category → NOTE_NOT_FOUND
+        Long deletedNoteId = createDeletedNote(other.getId(), "Deleted Note", "deleted content", "deleted summary");
+        mockMvc.perform(put("/api/v1/notes/{noteId}", deletedNoteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
     }
 
     @Test

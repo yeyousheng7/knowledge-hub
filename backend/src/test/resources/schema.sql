@@ -1,5 +1,6 @@
 drop table if exists app_user;
 drop table if exists note;
+drop table if exists category;
 
 create table app_user
 (
@@ -52,3 +53,9 @@ create table category
     unique key uk_category_user_name_deleted_marker (user_id, name, deleted_marker),
     key idx_category_user_updated (user_id, deleted, updated_at)
 );
+
+alter table note
+    add column category_id BIGINT unsigned null after summary;
+
+alter table note
+    add key idx_note_user_category_updated (user_id, category_id, deleted, updated_at, id);
