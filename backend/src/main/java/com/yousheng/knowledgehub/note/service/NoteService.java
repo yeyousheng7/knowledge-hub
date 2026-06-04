@@ -82,7 +82,7 @@ public class NoteService {
     }
 
     @Transactional(readOnly = true)
-    public NoteListResponse listMyNotes(long page, long size) {
+    public NoteListResponse listMyNotes(long page, long size, Long categoryId) {
         Long userId = requireCurrentEnabledUserId();
         Page<Note> pageParam = Page.of(page, size);
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
@@ -90,6 +90,11 @@ public class NoteService {
                 .eq(Note::getDeleted, NOT_DELETED)
                 .orderByDesc(Note::getUpdatedAt)
                 .orderByDesc(Note::getId);
+
+        if (categoryId != null) {
+            validateCategoryBelongsToCurrentUser(userId, categoryId);
+            query.eq(Note::getCategoryId, categoryId);
+        }
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
 
@@ -131,8 +136,8 @@ public class NoteService {
                 .set(Note::getSummary, request.summary())
                 .set(Note::getCategoryId, request.categoryId());
 
-        int affectedRows =  noteMapper.update(new Note(), updateWrapper);
-        if(affectedRows == 0) {
+        int affectedRows = noteMapper.update(new Note(), updateWrapper);
+        if (affectedRows == 0) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
         }
 

@@ -270,6 +270,59 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void listNotes_withCategoryId_returnsNotesInCategory() throws Exception {
+        AppUser user = createEnabledUser("note_list_cat", "NoteListCat", "USER");
+        String token = tokenOf(user);
+        Long catA = insertCategory(user.getId(), "Category A");
+        Long catB = insertCategory(user.getId(), "Category B");
+
+        LocalDateTime baseTime = LocalDateTime.of(2026, 1, 1, 12, 0);
+        insertNote(user.getId(), "Note A1", "content a1", "summary a1", baseTime.plusMinutes(10), baseTime.plusMinutes(10), 0, null, catA);
+        insertNote(user.getId(), "Note A2", "content a2", "summary a2", baseTime.plusMinutes(20), baseTime.plusMinutes(20), 0, null, catA);
+        insertNote(user.getId(), "Note B1", "content b1", "summary b1", baseTime.plusMinutes(30), baseTime.plusMinutes(30), 0, null, catB);
+        insertNote(user.getId(), "Note No Cat", "content none", "summary none", baseTime.plusMinutes(40), baseTime.plusMinutes(40), 0, null, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&categoryId=" + catA)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].title").value("Note A2"))
+                .andExpect(jsonPath("$.data.items[1].title").value("Note A1"));
+    }
+
+    @Test
+    void listNotes_withOtherUserCategory_returns404() throws Exception {
+        AppUser owner = createEnabledUser("note_list_cat_owner", "NoteListCatOwner", "USER");
+        AppUser other = createEnabledUser("note_list_cat_other", "NoteListCatOther", "USER");
+        String otherToken = tokenOf(other);
+        Long ownerCategoryId = insertCategory(owner.getId(), "Owner Category");
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&categoryId=" + ownerCategoryId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40403));
+    }
+
+    @Test
+    void listNotes_withoutCategoryId_returnsAllMyNotes() throws Exception {
+        AppUser user = createEnabledUser("note_list_all", "NoteListAll", "USER");
+        String token = tokenOf(user);
+        Long catA = insertCategory(user.getId(), "Category A");
+
+        insertNote(user.getId(), "Note In Cat", "content cat", "summary cat", 0, null, catA);
+        insertNote(user.getId(), "Note No Cat", "content none", "summary none", 0, null, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2));
+    }
+
+    @Test
     void getMyNoteDetail_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/api/v1/notes/1"))
                 .andExpect(status().isUnauthorized());
