@@ -13,7 +13,7 @@ create table category
 
     primary key (id),
     unique key uk_category_user_name_deleted_marker (user_id, name, deleted_marker),
-    key idx_category_user_updated (user_id, deleted, updated_at)
+    key idx_category_user_deleted_updated (user_id, deleted, updated_at)
 )
     engine = InnoDB
     default CHARSET = utf8mb4
