@@ -25,6 +25,7 @@ public enum ErrorCode {
     NOTE_NOT_FOUND(40401, "笔记不存在", HttpStatus.NOT_FOUND),
     USER_NOT_FOUND(40402, "用户不存在", HttpStatus.NOT_FOUND),
     CATEGORY_NOT_FOUND(40403, "分类不存在", HttpStatus.NOT_FOUND),
+    TAG_NOT_FOUND(40404, "标签不存在", HttpStatus.NOT_FOUND),
 
     METHOD_NOT_ALLOWED(40500, "请求方法不允许", HttpStatus.METHOD_NOT_ALLOWED),
     MEDIA_TYPE_NOT_SUPPORTED(41500, "不支持的媒体类型", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
