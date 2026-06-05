@@ -1,6 +1,8 @@
 drop table if exists app_user;
 drop table if exists note;
 drop table if exists category;
+drop table if exists tag;
+drop table if exists note_tag;
 
 create table app_user
 (
@@ -59,3 +61,29 @@ alter table note
 
 alter table note
     add key idx_note_user_category_updated (user_id, category_id, deleted, updated_at, id);
+
+create table tag
+(
+    id             BIGINT unsigned auto_increment not null,
+    user_id        BIGINT unsigned                not null,
+    name           varchar(30)                    not null,
+    created_at     DATETIME(3)                    not null,
+    updated_at     DATETIME(3)                    not null,
+    deleted        tinyint(1) unsigned default 0  not null,
+    deleted_marker BIGINT unsigned     default 0  not null,
+    deleted_at     DATETIME(3)                    null,
+
+    primary key (id),
+    unique key uk_tag_user_name_deleted_marker (user_id, name, deleted_marker),
+    key idx_tag_user_deleted_updated (user_id, deleted, updated_at)
+);
+
+create table note_tag
+(
+    note_id    BIGINT unsigned not null,
+    tag_id     BIGINT unsigned not null,
+    created_at DATETIME(3)     not null,
+
+    primary key (note_id, tag_id),
+    key idx_note_tag_tag_note (tag_id, note_id)
+)
