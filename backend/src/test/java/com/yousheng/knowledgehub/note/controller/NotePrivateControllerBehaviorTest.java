@@ -717,6 +717,36 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void deleteNote_withTags_removesNoteTagRelations() throws Exception {
+        AppUser user = createEnabledUser("note_del_tag", "NoteDelTag", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Note With Tags To Delete", "content", "summary", 0, null);
+        Long tagId1 = insertTag(user.getId(), "Java");
+        Long tagId2 = insertTag(user.getId(), "Spring");
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId1, now);
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId2, now);
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        Integer deleted = jdbcTemplate.queryForObject(
+                "SELECT deleted FROM note WHERE id = ?", Integer.class, noteId);
+        assertThat(deleted).isEqualTo(1);
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM note_tag WHERE note_id = ?", Integer.class, noteId);
+        assertThat(count).isEqualTo(0);
+    }
+
+    @Test
     void deleteNote_withDisabledUser_returns40301() throws Exception {
         AppUser user = createDisabledUser("note_delete_disabled", "NoteDeleteDisabled", "USER");
         String token = tokenOf(user);

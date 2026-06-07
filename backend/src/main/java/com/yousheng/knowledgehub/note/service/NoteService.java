@@ -196,6 +196,12 @@ public class NoteService {
         if (affectedRows == 0) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
         }
+
+        // 删除 note-tag 关系
+        noteTagMapper.delete(
+                Wrappers.lambdaQuery(NoteTag.class)
+                        .eq(NoteTag::getNoteId, noteId)
+        );
     }
 
     @Transactional
