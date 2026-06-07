@@ -766,4 +766,186 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
                 .andExpect(jsonPath("$.data.items.length()").value(1))
                 .andExpect(jsonPath("$.data.items[0].title").value("Remaining Note"));
     }
+
+    // ---- createNote with tagIds ----
+
+    @Test
+    void createNote_withValidTagIds_returnsTags() throws Exception {
+        AppUser user = createEnabledUser("note_tag_create", "NoteTagCreate", "USER");
+        String token = tokenOf(user);
+        Long tagId1 = insertTag(user.getId(), "Java");
+        Long tagId2 = insertTag(user.getId(), "Spring");
+
+        String body = """
+                {
+                  "title": "Note With Tags",
+                  "contentMd": "# hello",
+                  "summary": "summary",
+                  "tagIds": [%d, %d]
+                }
+                """.formatted(tagId1, tagId2);
+
+        mockMvc.perform(post("/api/v1/notes")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.title").value("Note With Tags"))
+                .andExpect(jsonPath("$.data.tags.length()").value(2))
+                .andExpect(jsonPath("$.data.tags[0].id").value(tagId1.intValue()))
+                .andExpect(jsonPath("$.data.tags[0].name").value("Java"))
+                .andExpect(jsonPath("$.data.tags[1].id").value(tagId2.intValue()))
+                .andExpect(jsonPath("$.data.tags[1].name").value("Spring"));
+
+        Long noteId = jdbcTemplate.queryForObject(
+                "SELECT id FROM note WHERE user_id = ? AND title = ? AND deleted = 0",
+                Long.class, user.getId(), "Note With Tags");
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM note_tag WHERE note_id = ?", Integer.class, noteId);
+        assertThat(count).isEqualTo(2);
+    }
+
+    @Test
+    void createNote_withOtherUserTag_returns404() throws Exception {
+        AppUser owner = createEnabledUser("note_tag_owner", "NoteTagOwner", "USER");
+        AppUser other = createEnabledUser("note_tag_other", "NoteTagOther", "USER");
+        String otherToken = tokenOf(other);
+        Long ownerTagId = insertTag(owner.getId(), "Owner Tag");
+
+        String body = """
+                {
+                  "title": "Steal Tag",
+                  "contentMd": "# hello",
+                  "summary": "summary",
+                  "tagIds": [%d]
+                }
+                """.formatted(ownerTagId);
+
+        mockMvc.perform(post("/api/v1/notes")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40404));
+    }
+
+    // ---- getMyNoteDetail with tags ----
+
+    @Test
+    void getMyNoteDetail_withTags_returnsTags() throws Exception {
+        AppUser user = createEnabledUser("note_detail_tag", "NoteDetailTag", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Note With Tags Detail", "# detail", "detail summary", 0, null);
+        Long tagId1 = insertTag(user.getId(), "Java");
+        Long tagId2 = insertTag(user.getId(), "Spring");
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId1, now);
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId2, now);
+
+        mockMvc.perform(get("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.tags.length()").value(2))
+                .andExpect(jsonPath("$.data.tags[0].id").value(tagId1.intValue()))
+                .andExpect(jsonPath("$.data.tags[0].name").value("Java"))
+                .andExpect(jsonPath("$.data.tags[1].id").value(tagId2.intValue()))
+                .andExpect(jsonPath("$.data.tags[1].name").value("Spring"));
+    }
+
+    // ---- updateNote with tagIds ----
+
+    @Test
+    void updateNote_withValidTagIds_replacesTags() throws Exception {
+        AppUser user = createEnabledUser("note_upd_tag", "NoteUpdTag", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Note For Tag Update", "content", "summary", 0, null);
+        Long tagId1 = insertTag(user.getId(), "Java");
+        Long tagId2 = insertTag(user.getId(), "Spring");
+
+        String body = """
+                {
+                  "title": "Note For Tag Update",
+                  "contentMd": "# updated",
+                  "tagIds": [%d, %d]
+                }
+                """.formatted(tagId1, tagId2);
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.tags.length()").value(2))
+                .andExpect(jsonPath("$.data.tags[0].id").value(tagId1.intValue()))
+                .andExpect(jsonPath("$.data.tags[0].name").value("Java"))
+                .andExpect(jsonPath("$.data.tags[1].id").value(tagId2.intValue()))
+                .andExpect(jsonPath("$.data.tags[1].name").value("Spring"));
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM note_tag WHERE note_id = ?", Integer.class, noteId);
+        assertThat(count).isEqualTo(2);
+    }
+
+    @Test
+    void updateNote_withEmptyTagIds_clearsTags() throws Exception {
+        AppUser user = createEnabledUser("note_upd_clear_tag", "NoteUpdClearTag", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Note To Clear Tags", "content", "summary", 0, null);
+        Long tagId = insertTag(user.getId(), "To Be Cleared");
+
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId, LocalDateTime.now());
+
+        String body = """
+                {
+                  "title": "Note To Clear Tags",
+                  "contentMd": "# updated",
+                  "tagIds": []
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.tags.length()").value(0));
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM note_tag WHERE note_id = ?", Integer.class, noteId);
+        assertThat(count).isEqualTo(0);
+    }
+
+    @Test
+    void updateNote_withTooManyTagIds_returns400() throws Exception {
+        AppUser user = createEnabledUser("note_upd_tags_max", "NoteUpdTagsMax", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Note Max Tags", "content", "summary", 0, null);
+
+        String body = """
+                {
+                  "title": "Note Max Tags",
+                  "contentMd": "# updated",
+                  "tagIds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
 }

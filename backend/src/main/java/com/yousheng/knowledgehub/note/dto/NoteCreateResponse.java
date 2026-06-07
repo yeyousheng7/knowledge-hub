@@ -3,6 +3,7 @@ package com.yousheng.knowledgehub.note.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record NoteCreateResponse(
         Long id,
@@ -13,6 +14,8 @@ public record NoteCreateResponse(
         String moderationStatus,
         @Schema(description = "分类ID，null 表示未分类")
         Long categoryId,
+        @Schema(description = "标签，null 或 为空表示无标签")
+        List<NoteTagResponse> tags,
         @Schema(description = "创建时间")
         LocalDateTime createdAt,
         @Schema(description = "更新时间")

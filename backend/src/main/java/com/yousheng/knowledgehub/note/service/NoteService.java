@@ -14,6 +14,10 @@ import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
 import com.yousheng.knowledgehub.note.enums.NoteVisibility;
 import com.yousheng.knowledgehub.note.mapper.NoteMapper;
 import com.yousheng.knowledgehub.security.CurrentUser;
+import com.yousheng.knowledgehub.tag.entity.NoteTag;
+import com.yousheng.knowledgehub.tag.entity.Tag;
+import com.yousheng.knowledgehub.tag.mapper.NoteTagMapper;
+import com.yousheng.knowledgehub.tag.mapper.TagMapper;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
@@ -24,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 @RequiredArgsConstructor
 @Service
 public class NoteService {
@@ -32,12 +37,14 @@ public class NoteService {
     private final CategoryMapper categoryMapper;
     private static final int NOT_DELETED = 0;
     private static final int DELETED = 1;
+    private final NoteTagMapper noteTagMapper;
+    private final TagMapper tagMapper;
 
     @Transactional
     public NoteCreateResponse createNote(NoteCreateRequest request) {
         Long userId = requireCurrentEnabledUserId();
-
         validateCategoryBelongsToCurrentUser(userId, request.categoryId());
+        List<Long> tagIds = normalizeAndValidateTagIds(userId, request.tagIds());
 
         Note note = new Note();
         note.setUserId(userId);
@@ -51,12 +58,20 @@ public class NoteService {
 
         noteMapper.insert(note);
 
+        // 设置 note-tag 关系
+        if (!tagIds.isEmpty()) {
+            bindTags(note.getId(), tagIds);
+        }
+
+        List<NoteTagResponse> tags = noteTagMapper.selectTagResponseByNoteId(note.getId());
+
         return new NoteCreateResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getVisibility(),
                 note.getModerationStatus(),
                 note.getCategoryId(),
+                tags,
                 note.getCreatedAt(),
                 note.getUpdatedAt()
         );
@@ -115,17 +130,19 @@ public class NoteService {
     public NoteDetailResponse updateNote(Long noteId, NoteUpdateRequest request) {
         Long userId = requireCurrentEnabledUserId();
 
-        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
-                .eq(Note::getId, noteId)
-                .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED);
+        Note note = noteMapper.selectOne(
+                Wrappers.lambdaQuery(Note.class)
+                        .eq(Note::getId, noteId)
+                        .eq(Note::getUserId, userId)
+                        .eq(Note::getDeleted, NOT_DELETED)
+        );
 
-        Note note = noteMapper.selectOne(query);
         if (note == null) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
         }
 
         validateCategoryBelongsToCurrentUser(userId, request.categoryId());
+        List<Long> tagIds = normalizeAndValidateTagIds(userId, request.tagIds());
 
         LambdaUpdateWrapper<Note> updateWrapper = Wrappers.lambdaUpdate(Note.class)
                 .eq(Note::getId, noteId)
@@ -136,13 +153,28 @@ public class NoteService {
                 .set(Note::getSummary, request.summary())
                 .set(Note::getCategoryId, request.categoryId());
 
+        // updatedAt 由 MP 自动更新
         int affectedRows = noteMapper.update(new Note(), updateWrapper);
         if (affectedRows == 0) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
         }
 
+        // note-tag 更新
+        // 先删除 后插入
+        LambdaQueryWrapper<NoteTag> queryByNoteTag = Wrappers.lambdaQuery(NoteTag.class)
+                .eq(NoteTag::getNoteId, noteId);
+
+        noteTagMapper.delete(queryByNoteTag);
+        bindTags(noteId, tagIds);
+
         // 暂时再次查询
-        Note updateNote = noteMapper.selectOne(query);
+        Note updateNote = noteMapper.selectOne(
+                Wrappers.lambdaQuery(Note.class)
+                        .eq(Note::getId, noteId)
+                        .eq(Note::getUserId, userId)
+                        .eq(Note::getDeleted, NOT_DELETED)
+        );
+
         return toDetailResponse(updateNote);
     }
 
@@ -277,6 +309,7 @@ public class NoteService {
     }
 
     private NoteListItemResponse toListItemResponse(Note note) {
+
         return new NoteListItemResponse(
                 note.getId(),
                 note.getTitle(),
@@ -291,12 +324,16 @@ public class NoteService {
     }
 
     private NoteDetailResponse toDetailResponse(Note note) {
+        List<NoteTagResponse> tags =
+                noteTagMapper.selectTagResponseByNoteId(note.getId());
+
         return new NoteDetailResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getContentMd(),
                 note.getSummary(),
                 note.getCategoryId(),
+                tags,
                 note.getVisibility(),
                 note.getModerationStatus(),
                 note.getCreatedAt(),
@@ -338,6 +375,36 @@ public class NoteService {
         }
 
         return userId;
+    }
+
+    private List<Long> normalizeAndValidateTagIds(Long userId, List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> distinctTagIds = tagIds.stream().distinct().toList();
+
+        long validTagCount = tagMapper.selectCount(
+                Wrappers.lambdaQuery(Tag.class)
+                        .eq(Tag::getUserId, userId)
+                        .eq(Tag::getDeleted, NOT_DELETED)
+                        .in(Tag::getId, distinctTagIds)
+        );
+
+        if (validTagCount != distinctTagIds.size()) {
+            throw new BizException(ErrorCode.TAG_NOT_FOUND);
+        }
+
+        return distinctTagIds;
+    }
+
+    private void bindTags(Long noteId, List<Long> tagIds) {
+        for (Long tagId : tagIds) {
+            NoteTag noteTag = new NoteTag();
+            noteTag.setNoteId(noteId);
+            noteTag.setTagId(tagId);
+            noteTagMapper.insert(noteTag);
+        }
     }
 
     private void validateCategoryBelongsToCurrentUser(Long userId, Long categoryId) {

@@ -31,7 +31,9 @@ abstract class AbstractControllerBehaviorTest {
 
     @BeforeEach
     void cleanDatabase() {
+        jdbcTemplate.execute("DELETE FROM note_tag");
         jdbcTemplate.execute("DELETE FROM note");
+        jdbcTemplate.execute("DELETE FROM tag");
         jdbcTemplate.execute("DELETE FROM category");
         jdbcTemplate.execute("DELETE FROM app_user");
     }
@@ -74,6 +76,18 @@ abstract class AbstractControllerBehaviorTest {
                         INSERT INTO category (user_id, name, created_at, updated_at, deleted, deleted_marker, deleted_at)
                         VALUES (?, ?, ?, ?, 0, 0, NULL)
                         """,
+                userId,
+                name,
+                now,
+                now
+        );
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+
+    protected Long insertTag(Long userId, String name) {
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO tag (user_id, name, created_at, updated_at, deleted, deleted_marker, deleted_at) VALUES (?, ?, ?, ?, 0, 0, NULL)",
                 userId,
                 name,
                 now,
