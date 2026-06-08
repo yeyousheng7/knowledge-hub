@@ -329,9 +329,32 @@ public class NoteService {
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
 
-        List<PublicNoteListItemResponse> items = notePage.getRecords()
-                .stream()
-                .map(this::toPublicListItemResponse)
+        Map<Long, List<PublicNoteTagResponse>> tagsByNoteId;
+        List<Note> notes = notePage.getRecords();
+        if (notes.isEmpty()) {
+            tagsByNoteId = Map.of();
+        } else {
+            List<Long> noteIds = notes.stream()
+                    .map(Note::getId)
+                    .toList();
+
+            tagsByNoteId = noteTagMapper.selectTagRowsByNoteIds(noteIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            NoteTagQueryRow::noteId,
+                            Collectors.mapping(
+                                    row -> new PublicNoteTagResponse(row.tagName()),
+                                    Collectors.toList()
+                            )
+                    ));
+        }
+
+
+        List<PublicNoteListItemResponse> items = notes.stream()
+                .map(note -> toPublicListItemResponse(
+                        note,
+                        tagsByNoteId.getOrDefault(note.getId(), List.of())
+                ))
                 .toList();
 
         return new PublicNoteListResponse(
@@ -393,22 +416,29 @@ public class NoteService {
         );
     }
 
-    private PublicNoteListItemResponse toPublicListItemResponse(Note note) {
+    private PublicNoteListItemResponse toPublicListItemResponse(Note note, List<PublicNoteTagResponse> tags) {
         return new PublicNoteListItemResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getSummary(),
+                tags,
                 note.getPublishedAt(),
                 note.getUpdatedAt()
         );
     }
 
     private PublicNoteDetailResponse toPublicDetailResponse(Note note) {
+        List<PublicNoteTagResponse> tags =
+                noteTagMapper.selectTagResponseByNoteId(note.getId())
+                        .stream()
+                        .map(noteTagResponse -> new PublicNoteTagResponse(noteTagResponse.name()))
+                        .toList();
         return new PublicNoteDetailResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getContentMd(),
                 note.getSummary(),
+                tags,
                 note.getPublishedAt(),
                 note.getUpdatedAt()
         );

@@ -166,6 +166,62 @@ class PublicNoteControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void listPublicNotes_returnsTags() throws Exception {
+        AppUser user = createEnabledUser("public_list_tags", "PublicListTags", "USER");
+
+        Long noteId = insertNote(user.getId(), "Public With Tags", "content", "summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 10, 0),
+                noteId
+        );
+
+        Long tagId1 = insertTag(user.getId(), "Java");
+        Long tagId2 = insertTag(user.getId(), "Spring");
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId1, now);
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId2, now);
+
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.items[0].tags.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].tags[0].name").value("Java"))
+                .andExpect(jsonPath("$.data.items[0].tags[0].id").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].tags[1].name").value("Spring"))
+                .andExpect(jsonPath("$.data.items[0].tags[1].id").doesNotExist());
+    }
+
+    @Test
+    void getPublicNoteDetail_returnsTags() throws Exception {
+        AppUser user = createEnabledUser("public_detail_tags", "PublicDetailTags", "USER");
+
+        Long noteId = insertNote(user.getId(), "Public Detail With Tags", "# detail", "summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 11, 30),
+                noteId
+        );
+
+        Long tagId = insertTag(user.getId(), "Java");
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noteId, tagId, LocalDateTime.now());
+
+        mockMvc.perform(get("/api/v1/public/notes/{noteId}", noteId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.tags.length()").value(1))
+                .andExpect(jsonPath("$.data.tags[0].name").value("Java"))
+                .andExpect(jsonPath("$.data.tags[0].id").doesNotExist());
+    }
+
+    @Test
     void getPublicNoteDetail_privateDeletedTakenDown_returns40401() throws Exception {
         AppUser user = createEnabledUser("public_detail_filter", "PublicDetailFilter", "USER");
 
