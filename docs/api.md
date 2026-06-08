@@ -42,8 +42,8 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | /api/v1/public/notes | No | 公开笔记列表 |
-| GET | /api/v1/public/notes/{noteId} | No | 公开笔记详情 |
+| GET | /api/v1/public/notes | No | 公开笔记列表（返回标签名和作者信息） |
+| GET | /api/v1/public/notes/{noteId} | No | 公开笔记详情（返回正文、标签名和作者信息） |
 
 ## System
 
@@ -76,6 +76,13 @@
 - Note 创建/更新时绑定标签，传空数组清空所有标签，一个 Note 最多绑定 10 个标签
 - Note 列表支持按 tagId 筛选，支持 categoryId 和 tagId 联合过滤取交集
 - 删除 Note 时自动清除对应的 note_tag 关联记录
+
+## 公开接口暴露规则
+
+- 公开接口不暴露标签 ID，仅返回标签名（`PublicNoteTagResponse` 仅含 `name`）
+- 公开接口不暴露用户 ID，仅返回用户名和昵称（`PublicNoteAuthorResponse` 含 `username` 和 `nickname`）
+- 公开接口不暴露 `categoryId`
+- 公开笔记列表不返回 `contentMd` 正文，详情接口才返回
 
 ## 权限边界
 

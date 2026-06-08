@@ -62,8 +62,8 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 ### Public Note 公开笔记阅读
 
-- 公开笔记列表（分页，按 publishedAt 倒序）
-- 公开笔记详情
+- 公开笔记列表（分页，按 publishedAt 倒序，返回标签和作者）
+- 公开笔记详情（返回正文、标签和作者）
 
 ## API 文档
 
@@ -103,8 +103,8 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/public/notes` | 公开笔记列表 |
-| GET | `/api/v1/public/notes/{noteId}` | 公开笔记详情 |
+| GET | `/api/v1/public/notes` | 公开笔记列表（返回标签名和作者信息） |
+| GET | `/api/v1/public/notes/{noteId}` | 公开笔记详情（返回正文、标签名和作者信息） |
 
 ## 本地运行
 
@@ -194,7 +194,10 @@ mvnw.cmd test
 
 - 删除采用软删除（`deleted` 字段标记），不使用物理删除
 - 私有接口不存在 / 别人的 / 已删除统一返回 `NOTE_NOT_FOUND`，不暴露资源存在性
-- 公开接口严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态
+- 公开接口严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态，要求 publishedAt 必须存在
+- 公开接口不暴露标签 ID，仅返回标签名
+- 公开接口不暴露用户 ID，仅返回用户名和昵称
+- 公开接口不暴露 categoryId
 - 重复发布不刷新 `publishedAt`，防止用户通过反复发布刷公开首页排序
 - **Category 是用户私有资源**，接口强制校验分类属于当前用户且未删除
 - 同一用户下未删除分类名唯一（通过 `deleted_marker` 实现，删除后可复用同名）
