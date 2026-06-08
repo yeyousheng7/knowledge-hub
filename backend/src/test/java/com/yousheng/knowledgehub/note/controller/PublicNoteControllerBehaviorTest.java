@@ -222,6 +222,44 @@ class PublicNoteControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void listPublicNotes_returnsAuthor() throws Exception {
+        AppUser user = createEnabledUser("public_author", "Public Author", "USER");
+
+        Long noteId = insertNote(user.getId(), "Public With Author", "content", "summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 9, 0),
+                noteId
+        );
+
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.items[0].author.username").value("public_author"))
+                .andExpect(jsonPath("$.data.items[0].author.nickname").value("Public Author"))
+                .andExpect(jsonPath("$.data.items[0].author.id").doesNotExist());
+    }
+
+    @Test
+    void getPublicNoteDetail_returnsAuthor() throws Exception {
+        AppUser user = createEnabledUser("public_detail_author", "Public Detail Author", "USER");
+
+        Long noteId = insertNote(user.getId(), "Public Detail With Author", "# detail", "summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 9, 30),
+                noteId
+        );
+
+        mockMvc.perform(get("/api/v1/public/notes/{noteId}", noteId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.author.username").value("public_detail_author"))
+                .andExpect(jsonPath("$.data.author.nickname").value("Public Detail Author"))
+                .andExpect(jsonPath("$.data.author.id").doesNotExist());
+    }
+
+    @Test
     void getPublicNoteDetail_privateDeletedTakenDown_returns40401() throws Exception {
         AppUser user = createEnabledUser("public_detail_filter", "PublicDetailFilter", "USER");
 

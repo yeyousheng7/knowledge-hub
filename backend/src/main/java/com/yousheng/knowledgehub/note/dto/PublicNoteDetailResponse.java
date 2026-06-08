@@ -14,6 +14,8 @@ public record PublicNoteDetailResponse(
         String summary,
         @Schema(description = "笔记标签")
         List<PublicNoteTagResponse> tags,
+        @Schema(description = "作者")
+        PublicNoteAuthorResponse author,
         @Schema(description = "发布时间")
         LocalDateTime publishedAt,
         @Schema(description = "更新时间")

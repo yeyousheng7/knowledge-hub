@@ -330,10 +330,27 @@ public class NoteService {
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
 
         Map<Long, List<PublicNoteTagResponse>> tagsByNoteId;
+        Map<Long, PublicNoteAuthorResponse> authorByUserId;
+
         List<Note> notes = notePage.getRecords();
         if (notes.isEmpty()) {
             tagsByNoteId = Map.of();
+            authorByUserId = Map.of();
         } else {
+            List<Long> authorUserIds = notes.stream()
+                    .map(Note::getUserId)
+                    .distinct()
+                    .toList();
+
+            authorByUserId = appUserMapper.selectList(
+                            Wrappers.lambdaQuery(AppUser.class)
+                                    .in(AppUser::getId, authorUserIds)
+                    ).stream()
+                    .collect(Collectors.toMap(
+                            AppUser::getId,
+                            row -> new PublicNoteAuthorResponse(row.getUsername(), row.getNickname())
+                    ));
+
             List<Long> noteIds = notes.stream()
                     .map(Note::getId)
                     .toList();
@@ -351,10 +368,12 @@ public class NoteService {
 
 
         List<PublicNoteListItemResponse> items = notes.stream()
-                .map(note -> toPublicListItemResponse(
-                        note,
-                        tagsByNoteId.getOrDefault(note.getId(), List.of())
-                ))
+                .map(note -> {
+                    // 在 author 信息缺失时返回 null, 与 toPublicAuthorResponse 保持一致
+                    PublicNoteAuthorResponse author = authorByUserId.getOrDefault(note.getUserId(), null);
+                    List<PublicNoteTagResponse> tags = tagsByNoteId.getOrDefault(note.getId(), List.of());
+                    return toPublicListItemResponse(note, tags, author);
+                })
                 .toList();
 
         return new PublicNoteListResponse(
@@ -416,12 +435,13 @@ public class NoteService {
         );
     }
 
-    private PublicNoteListItemResponse toPublicListItemResponse(Note note, List<PublicNoteTagResponse> tags) {
+    private PublicNoteListItemResponse toPublicListItemResponse(Note note, List<PublicNoteTagResponse> tags, PublicNoteAuthorResponse author) {
         return new PublicNoteListItemResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getSummary(),
                 tags,
+                author,
                 note.getPublishedAt(),
                 note.getUpdatedAt()
         );
@@ -433,14 +453,30 @@ public class NoteService {
                         .stream()
                         .map(noteTagResponse -> new PublicNoteTagResponse(noteTagResponse.name()))
                         .toList();
+
+        PublicNoteAuthorResponse author = toPublicAuthorResponse(note.getUserId());
+
         return new PublicNoteDetailResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getContentMd(),
                 note.getSummary(),
                 tags,
+                author,
                 note.getPublishedAt(),
                 note.getUpdatedAt()
+        );
+    }
+
+    private PublicNoteAuthorResponse toPublicAuthorResponse(Long userId) {
+        AppUser author = appUserMapper.selectById(userId);
+        if (author == null) {
+            return null;
+        }
+
+        return new PublicNoteAuthorResponse(
+                author.getUsername(),
+                author.getNickname()
         );
     }
 
