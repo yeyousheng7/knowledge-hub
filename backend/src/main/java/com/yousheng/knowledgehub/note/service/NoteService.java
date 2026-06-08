@@ -100,7 +100,7 @@ public class NoteService {
     }
 
     @Transactional(readOnly = true)
-    public NoteListResponse listMyNotes(long page, long size, Long categoryId) {
+    public NoteListResponse listMyNotes(long page, long size, Long categoryId, Long tagId) {
         Long userId = requireCurrentEnabledUserId();
         Page<Note> pageParam = Page.of(page, size);
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
@@ -112,6 +112,21 @@ public class NoteService {
         if (categoryId != null) {
             validateCategoryBelongsToCurrentUser(userId, categoryId);
             query.eq(Note::getCategoryId, categoryId);
+        }
+
+        if (tagId != null) {
+            validateTagBelongsToCurrentUser(userId, tagId);
+            List<Long> noteTagIds = noteTagMapper.selectList(Wrappers.lambdaQuery(NoteTag.class).eq(NoteTag::getTagId, tagId))
+                    .stream()
+                    .map(NoteTag::getNoteId)
+                    .toList();
+
+            // 没有符合条件的 notes
+            if (noteTagIds.isEmpty()) {
+                return new NoteListResponse(List.of(), 0, page, size);
+            }
+
+            query.in(Note::getId, noteTagIds);
         }
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
@@ -413,6 +428,36 @@ public class NoteService {
         return userId;
     }
 
+    private void validateCategoryBelongsToCurrentUser(Long userId, Long categoryId) {
+        if (categoryId == null) {
+            return;
+        }
+
+        LambdaQueryWrapper<Category> query = Wrappers.lambdaQuery(Category.class)
+                .eq(Category::getId, categoryId)
+                .eq(Category::getUserId, userId)
+                .eq(Category::getDeleted, NOT_DELETED);
+
+        if (categoryMapper.selectCount(query) == 0) {
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+    }
+
+    private void validateTagBelongsToCurrentUser(Long userId, Long tagId) {
+        if (tagId == null) {
+            return;
+        }
+
+        LambdaQueryWrapper<Tag> query = Wrappers.lambdaQuery(Tag.class)
+                .eq(Tag::getId, tagId)
+                .eq(Tag::getUserId, userId)
+                .eq(Tag::getDeleted, NOT_DELETED);
+        Long cnt = tagMapper.selectCount(query);
+        if (cnt == 0) {
+            throw new BizException(ErrorCode.TAG_NOT_FOUND);
+        }
+    }
+
     private List<Long> normalizeAndValidateTagIds(Long userId, List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return List.of();
@@ -440,21 +485,6 @@ public class NoteService {
             noteTag.setNoteId(noteId);
             noteTag.setTagId(tagId);
             noteTagMapper.insert(noteTag);
-        }
-    }
-
-    private void validateCategoryBelongsToCurrentUser(Long userId, Long categoryId) {
-        if (categoryId == null) {
-            return;
-        }
-
-        LambdaQueryWrapper<Category> query = Wrappers.lambdaQuery(Category.class)
-                .eq(Category::getId, categoryId)
-                .eq(Category::getUserId, userId)
-                .eq(Category::getDeleted, NOT_DELETED);
-
-        if (categoryMapper.selectCount(query) == 0) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND);
         }
     }
 }

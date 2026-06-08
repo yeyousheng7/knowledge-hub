@@ -42,9 +42,10 @@ public class NoteController {
     public ApiResponse<NoteListResponse> list(
             @Parameter(description = "页码，从 1 开始") @Min(1) @RequestParam(defaultValue = "1") long page,
             @Parameter(description = "每页数量，最大 100") @Min(1) @Max(100) @RequestParam(defaultValue = "20") long size,
-            @Parameter(description = "分类 ID") @RequestParam(required = false) Long categoryId
+            @Parameter(description = "分类 ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "标签 ID") @RequestParam(required = false) Long tagId
     ) {
-        return ApiResponse.ok(noteService.listMyNotes(page, size, categoryId));
+        return ApiResponse.ok(noteService.listMyNotes(page, size, categoryId, tagId));
     }
 
     @Operation(summary = "更新我的笔记")

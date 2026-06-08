@@ -22,24 +22,24 @@ public interface NoteTagMapper extends BaseMapper<NoteTag> {
     List<NoteTagResponse> selectTagResponseByNoteId(@Param("noteId") Long noteId);
 
     @Select("""
-        <script>
-        SELECT nt.note_id AS noteId,
-               t.id AS tagId,
-               t.name AS tagName
-        FROM note_tag nt
-        JOIN tag t ON t.id = nt.tag_id
-        WHERE nt.note_id IN
-        <foreach collection="noteIds"
-                 item="noteId"
-                 open="("
-                 separator=","
-                 close=")">
-            #{noteId}
-        </foreach>
-          AND t.deleted = 0
-        ORDER BY nt.note_id ASC, t.id ASC
-        </script>
-        """)
+            <script>
+            SELECT nt.note_id AS noteId,
+                   t.id AS tagId,
+                   t.name AS tagName
+            FROM note_tag nt
+            JOIN tag t ON t.id = nt.tag_id
+            WHERE nt.note_id IN
+            <foreach collection="noteIds"
+                     item="noteId"
+                     open="("
+                     separator=","
+                     close=")">
+                #{noteId}
+            </foreach>
+              AND t.deleted = 0
+            ORDER BY nt.note_id ASC, t.id ASC
+            </script>
+            """)
     List<NoteTagQueryRow> selectTagRowsByNoteIds(
             @Param("noteIds") List<Long> noteIds
     );

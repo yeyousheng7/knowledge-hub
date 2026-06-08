@@ -270,6 +270,88 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void listNotes_withTagId_returnsNotesBoundToTag() throws Exception {
+        AppUser user = createEnabledUser("note_list_tag", "NoteListTag", "USER");
+        String token = tokenOf(user);
+        Long tagId = insertTag(user.getId(), "Spring");
+
+        Long boundId1 = insertNote(user.getId(), "Spring Note 1", "content", "summary", 0, null);
+        Long boundId2 = insertNote(user.getId(), "Spring Note 2", "content", "summary", 0, null);
+        insertNote(user.getId(), "Java Note", "content", "summary", 0, null);
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                boundId1, tagId, now);
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                boundId2, tagId, now);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&tagId=" + tagId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].title").value("Spring Note 2"))
+                .andExpect(jsonPath("$.data.items[1].title").value("Spring Note 1"));
+    }
+
+    @Test
+    void listNotes_withTagIdButNoBoundNotes_returnsEmptyList() throws Exception {
+        AppUser user = createEnabledUser("note_list_tag_empty", "NoteListTagEmpty", "USER");
+        String token = tokenOf(user);
+        Long tagId = insertTag(user.getId(), "Unused Tag");
+
+        insertNote(user.getId(), "Some Note", "content", "summary", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&tagId=" + tagId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(0))
+                .andExpect(jsonPath("$.data.items.length()").value(0));
+    }
+
+    @Test
+    void listNotes_withOtherUserTag_returns404() throws Exception {
+        AppUser owner = createEnabledUser("note_list_tag_owner", "NoteListTagOwner", "USER");
+        AppUser other = createEnabledUser("note_list_tag_other", "NoteListTagOther", "USER");
+        String otherToken = tokenOf(other);
+        Long ownerTagId = insertTag(owner.getId(), "Owner Tag");
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&tagId=" + ownerTagId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + otherToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40404));
+    }
+
+    @Test
+    void listNotes_withCategoryIdAndTagId_returnsIntersection() throws Exception {
+        AppUser user = createEnabledUser("note_list_cat_tag", "NoteListCatTag", "USER");
+        String token = tokenOf(user);
+        Long catId = insertCategory(user.getId(), "Tech");
+        Long tagId = insertTag(user.getId(), "Java");
+
+        Long matchId = insertNote(user.getId(), "Java In Tech", "content", "summary", 0, null, catId);
+        insertNote(user.getId(), "Java No Cat", "content", "summary", 0, null);
+        insertNote(user.getId(), "Spring In Tech", "content", "summary", 0, null, catId);
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                matchId, tagId, now);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&categoryId=" + catId + "&tagId=" + tagId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Java In Tech"));
+    }
+
+    @Test
     void listNotes_withCategoryId_returnsNotesInCategory() throws Exception {
         AppUser user = createEnabledUser("note_list_cat", "NoteListCat", "USER");
         String token = tokenOf(user);
