@@ -4,7 +4,7 @@
 
 KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdown 知识库系统。支持多用户使用，用户可以创建私有 Markdown 笔记并选择将部分笔记发布为公开内容。
 
-当前阶段已完成认证基础设施、Note MVP 和 Category 分类模块，覆盖注册登录、私有笔记 CRUD、分类管理、发布/取消发布和公开阅读。
+当前阶段已完成认证基础设施、Note MVP、Category 分类模块和 Tag 标签模块，覆盖注册登录、私有笔记 CRUD、分类/标签管理、发布/取消发布和公开阅读。
 
 ## 技术栈
 
@@ -42,13 +42,21 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 - 删除分类后，该分类下的 Note 自动变为未分类
 - 删除分类后可重新创建同名分类
 
+### Tag 笔记标签
+
+- 创建标签（同用户下未删除标签名唯一）
+- 我的标签列表（按 updatedAt, id 倒序）
+- 重命名标签
+- 删除标签（软删除，自动清除 note_tag 关联）
+- 删除标签后可重新创建同名标签
+
 ### Note 私有笔记管理
 
-- 创建私有笔记（支持 categoryId 绑定分类）
-- 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId 筛选）
-- 我的笔记详情（返回 categoryId）
-- 更新笔记（支持 categoryId）
-- 软删除笔记
+- 创建私有笔记（支持 categoryId 绑定分类，支持 tagIds 绑定标签）
+- 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId 和 tagId 筛选）
+- 我的笔记详情（返回 categoryId 和 tags）
+- 更新笔记（支持 categoryId，支持 tagIds 全量替换标签）
+- 软删除笔记（自动清除 note_tag 关联）
 - 发布笔记
 - 取消发布笔记
 
@@ -70,15 +78,24 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 | PUT | `/api/v1/categories/{categoryId}` | 更新分类名称 |
 | DELETE | `/api/v1/categories/{categoryId}` | 删除分类 |
 
+### 标签相关
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/tags` | 创建标签 |
+| GET | `/api/v1/tags` | 获取我的标签列表 |
+| PUT | `/api/v1/tags/{tagId}` | 更新标签名称 |
+| DELETE | `/api/v1/tags/{tagId}` | 删除标签 |
+
 ### 笔记相关
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId） |
-| GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId 筛选） |
-| GET | `/api/v1/notes/{noteId}` | 笔记详情 |
-| PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId） |
-| DELETE | `/api/v1/notes/{noteId}` | 软删除笔记 |
+| POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId 和 tagIds） |
+| GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId 和 tagId 筛选） |
+| GET | `/api/v1/notes/{noteId}` | 笔记详情（返回 categoryId 和 tags） |
+| PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId 和 tagIds） |
+| DELETE | `/api/v1/notes/{noteId}` | 软删除笔记（自动清除 note_tag 关联） |
 | POST | `/api/v1/notes/{noteId}/publish` | 发布笔记 |
 | POST | `/api/v1/notes/{noteId}/unpublish` | 取消发布 |
 
@@ -158,7 +175,7 @@ cd backend
 mvnw.cmd test
 ```
 
-测试基于 MockMvc 进行行为测试，覆盖 Auth 认证、Category 分类和 Note 模块的核心业务规则。
+测试基于 MockMvc 进行行为测试，覆盖 Auth 认证、Category 分类、Tag 标签和 Note 模块的核心业务规则。
 
 ## 核心设计说明
 
@@ -183,13 +200,18 @@ mvnw.cmd test
 - 同一用户下未删除分类名唯一（通过 `deleted_marker` 实现，删除后可复用同名）
 - Note 绑定/更新分类时必须校验分类属于当前用户且未删除，传 null 表示取消分类
 - Note 列表支持按 categoryId 筛选，只能筛选自己的分类
+- **Tag 是用户私有资源**，接口强制校验标签属于当前用户且未删除
+- 同一用户下未删除标签名唯一（通过 `deleted_marker` 实现，删除后可复用同名）
+- Note 绑定标签时校验标签属于当前用户且未删除，传别人的标签 ID 返回 `TAG_NOT_FOUND`
+- Note 更新标签为全量替换（传空数组清空所有标签），一个 Note 最多绑定 10 个标签
+- Note 列表支持按 tagId 筛选，支持 categoryId 和 tagId 联合过滤取交集
+- 删除 Note 或删除 Tag 时，自动清除对应的 note_tag 关联记录
 
 ## 当前暂不做
 
 以下功能为未来规划，当前版本未实现：
 
 - refresh token / token 黑名单
-- Tag 标签模块
 - Search 搜索
 - Admin 管理后台（用户管理/笔记下架）
 - Redis 缓存
