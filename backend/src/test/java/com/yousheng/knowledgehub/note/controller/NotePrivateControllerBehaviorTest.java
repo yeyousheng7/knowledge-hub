@@ -306,6 +306,35 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void listNotes_mixedTaggedAndUntagged_returnsTagsOrEmptyArray() throws Exception {
+        AppUser user = createEnabledUser("note_list_tag_mix", "NoteListTagMix", "USER");
+        String token = tokenOf(user);
+
+        Long untaggedId = insertNote(user.getId(), "Untagged Note", "content", "summary", 0, null);
+        Long taggedId = insertNote(user.getId(), "Tagged Note", "content", "summary", 0, null);
+        Long tagId = insertTag(user.getId(), "Java");
+
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                taggedId, tagId, LocalDateTime.now());
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                // tagged note comes first (newer by id)
+                .andExpect(jsonPath("$.data.items[0].title").value("Tagged Note"))
+                .andExpect(jsonPath("$.data.items[0].tags.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].tags[0].id").value(tagId.intValue()))
+                .andExpect(jsonPath("$.data.items[0].tags[0].name").value("Java"))
+                // untagged note returns empty array
+                .andExpect(jsonPath("$.data.items[1].title").value("Untagged Note"))
+                .andExpect(jsonPath("$.data.items[1].tags.length()").value(0));
+    }
+
+    @Test
     void listNotes_withoutCategoryId_returnsAllMyNotes() throws Exception {
         AppUser user = createEnabledUser("note_list_all", "NoteListAll", "USER");
         String token = tokenOf(user);

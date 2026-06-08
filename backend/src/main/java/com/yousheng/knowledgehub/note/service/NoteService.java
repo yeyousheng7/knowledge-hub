@@ -14,6 +14,7 @@ import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
 import com.yousheng.knowledgehub.note.enums.NoteVisibility;
 import com.yousheng.knowledgehub.note.mapper.NoteMapper;
 import com.yousheng.knowledgehub.security.CurrentUser;
+import com.yousheng.knowledgehub.tag.dto.NoteTagQueryRow;
 import com.yousheng.knowledgehub.tag.entity.NoteTag;
 import com.yousheng.knowledgehub.tag.entity.Tag;
 import com.yousheng.knowledgehub.tag.mapper.NoteTagMapper;
@@ -27,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @RequiredArgsConstructor
@@ -113,10 +116,36 @@ public class NoteService {
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
 
-        List<NoteListItemResponse> items = notePage.getRecords()
-                .stream()
-                .map(this::toListItemResponse)
+        List<Note> notes = notePage.getRecords();
+        Map<Long, List<NoteTagResponse>> tagsByNoteId;
+        if (notes.isEmpty()) {
+            tagsByNoteId = Map.of();
+        } else {
+            List<Long> noteIds = notes.stream()
+                    .map(Note::getId)
+                    .toList();
+
+            tagsByNoteId = noteTagMapper.selectTagRowsByNoteIds(noteIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            NoteTagQueryRow::noteId,
+                            Collectors.mapping(
+                                    row -> new NoteTagResponse(
+                                            row.tagId(),
+                                            row.tagName()
+                                    ),
+                                    Collectors.toList()
+                            )
+                    ));
+        }
+
+        List<NoteListItemResponse> items = notes.stream()
+                .map(note -> toListItemResponse(
+                        note,
+                        tagsByNoteId.getOrDefault(note.getId(), List.of())
+                ))
                 .toList();
+
 
         return new NoteListResponse(
                 items,
@@ -314,13 +343,14 @@ public class NoteService {
         return toPublicDetailResponse(note);
     }
 
-    private NoteListItemResponse toListItemResponse(Note note) {
+    private NoteListItemResponse toListItemResponse(Note note, List<NoteTagResponse> tags) {
 
         return new NoteListItemResponse(
                 note.getId(),
                 note.getTitle(),
                 note.getSummary(),
                 note.getCategoryId(),
+                tags,
                 note.getVisibility(),
                 note.getModerationStatus(),
                 note.getCreatedAt(),

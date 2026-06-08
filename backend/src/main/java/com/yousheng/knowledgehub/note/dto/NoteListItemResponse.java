@@ -3,6 +3,7 @@ package com.yousheng.knowledgehub.note.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record NoteListItemResponse(
         Long id,
@@ -12,6 +13,9 @@ public record NoteListItemResponse(
 
         @Schema(description = "分类ID，null 表示未分类")
         Long categoryId,
+
+        @Schema(description = "笔记标签列表")
+        List<NoteTagResponse> tags,
 
         @Schema(description = "可见性，PRIVATE 表示私有，PUBLIC 表示公开")
         String visibility,
