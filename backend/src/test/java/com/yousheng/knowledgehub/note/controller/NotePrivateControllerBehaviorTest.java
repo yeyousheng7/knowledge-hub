@@ -1162,6 +1162,102 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
     }
 
     @Test
+    void listNotes_withBlankKeyword_behavesLikeNoKeyword() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_blank", "NoteListKwBlank", "USER");
+        String token = tokenOf(user);
+
+        insertNote(user.getId(), "Note One", "content one", "summary one", 0, null);
+        insertNote(user.getId(), "Note Two", "content two", "summary two", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .param("keyword", "   ")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2));
+    }
+
+    @Test
+    void listNotes_withKeywordAndTagId_returnsIntersection() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_tag", "NoteListKwTag", "USER");
+        String token = tokenOf(user);
+        Long tagId = insertTag(user.getId(), "Spring");
+
+        insertNote(user.getId(), "Spring Boot Basics", "spring boot content", "spring summary", 0, null);
+        Long matchId = insertNote(user.getId(), "spring Advanced", "adv content", "adv summary", 0, null);
+        Long noKeywordId = insertNote(user.getId(), "Other Topic", "other content", "other summary", 0, null);
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                matchId, tagId, now);
+        jdbcTemplate.update(
+                "INSERT INTO note_tag (note_id, tag_id, created_at) VALUES (?, ?, ?)",
+                noKeywordId, tagId, now);
+
+        mockMvc.perform(get("/api/v1/notes")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .param("keyword", "spring")
+                        .param("tagId", String.valueOf(tagId))
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("spring Advanced"));
+    }
+
+    @Test
+    void listNotes_withKeyword_exclamationMark_matchesLiteral() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_excl", "NoteListKwExcl", "USER");
+        String token = tokenOf(user);
+
+        insertNote(user.getId(), "Important!", "important content", "important summary", 0, null);
+        insertNote(user.getId(), "Important", "no exclamation", "no exclamation", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .param("keyword", "!")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Important!"));
+    }
+
+    @Test
+    void listNotes_withKeyword_isCaseInsensitive() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_case", "NoteListKwCase", "USER");
+        String token = tokenOf(user);
+
+        insertNote(
+                user.getId(),
+                "Spring Boot Guide",
+                "content",
+                "summary",
+                0,
+                null
+        );
+
+        mockMvc.perform(get("/api/v1/notes")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .param("keyword", "SPRING")
+                        .header(
+                                JwtConstants.AUTHORIZATION_HEADER,
+                                JwtConstants.BEARER_PREFIX + token
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title")
+                        .value("Spring Boot Guide"));
+    }
+
+    @Test
     void listNotes_withTooLongKeyword_returns40001() throws Exception {
         AppUser user = createEnabledUser("note_list_kw_long", "NoteListKwLong", "USER");
         String token = tokenOf(user);

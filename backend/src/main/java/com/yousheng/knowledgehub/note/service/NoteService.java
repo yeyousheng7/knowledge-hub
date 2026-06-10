@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -134,11 +135,11 @@ public class NoteService {
             String pattern = "%" + normalizedKeyword + "%";
 
             query.and(wrapper -> wrapper
-                    .apply("title LIKE {0} ESCAPE '!'", pattern)
+                    .apply("LOWER(title) LIKE {0} ESCAPE '!'", pattern)
                     .or()
-                    .apply("summary LIKE {0} ESCAPE '!'", pattern)
+                    .apply("LOWER(summary) LIKE {0} ESCAPE '!'", pattern)
                     .or()
-                    .apply("content_md LIKE {0} ESCAPE '!'", pattern)
+                    .apply("LOWER(content_md) LIKE {0} ESCAPE '!'", pattern)
             );
         }
 
@@ -564,7 +565,7 @@ public class NoteService {
             return null;
         }
 
-        String normalizedKeyword = keyword.trim();
+        String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
 
         // 替换 Like 特殊符号
         if (!normalizedKeyword.isEmpty()) {

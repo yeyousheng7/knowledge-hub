@@ -53,7 +53,7 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 ### Note 私有笔记管理
 
 - 创建私有笔记（支持 categoryId 绑定分类，支持 tagIds 绑定标签）
-- 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId 和 tagId 筛选）
+- 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId、tagId 和 keyword 筛选）
 - 我的笔记详情（返回 categoryId 和 tags）
 - 更新笔记（支持 categoryId，支持 tagIds 全量替换标签）
 - 软删除笔记（自动清除 note_tag 关联）
@@ -92,7 +92,7 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId 和 tagIds） |
-| GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId 和 tagId 筛选） |
+| GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId、tagId 和 keyword 筛选） |
 | GET | `/api/v1/notes/{noteId}` | 笔记详情（返回 categoryId 和 tags） |
 | PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId 和 tagIds） |
 | DELETE | `/api/v1/notes/{noteId}` | 软删除笔记（自动清除 note_tag 关联） |
@@ -209,13 +209,15 @@ mvnw.cmd test
 - Note 更新标签为全量替换（传空数组清空所有标签），一个 Note 最多绑定 10 个标签
 - Note 列表支持按 tagId 筛选，支持 categoryId 和 tagId 联合过滤取交集
 - 删除 Note 或删除 Tag 时，自动清除对应的 note_tag 关联记录
+- Note 列表支持 keyword 关键字搜索，不区分大小写，搜索范围为标题、摘要和正文，支持 categoryId 和 tagId 联合过滤
+- 关键字搜索对 LIKE 通配符（`%`、`_`、`!`）进行转义，按字面量匹配，空格仅关键字等同于不筛选
+- 关键字最大 100 个字符，超长返回 40001
 
 ## 当前暂不做
 
 以下功能为未来规划，当前版本未实现：
 
 - refresh token / token 黑名单
-- Search 搜索
 - Admin 管理后台（用户管理/笔记下架）
 - Redis 缓存
 - RAG / AI 问答

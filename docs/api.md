@@ -31,7 +31,7 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | /api/v1/notes | Yes | 创建私有笔记（支持 categoryId 和 tagIds） |
-| GET | /api/v1/notes | Yes | 我的笔记列表（支持 categoryId 和 tagId 筛选） |
+| GET | /api/v1/notes | Yes | 我的笔记列表（支持 keyword、categoryId 和 tagId 筛选） |
 | GET | /api/v1/notes/{noteId} | Yes | 我的笔记详情（返回 categoryId 和 tags） |
 | PUT | /api/v1/notes/{noteId} | Yes | 更新我的笔记（支持 categoryId 和 tagIds） |
 | DELETE | /api/v1/notes/{noteId} | Yes | 软删除我的笔记（自动清除 note_tag 关联） |
@@ -76,6 +76,15 @@
 - Note 创建/更新时绑定标签，传空数组清空所有标签，一个 Note 最多绑定 10 个标签
 - Note 列表支持按 tagId 筛选，支持 categoryId 和 tagId 联合过滤取交集
 - 删除 Note 时自动清除对应的 note_tag 关联记录
+
+## 关键字搜索
+
+- `keyword` 查询参数支持对标题、摘要和正文进行模糊搜索，匹配不区分大小写
+- 仅返回当前用户自己的未删除笔记，可与 `categoryId` 和 `tagId` 联合过滤
+- 标记为删除 / 他人的笔记不会被匹配
+- 空白关键字（全空格或 trim 后为空）视为不筛选
+- LIKE 通配符（`%`、`_`、`!`）按字面量匹配，不产生 SQL LIKE 通配符语义
+- 关键字最大 100 字符（`@Size(max = 100)`），超长返回 40001
 
 ## 公开接口暴露规则
 
