@@ -1068,6 +1068,112 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
         assertThat(count).isEqualTo(0);
     }
 
+    // ---- listNotes with keyword ----
+
+    @Test
+    void listNotes_withKeyword_returnsMatchedOwnNotes() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw", "NoteListKw", "USER");
+        String token = tokenOf(user);
+
+        insertNote(user.getId(), "Spring Boot Guide", "content about DI", "spring summary", 0, null);
+        insertNote(user.getId(), "Java Basics", "learn java spring", "java basics summary", 0, null);
+        insertNote(user.getId(), "Docker Tutorial", "container stuff", "docker intro", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&keyword=spring")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].title").value("Java Basics"))
+                .andExpect(jsonPath("$.data.items[1].title").value("Spring Boot Guide"));
+    }
+
+    @Test
+    void listNotes_withKeyword_doesNotReturnOtherUsersOrDeletedNotes() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_owner", "NoteListKwOwner", "USER");
+        AppUser other = createEnabledUser("note_list_kw_other", "NoteListKwOther", "USER");
+        String token = tokenOf(user);
+
+        insertNote(user.getId(), "My Spring Note", "my spring content", "my summary", 0, null);
+        insertNote(other.getId(), "Other Spring Note", "other spring content", "other summary", 0, null);
+        Long deletedId = insertNote(user.getId(), "Deleted Spring Note", "deleted spring content", "deleted summary", 0, null);
+        jdbcTemplate.update("UPDATE note SET deleted = 1, deleted_at = ? WHERE id = ?",
+                LocalDateTime.now(), deletedId);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&keyword=spring")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("My Spring Note"));
+    }
+
+    @Test
+    void listNotes_withKeywordAndCategoryId_returnsIntersection() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_cat", "NoteListKwCat", "USER");
+        String token = tokenOf(user);
+        Long catId = insertCategory(user.getId(), "Tech");
+
+        insertNote(user.getId(), "Spring In Tech", "spring di content", "spring summary", 0, null, catId);
+        insertNote(user.getId(), "Spring No Cat", "spring boot content", "spring summary", 0, null);
+        insertNote(user.getId(), "Docker In Tech", "container content", "docker summary", 0, null, catId);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&keyword=spring&categoryId=" + catId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Spring In Tech"));
+    }
+
+    @Test
+    void listNotes_withKeyword_percentSign_matchesLiteral() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_pct", "NoteListKwPct", "USER");
+        String token = tokenOf(user);
+
+        insertNote(user.getId(), "100% Java", "percent content", "percent summary", 0, null);
+        insertNote(user.getId(), "Plain Java", "plain content", "plain summary", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&keyword=%")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("100% Java"));
+    }
+
+    @Test
+    void listNotes_withKeyword_underscore_matchesLiteral() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_usc", "NoteListKwUsc", "USER");
+        String token = tokenOf(user);
+
+        insertNote(user.getId(), "under_score", "underscore content", "underscore summary", 0, null);
+        insertNote(user.getId(), "underscore", "no underscore in title", "underscore summary", 0, null);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&keyword=_")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("under_score"));
+    }
+
+    @Test
+    void listNotes_withTooLongKeyword_returns40001() throws Exception {
+        AppUser user = createEnabledUser("note_list_kw_long", "NoteListKwLong", "USER");
+        String token = tokenOf(user);
+
+        String longKeyword = "a".repeat(101);
+
+        mockMvc.perform(get("/api/v1/notes?page=1&size=20&keyword=" + longKeyword)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
     @Test
     void updateNote_withTooManyTagIds_returns400() throws Exception {
         AppUser user = createEnabledUser("note_upd_tags_max", "NoteUpdTagsMax", "USER");

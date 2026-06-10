@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -43,9 +44,10 @@ public class NoteController {
             @Parameter(description = "页码，从 1 开始") @Min(1) @RequestParam(defaultValue = "1") long page,
             @Parameter(description = "每页数量，最大 100") @Min(1) @Max(100) @RequestParam(defaultValue = "20") long size,
             @Parameter(description = "分类 ID") @RequestParam(required = false) Long categoryId,
-            @Parameter(description = "标签 ID") @RequestParam(required = false) Long tagId
+            @Parameter(description = "标签 ID") @RequestParam(required = false) Long tagId,
+            @Parameter(description = "关键字") @Size(max = 100) @RequestParam(required = false) String keyword
     ) {
-        return ApiResponse.ok(noteService.listMyNotes(page, size, categoryId, tagId));
+        return ApiResponse.ok(noteService.listMyNotes(page, size, categoryId, tagId, keyword));
     }
 
     @Operation(summary = "更新我的笔记")

@@ -100,7 +100,7 @@ public class NoteService {
     }
 
     @Transactional(readOnly = true)
-    public NoteListResponse listMyNotes(long page, long size, Long categoryId, Long tagId) {
+    public NoteListResponse listMyNotes(long page, long size, Long categoryId, Long tagId, String keyword) {
         Long userId = requireCurrentEnabledUserId();
         Page<Note> pageParam = Page.of(page, size);
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
@@ -128,6 +128,20 @@ public class NoteService {
 
             query.in(Note::getId, noteTagIds);
         }
+
+        String normalizedKeyword = normalizeKeyword(keyword);
+        if (normalizedKeyword != null && !normalizedKeyword.isBlank()) {
+            String pattern = "%" + normalizedKeyword + "%";
+
+            query.and(wrapper -> wrapper
+                    .apply("title LIKE {0} ESCAPE '!'", pattern)
+                    .or()
+                    .apply("summary LIKE {0} ESCAPE '!'", pattern)
+                    .or()
+                    .apply("content_md LIKE {0} ESCAPE '!'", pattern)
+            );
+        }
+
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
 
@@ -543,6 +557,23 @@ public class NoteService {
         }
 
         return distinctTagIds;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isEmpty()) {
+            return null;
+        }
+
+        String normalizedKeyword = keyword.trim();
+
+        // 替换 Like 特殊符号
+        if (!normalizedKeyword.isEmpty()) {
+            normalizedKeyword = normalizedKeyword
+                    .replace("!", "!!")
+                    .replace("%", "!%")
+                    .replace("_", "!_");
+        }
+        return normalizedKeyword;
     }
 
     private void bindTags(Long noteId, List<Long> tagIds) {
