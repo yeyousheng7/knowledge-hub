@@ -51,6 +51,12 @@
 |--------|------|------|-------------|
 | GET | /api/v1/ping | Yes | Ping test |
 
+## Admin
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /api/v1/admin/notes/{noteId}/take-down | ADMIN | 下架公开笔记 |
+
 ## 发布/取消发布语义
 
 | 操作 | visibility | publishedAt |
@@ -59,6 +65,14 @@
 | PUBLIC -> PUBLIC | 幂等成功 | 不刷新（防止刷排序） |
 | PUBLIC -> PRIVATE | PRIVATE | 保留 |
 | PRIVATE -> PRIVATE | 幂等成功 | 不变 |
+
+## 下架语义
+
+- 仅 ADMIN 角色可调用，普通用户返回 403，未登录返回 401
+- 仅可下架 PUBLIC + NORMAL + 未删除的笔记，PRIVATE / 已删除 / 不存在的笔记返回 40401
+- 下架后 moderation_status 设为 TAKEN_DOWN，moderated_at 设为当前时间
+- 公开列表会过滤 TAKEN_DOWN 笔记，公开详情访问已下架笔记返回 40401
+- 重复下架幂等：moderation_status 和 moderated_at 不变
 
 ## 分类语义
 
@@ -101,6 +115,7 @@
 - Note 绑定/更新分类时必须校验分类属于当前用户且未删除，传别人的分类 ID 返回 `CATEGORY_NOT_FOUND`
 - Note 绑定标签时必须校验标签属于当前用户且未删除，传别人的标签 ID 返回 `TAG_NOT_FOUND`
 - 公开接口不要求登录，严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态，要求 publishedAt 必须存在
+- Admin 接口要求 ADMIN 角色，普通用户返回 403
 - 未登录访问需认证接口返回 401，禁用用户返回 403
 
 ## 统一响应

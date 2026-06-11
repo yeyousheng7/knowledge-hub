@@ -27,8 +27,8 @@ import java.util.List;
 public class CategoryService {
     private final AppUserMapper appUserMapper;
     private final CategoryMapper categoryMapper;
-    private final int DELETED = 1;
-    private final int NOT_DELETED = 0;
+    private static final int DELETED = 1;
+    private static final int NOT_DELETED = 0;
     private final NoteMapper noteMapper;
 
     @Transactional

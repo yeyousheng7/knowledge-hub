@@ -1,0 +1,296 @@
+package com.yousheng.knowledgehub.admin.controller;
+
+import com.yousheng.knowledgehub.security.JwtConstants;
+import com.yousheng.knowledgehub.security.JwtTokenProvider;
+import com.yousheng.knowledgehub.user.entity.AppUser;
+import com.yousheng.knowledgehub.user.enums.UserStatus;
+import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class AdminNoteControllerBehaviorTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private AppUserMapper appUserMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void cleanDatabase() {
+        jdbcTemplate.execute("DELETE FROM note_tag");
+        jdbcTemplate.execute("DELETE FROM note");
+        jdbcTemplate.execute("DELETE FROM tag");
+        jdbcTemplate.execute("DELETE FROM category");
+        jdbcTemplate.execute("DELETE FROM app_user");
+    }
+
+    @Test
+    void admin_takeDownPublicNote_returns200() throws Exception {
+        AppUser admin = createEnabledUser("admin_takedown", "AdminTakedown", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_td", "NoteOwnerTd", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.noteId").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.moderationStatus").value("TAKEN_DOWN"))
+                .andExpect(jsonPath("$.data.moderatedAt").exists());
+
+        String moderationStatus = jdbcTemplate.queryForObject(
+                "SELECT moderation_status FROM note WHERE id = ?", String.class, noteId);
+        LocalDateTime moderatedAt = jdbcTemplate.queryForObject(
+                "SELECT moderated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        assertEquals("TAKEN_DOWN", moderationStatus);
+        assertNotNull(moderatedAt);
+    }
+
+    @Test
+    void user_takeDownPublicNote_returns403() throws Exception {
+        AppUser user = createEnabledUser("user_takedown", "UserTakedown", "USER");
+        String userToken = tokenOf(user);
+
+        Long noteId = insertNote(user.getId(), "Public Note", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticated_takeDownPublicNote_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void takeDownPublicNote_thenPublicDetailReturns404() throws Exception {
+        AppUser admin = createEnabledUser("admin_detail_404", "AdminDetail404", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_detail", "NoteOwnerDetail", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note Detail", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/public/notes/{noteId}", noteId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void takeDownPublicNote_twice_isIdempotent() throws Exception {
+        AppUser admin = createEnabledUser("admin_idempotent", "AdminIdempotent", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_idem", "NoteOwnerIdem", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note Idem", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        LocalDateTime firstModeratedAt = jdbcTemplate.queryForObject(
+                "SELECT moderated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.moderationStatus").value("TAKEN_DOWN"));
+
+        String moderationStatus = jdbcTemplate.queryForObject(
+                "SELECT moderation_status FROM note WHERE id = ?", String.class, noteId);
+        LocalDateTime moderatedAt = jdbcTemplate.queryForObject(
+                "SELECT moderated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        assertEquals("TAKEN_DOWN", moderationStatus);
+        assertEquals(firstModeratedAt, moderatedAt);
+    }
+
+    @Test
+    void admin_takeDownNonExistentNote_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_nonexist", "AdminNonexist", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", 999_999L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void admin_takeDownPrivateNote_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_private", "AdminPrivate", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_private", "NoteOwnerPrivate", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Private Note", "# content", "summary");
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void admin_takeDownDeletedNote_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_deleted", "AdminDeleted", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_del", "NoteOwnerDel", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Deleted Public Note", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ?, deleted = 1, deleted_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                LocalDateTime.now(),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void takeDownPublicNote_thenDelete_thenTakeDownAgain_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_del_after", "AdminDelAfter", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_del2", "NoteOwnerDel2", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Then Deleted", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        jdbcTemplate.update("UPDATE note SET deleted = 1, deleted_at = ? WHERE id = ?",
+                LocalDateTime.now(), noteId);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void takeDownPublicNote_thenMakePrivate_thenTakeDownAgain_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_priv_after", "AdminPrivAfter", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_priv2", "NoteOwnerPriv2", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Then Private", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        jdbcTemplate.update("UPDATE note SET visibility = 'PRIVATE' WHERE id = ?", noteId);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    // ---- helpers ----
+
+    private AppUser createEnabledUser(String username, String nickname, String role) {
+        LocalDateTime now = LocalDateTime.now();
+
+        AppUser user = new AppUser();
+        user.setUsername(username);
+        user.setPasswordHash("unused-hash");
+        user.setNickname(nickname);
+        user.setRole(role);
+        user.setStatus(UserStatus.ENABLED.name());
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+
+        appUserMapper.insert(user);
+        return user;
+    }
+
+    private String tokenOf(AppUser user) {
+        return jwtTokenProvider.generateAccessToken(
+                user.getId(),
+                user.getUsername(),
+                user.getRole()
+        ).accessToken();
+    }
+
+    private Long insertNote(Long userId, String title, String contentMd, String summary) {
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+                """
+                        INSERT INTO note (user_id, title, content_md, summary, visibility,
+                            created_at, updated_at, published_at, moderation_status,
+                            moderated_at, deleted, deleted_at)
+                        VALUES (?, ?, ?, ?, 'PRIVATE', ?, ?, NULL, 'NORMAL', NULL, 0, NULL)
+                        """,
+                userId, title, contentMd, summary, now, now
+        );
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+}

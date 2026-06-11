@@ -28,8 +28,8 @@ public class TagService {
     private final TagMapper tagMapper;
     private final NoteTagMapper noteTagMapper;
     private final AppUserMapper appUserMapper;
-    private final int DELETED = 1;
-    private final int NOT_DELETED = 0;
+    private static final int DELETED = 1;
+    private static final int NOT_DELETED = 0;
 
 
     @Transactional

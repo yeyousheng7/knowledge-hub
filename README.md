@@ -4,7 +4,7 @@
 
 KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdown 知识库系统。支持多用户使用，用户可以创建私有 Markdown 笔记并选择将部分笔记发布为公开内容。
 
-当前阶段已完成认证基础设施、Note MVP、Category 分类模块和 Tag 标签模块，覆盖注册登录、私有笔记 CRUD、分类/标签管理、发布/取消发布和公开阅读。
+当前阶段已完成认证基础设施、Note MVP、Category 分类模块、Tag 标签模块和 Admin 笔记下架，覆盖注册登录、私有笔记 CRUD、分类/标签管理、发布/取消发布、公开阅读和管理员内容审核。
 
 ## 技术栈
 
@@ -106,6 +106,12 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 | GET | `/api/v1/public/notes` | 公开笔记列表（返回标签名和作者信息） |
 | GET | `/api/v1/public/notes/{noteId}` | 公开笔记详情（返回正文、标签名和作者信息） |
 
+### Admin 管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/admin/notes/{noteId}/take-down` | 下架公开笔记（需 ADMIN 角色） |
+
 ## 本地运行
 
 ### 环境要求
@@ -175,7 +181,7 @@ cd backend
 mvnw.cmd test
 ```
 
-测试基于 MockMvc 进行行为测试，覆盖 Auth 认证、Category 分类、Tag 标签和 Note 模块的核心业务规则。
+测试基于 MockMvc 进行行为测试，覆盖 Auth 认证、Category 分类、Tag 标签、Note 模块和 Admin 管理模块的核心业务规则。
 
 ## 核心设计说明
 
@@ -195,6 +201,8 @@ mvnw.cmd test
 - 删除采用软删除（`deleted` 字段标记），不使用物理删除
 - 私有接口不存在 / 别人的 / 已删除统一返回 `NOTE_NOT_FOUND`，不暴露资源存在性
 - 公开接口严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态，要求 publishedAt 必须存在
+- 下架后的笔记公开接口返回 40401，重复下架幂等（moderation_status 不变，moderated_at 不变）
+- 下架仅限 PUBLIC + NORMAL + 未删除的笔记，PRIVATE / 已删除的笔记下架返回 40401
 - 公开接口不暴露标签 ID，仅返回标签名
 - 公开接口不暴露用户 ID，仅返回用户名和昵称
 - 公开接口不暴露 categoryId
@@ -218,7 +226,7 @@ mvnw.cmd test
 以下功能为未来规划，当前版本未实现：
 
 - refresh token / token 黑名单
-- Admin 管理后台（用户管理/笔记下架）
+- Admin 管理后台（用户管理等）
 - Redis 缓存
 - RAG / AI 问答
 - 文件上传 / 图片上传
