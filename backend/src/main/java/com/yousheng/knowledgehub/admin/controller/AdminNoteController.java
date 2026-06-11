@@ -29,4 +29,12 @@ public class AdminNoteController {
     ) {
         return ApiResponse.ok(adminNoteService.takeDownNote(noteId));
     }
+
+    @Operation(summary = "恢复公开笔记")
+    @PostMapping("/{noteId}/restore")
+    public ApiResponse<AdminNoteModerationResponse> restore(
+            @Parameter(description = "笔记 ID", required = true) @PathVariable Long noteId
+    ) {
+        return ApiResponse.ok(adminNoteService.restoreNote(noteId));
+    }
 }

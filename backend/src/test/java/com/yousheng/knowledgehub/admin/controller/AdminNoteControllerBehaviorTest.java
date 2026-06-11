@@ -254,6 +254,209 @@ class AdminNoteControllerBehaviorTest {
                 .andExpect(jsonPath("$.code").value(40401));
     }
 
+    // ---- restore ----
+
+    @Test
+    void admin_restoreTakenDownPublicNote_returns200() throws Exception {
+        AppUser admin = createEnabledUser("admin_restore", "AdminRestore", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_rest", "NoteOwnerRest", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note Restore", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.noteId").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.moderationStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data.moderatedAt").exists());
+
+        String moderationStatus = jdbcTemplate.queryForObject(
+                "SELECT moderation_status FROM note WHERE id = ?", String.class, noteId);
+
+        assertEquals("NORMAL", moderationStatus);
+    }
+
+    @Test
+    void restoreTakenDownPublicNote_thenPublicDetailReturns200() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_detail", "AdminRestDetail", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_rd", "NoteOwnerRd", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note Rest Detail", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/public/notes/{noteId}", noteId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").value(noteId.intValue()));
+    }
+
+    @Test
+    void user_restorePublicNote_returns403() throws Exception {
+        AppUser user = createEnabledUser("user_restore", "UserRestore", "USER");
+        String userToken = tokenOf(user);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", 1L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticated_restorePublicNote_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void restorePublicNote_twice_isIdempotent() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_idem", "AdminRestIdem", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_ri", "NoteOwnerRi", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note Rest Idem", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        LocalDateTime firstModeratedAt = jdbcTemplate.queryForObject(
+                "SELECT moderated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.moderationStatus").value("NORMAL"));
+
+        String moderationStatus = jdbcTemplate.queryForObject(
+                "SELECT moderation_status FROM note WHERE id = ?", String.class, noteId);
+        LocalDateTime moderatedAt = jdbcTemplate.queryForObject(
+                "SELECT moderated_at FROM note WHERE id = ?", LocalDateTime.class, noteId);
+
+        assertEquals("NORMAL", moderationStatus);
+        assertEquals(firstModeratedAt, moderatedAt);
+    }
+
+    @Test
+    void admin_restoreNonExistentNote_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_nx", "AdminRestNx", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", 999_999L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void admin_restoreDeletedNote_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_del", "AdminRestDel", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_rd2", "NoteOwnerRd2", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Deleted Public Note", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        jdbcTemplate.update("UPDATE note SET deleted = 1, deleted_at = ? WHERE id = ?",
+                LocalDateTime.now(), noteId);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void admin_restorePrivateNote_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_priv", "AdminRestPriv", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_rp", "NoteOwnerRp", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Then Private", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk());
+
+        jdbcTemplate.update("UPDATE note SET visibility = 'PRIVATE' WHERE id = ?", noteId);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void restoreNormalNote_isIdempotent() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_norm", "AdminRestNorm", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_rn", "NoteOwnerRn", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Normal Public Note", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.moderationStatus").value("NORMAL"));
+
+        String moderationStatus = jdbcTemplate.queryForObject(
+                "SELECT moderation_status FROM note WHERE id = ?", String.class, noteId);
+
+        assertEquals("NORMAL", moderationStatus);
+    }
+
     // ---- helpers ----
 
     private AppUser createEnabledUser(String username, String nickname, String role) {

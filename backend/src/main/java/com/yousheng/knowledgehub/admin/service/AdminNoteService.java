@@ -64,4 +64,46 @@ public class AdminNoteService {
         );
     }
 
+    @Transactional
+    public AdminNoteModerationResponse restoreNote(Long noteId) {
+        Note note = noteMapper.selectOne(
+                Wrappers.lambdaQuery(Note.class)
+                        .eq(Note::getId, noteId)
+                        .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                        .eq(Note::getDeleted, NOT_DELETED)
+        );
+
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        if (NoteModerationStatus.NORMAL.name().equals(note.getModerationStatus())) {
+            return new AdminNoteModerationResponse(
+                    noteId,
+                    NoteModerationStatus.NORMAL.name(),
+                    note.getModeratedAt()
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LambdaUpdateWrapper<Note> updateWrapper = Wrappers.lambdaUpdate(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .eq(Note::getModerationStatus, NoteModerationStatus.TAKEN_DOWN.name())
+                .set(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .set(Note::getModeratedAt, now);
+
+        int affectedRows = noteMapper.update(new Note(), updateWrapper);
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        return new AdminNoteModerationResponse(
+                noteId,
+                NoteModerationStatus.NORMAL.name(),
+                now
+        );
+    }
+
 }
