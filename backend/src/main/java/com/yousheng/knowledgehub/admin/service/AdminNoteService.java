@@ -18,11 +18,17 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Service
 public class AdminNoteService {
+    private final AdminPermissionService adminPermissionService;
+
     private final NoteMapper noteMapper;
+
     private static final int NOT_DELETED = 0;
+
 
     @Transactional
     public AdminNoteModerationResponse takeDownNote(Long noteId) {
+        adminPermissionService.requireCurrentAdminEnabled();
+
         Note note = noteMapper.selectOne(
                 Wrappers.lambdaQuery(Note.class)
                         .eq(Note::getId, noteId)
@@ -66,6 +72,8 @@ public class AdminNoteService {
 
     @Transactional
     public AdminNoteModerationResponse restoreNote(Long noteId) {
+        adminPermissionService.requireCurrentAdminEnabled();
+
         Note note = noteMapper.selectOne(
                 Wrappers.lambdaQuery(Note.class)
                         .eq(Note::getId, noteId)

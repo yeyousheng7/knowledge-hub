@@ -457,6 +457,36 @@ class AdminNoteControllerBehaviorTest {
         assertEquals("NORMAL", moderationStatus);
     }
 
+    @Test
+    void disabledAdmin_takeDownPublicNote_returns40301() throws Exception {
+        AppUser disabledAdmin = createDisabledUser("disabled_admin_td", "DisabledAdminTd", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_da", "NoteOwnerDa", "USER");
+        String adminToken = tokenOf(disabledAdmin);
+
+        Long noteId = insertNote(user.getId(), "Public Note", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void disabledAdmin_restorePublicNote_returns40301() throws Exception {
+        AppUser disabledAdmin = createDisabledUser("disabled_admin_rest", "DisabledAdminRest", "ADMIN");
+        String adminToken = tokenOf(disabledAdmin);
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", 1L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
     // ---- helpers ----
 
     private AppUser createEnabledUser(String username, String nickname, String role) {
@@ -472,6 +502,13 @@ class AdminNoteControllerBehaviorTest {
         user.setUpdatedAt(now);
 
         appUserMapper.insert(user);
+        return user;
+    }
+
+    private AppUser createDisabledUser(String username, String nickname, String role) {
+        AppUser user = createEnabledUser(username, nickname, role);
+        user.setStatus(UserStatus.DISABLED.name());
+        appUserMapper.updateById(user);
         return user;
     }
 
