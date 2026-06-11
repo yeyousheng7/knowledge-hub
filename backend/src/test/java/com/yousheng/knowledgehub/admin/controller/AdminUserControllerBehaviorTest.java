@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -158,6 +159,90 @@ class AdminUserControllerBehaviorTest {
                 "SELECT status FROM app_user WHERE id = ?", String.class, user.getId());
 
         assertEquals("ENABLED", dbStatus);
+    }
+
+    // ---- list ----
+
+    @Test
+    void admin_listUsers_returnsPagedUsers() throws Exception {
+        AppUser admin = createEnabledUser("admin_list", "AdminList", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        createEnabledUser("alice", "Alice", "USER");
+        createEnabledUser("bob", "Bob", "USER");
+        createEnabledUser("charlie", "Charlie", "USER");
+
+        mockMvc.perform(get("/api/v1/admin/users?page=1&size=2")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(4))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2));
+    }
+
+    @Test
+    void admin_listUsers_withStatus_returnsFilteredUsers() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_status", "AdminListStatus", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        createEnabledUser("alice", "Alice", "USER");
+        createDisabledUser("bob", "Bob", "USER");
+        createEnabledUser("charlie", "Charlie", "USER");
+
+        mockMvc.perform(get("/api/v1/admin/users?page=1&size=20&status=DISABLED")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].username").value("bob"))
+                .andExpect(jsonPath("$.data.items[0].status").value("DISABLED"));
+    }
+
+    @Test
+    void admin_listUsers_withKeyword_returnsMatchedUsers() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_kw", "AdminListKw", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        createEnabledUser("spring_boot", "Spring Boot Dev", "USER");
+        createEnabledUser("java_dev", "Java Developer", "USER");
+        createEnabledUser("docker_user", "Docker User", "USER");
+
+        mockMvc.perform(get("/api/v1/admin/users?page=1&size=20&keyword=spring")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].username").value("spring_boot"));
+    }
+
+    @Test
+    void user_listUsers_returns403() throws Exception {
+        AppUser user = createEnabledUser("user_list", "UserList", "USER");
+        String userToken = tokenOf(user);
+
+        mockMvc.perform(get("/api/v1/admin/users?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticated_listUsers_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/users?page=1&size=20"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void disabledAdmin_listUsers_returns40301() throws Exception {
+        AppUser disabledAdmin = createDisabledUser("disabled_admin_list", "DisabledAdminList", "ADMIN");
+        String adminToken = tokenOf(disabledAdmin);
+
+        mockMvc.perform(get("/api/v1/admin/users?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
     }
 
     // ---- helpers ----
