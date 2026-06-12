@@ -4,7 +4,7 @@
 
 KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdown 知识库系统。支持多用户使用，用户可以创建私有 Markdown 笔记并选择将部分笔记发布为公开内容。
 
-当前阶段已完成认证基础设施、Note MVP、Category 分类模块、Tag 标签模块和 Admin 笔记下架，覆盖注册登录、私有笔记 CRUD、分类/标签管理、发布/取消发布、公开阅读和管理员内容审核。
+当前阶段已完成认证基础设施、Note MVP、Category 分类模块、Tag 标签模块和 Admin 管理模块（笔记审核 + 用户管理），覆盖注册登录、私有笔记 CRUD、分类/标签管理、发布/取消发布、公开阅读和管理员内容审核。
 
 ## 技术栈
 
@@ -110,7 +110,15 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/admin/notes/{noteId}/take-down` | 下架公开笔记（需 ADMIN 角色） |
+| GET | `/api/v1/admin/notes` | 公开笔记审核列表（支持 keyword 和 moderationStatus 筛选） |
+| GET | `/api/v1/admin/notes/{noteId}` | 公开笔记审核详情（返回正文和作者信息） |
+| POST | `/api/v1/admin/notes/{noteId}/take-down` | 下架公开笔记 |
+| POST | `/api/v1/admin/notes/{noteId}/restore` | 恢复已下架公开笔记 |
+| GET | `/api/v1/admin/users` | 用户列表（支持 keyword 和 status 筛选） |
+| POST | `/api/v1/admin/users/{userId}/disable` | 禁用用户（仅限 USER 角色） |
+| POST | `/api/v1/admin/users/{userId}/enable` | 启用用户（仅限 USER 角色） |
+
+所有 Admin 接口需 ADMIN 角色 + ENABLED 状态，禁用管理员返回 40301。
 
 ## 本地运行
 
@@ -201,8 +209,12 @@ mvnw.cmd test
 - 删除采用软删除（`deleted` 字段标记），不使用物理删除
 - 私有接口不存在 / 别人的 / 已删除统一返回 `NOTE_NOT_FOUND`，不暴露资源存在性
 - 公开接口严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态，要求 publishedAt 必须存在
-- 下架后的笔记公开接口返回 40401，重复下架幂等（moderation_status 不变，moderated_at 不变）
-- 下架仅限 PUBLIC + NORMAL + 未删除的笔记，PRIVATE / 已删除的笔记下架返回 40401
+- 下架/恢复仅限 PUBLIC + 未删除笔记，PRIVATE / 已删除的笔记返回 40401
+- 下架：NORMAL -> TAKEN_DOWN，恢复：TAKEN_DOWN -> NORMAL，重复操作幂等（moderated_at 不变）
+- 审核列表和详情接口管理员可查看所有公开笔记（含 TAKEN_DOWN）
+- 审核列表按 updatedAt, id 倒序
+- 管理员禁用/启用仅限 USER 角色账户，不能操作自己，重复操作幂等
+- Admin 接口强制校验管理员存在且 ENABLED，禁用管理员返回 40301
 - 公开接口不暴露标签 ID，仅返回标签名
 - 公开接口不暴露用户 ID，仅返回用户名和昵称
 - 公开接口不暴露 categoryId
@@ -226,7 +238,7 @@ mvnw.cmd test
 以下功能为未来规划，当前版本未实现：
 
 - refresh token / token 黑名单
-- Admin 管理后台（用户管理等）
+- Admin 角色管理 / 权限细分
 - Redis 缓存
 - RAG / AI 问答
 - 文件上传 / 图片上传

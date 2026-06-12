@@ -55,7 +55,13 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | /api/v1/admin/notes/{noteId}/take-down | ADMIN | 下架公开笔记 |
+| GET | /api/v1/admin/notes | ADMIN+ENABLED | 公开笔记审核列表（支持 keyword、moderationStatus 筛选） |
+| GET | /api/v1/admin/notes/{noteId} | ADMIN+ENABLED | 公开笔记审核详情（返回正文和作者信息） |
+| POST | /api/v1/admin/notes/{noteId}/take-down | ADMIN+ENABLED | 下架公开笔记 |
+| POST | /api/v1/admin/notes/{noteId}/restore | ADMIN+ENABLED | 恢复已下架公开笔记 |
+| GET | /api/v1/admin/users | ADMIN+ENABLED | 用户列表（支持 keyword、status 筛选） |
+| POST | /api/v1/admin/users/{userId}/disable | ADMIN+ENABLED | 禁用用户（仅限 USER 角色） |
+| POST | /api/v1/admin/users/{userId}/enable | ADMIN+ENABLED | 启用用户（仅限 USER 角色） |
 
 ## 发布/取消发布语义
 
@@ -66,13 +72,32 @@
 | PUBLIC -> PRIVATE | PRIVATE | 保留 |
 | PRIVATE -> PRIVATE | 幂等成功 | 不变 |
 
-## 下架语义
+## 下架/恢复语义
 
-- 仅 ADMIN 角色可调用，普通用户返回 403，未登录返回 401
+- 仅 ADMIN 角色 + ENABLED 状态可调用，普通用户返回 403，未登录返回 401，禁用管理员返回 40301
 - 仅可下架 PUBLIC + NORMAL + 未删除的笔记，PRIVATE / 已删除 / 不存在的笔记返回 40401
-- 下架后 moderation_status 设为 TAKEN_DOWN，moderated_at 设为当前时间
+- 恢复仅限 PUBLIC + 未删除笔记，PRIVATE / 已删除 / 不存在的笔记返回 40401
+- 下架：NORMAL -> TAKEN_DOWN，moderated_at 设为当前时间
+- 恢复：TAKEN_DOWN -> NORMAL，moderated_at 设为当前时间
 - 公开列表会过滤 TAKEN_DOWN 笔记，公开详情访问已下架笔记返回 40401
-- 重复下架幂等：moderation_status 和 moderated_at 不变
+- 重复下架幂等：TAKEN_DOWN 笔记下架时 moderation_status 和 moderated_at 不变
+- 重复恢复幂等：NORMAL 笔记恢复时 moderation_status 和 moderated_at 不变
+
+## Admin 审核列表/详情
+
+- 审核列表返回所有 PUBLIC + 未删除笔记（含 TAKEN_DOWN），按 updatedAt, id 倒序
+- 支持 moderationStatus 筛选和 keyword 搜索，keyword 搜索范围为标题和摘要，不区分大小写
+- keyword 可选，不传或空字符串视为不筛选；moderationStatus 可选，不传或空字符串返回全部状态
+- 审核详情返回正文 contentMd 和作者信息（userId、username、nickname、status）
+- 无笔记时返回空列表，不报错
+
+## 用户管理语义
+
+- 仅 ADMIN 角色 + ENABLED 状态可调用
+- 禁用/启用仅限 USER 角色账户，管理员不能操作自己，自己禁用自己返回 403
+- 已禁用用户再次禁用幂等，已启用用户再次启用幂等
+- 用户列表返回所有用户（含 ADMIN），支持 keyword 搜索和 status 筛选
+- keyword 搜索范围为 username 和 nickname，不区分大小写
 
 ## 分类语义
 
@@ -115,7 +140,8 @@
 - Note 绑定/更新分类时必须校验分类属于当前用户且未删除，传别人的分类 ID 返回 `CATEGORY_NOT_FOUND`
 - Note 绑定标签时必须校验标签属于当前用户且未删除，传别人的标签 ID 返回 `TAG_NOT_FOUND`
 - 公开接口不要求登录，严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态，要求 publishedAt 必须存在
-- Admin 接口要求 ADMIN 角色，普通用户返回 403
+- Admin 接口要求 ADMIN 角色 + ENABLED 状态，普通用户返回 403，禁用管理员返回 40301
+- 管理员禁用/启用仅限 USER 角色账户，不能操作自己
 - 未登录访问需认证接口返回 401，禁用用户返回 403
 
 ## 统一响应
