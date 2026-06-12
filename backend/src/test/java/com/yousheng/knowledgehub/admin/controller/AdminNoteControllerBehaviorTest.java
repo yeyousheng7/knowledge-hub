@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -485,6 +486,235 @@ class AdminNoteControllerBehaviorTest {
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    // ---- list ----
+
+    @Test
+    void admin_listPublicNotes_returnsPagedNotes() throws Exception {
+        AppUser admin = createEnabledUser("admin_list", "AdminList", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_list", "NoteOwnerList", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long note1 = insertNote(user.getId(), "Note One", "# one", "summary one");
+        Long note2 = insertNote(user.getId(), "Note Two", "# two", "summary two");
+        Long note3 = insertNote(user.getId(), "Note Three", "# three", "summary three");
+
+        for (Long noteId : List.of(note1, note2, note3)) {
+            jdbcTemplate.update(
+                    "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                    LocalDateTime.of(2026, 6, 10, 10, 0), noteId);
+        }
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=2&keyword=&moderationStatus=")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(3))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2));
+    }
+
+    @Test
+    void admin_listPublicNotes_includesTakenDownNotes() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_td", "AdminListTd", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_lt", "NoteOwnerLt", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long normalId = insertNote(user.getId(), "Normal Note", "# normal", "summary normal");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0), normalId);
+
+        Long takenDownId = insertNote(user.getId(), "Taken Down Note", "# taken", "summary taken");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'TAKEN_DOWN', published_at = ?, moderated_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 5), LocalDateTime.of(2026, 6, 11, 10, 0), takenDownId);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=&moderationStatus=")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2));
+    }
+
+    @Test
+    void admin_listPublicNotes_withModerationStatus_returnsFilteredNotes() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_filt", "AdminListFilt", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_lf", "NoteOwnerLf", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long normalId = insertNote(user.getId(), "Normal Note", "# normal", "summary normal");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0), normalId);
+
+        Long takenDownId = insertNote(user.getId(), "Taken Down Note", "# taken", "summary taken");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'TAKEN_DOWN', published_at = ?, moderated_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 5), LocalDateTime.of(2026, 6, 11, 10, 0), takenDownId);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=&moderationStatus=TAKEN_DOWN")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].moderationStatus").value("TAKEN_DOWN"));
+    }
+
+    @Test
+    void admin_listPublicNotes_withKeyword_returnsMatchedNotes() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_kw", "AdminListKw", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_lkw", "NoteOwnerLkw", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long note1 = insertNote(user.getId(), "Spring Boot Guide", "# spring", "boot summary");
+        Long note2 = insertNote(user.getId(), "Java Basics", "# java", "learn java");
+        Long note3 = insertNote(user.getId(), "Docker Tutorial", "# docker", "container stuff");
+
+        for (Long noteId : List.of(note1, note2, note3)) {
+            jdbcTemplate.update(
+                    "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                    LocalDateTime.of(2026, 6, 10, 10, 0), noteId);
+        }
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=spring&moderationStatus=")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Spring Boot Guide"));
+    }
+
+    @Test
+    void admin_listPublicNotes_doesNotReturnPrivateOrDeletedNotes() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_filter", "AdminListFilter", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_filt", "NoteOwnerFilt", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long publicId = insertNote(user.getId(), "Public Note", "# public", "summary public");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0), publicId);
+
+        Long privateId = insertNote(user.getId(), "Private Note", "# private", "summary private");
+
+        Long deletedId = insertNote(user.getId(), "Deleted Note", "# deleted", "summary deleted");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ?, deleted = 1, deleted_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0), LocalDateTime.now(), deletedId);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=&moderationStatus=")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Public Note"));
+    }
+
+    @Test
+    void user_listAdminNotes_returns403() throws Exception {
+        AppUser user = createEnabledUser("user_list_notes", "UserListNotes", "USER");
+        String userToken = tokenOf(user);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=&moderationStatus=")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticated_listAdminNotes_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=&moderationStatus="))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void disabledAdmin_listAdminNotes_returns40301() throws Exception {
+        AppUser disabledAdmin = createDisabledUser("disabled_admin_list_n", "DisabledAdminListN", "ADMIN");
+        String adminToken = tokenOf(disabledAdmin);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=&moderationStatus=")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void admin_listPublicNotes_withoutOptionalParams_returns200() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_opt", "AdminListOpt", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    void admin_listPublicNotes_ordersByUpdatedAtDescThenIdDesc() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_order", "AdminListOrder", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_lo", "NoteOwnerLo", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long oldestId = insertNote(user.getId(), "Oldest", "# oldest", "summary");
+        Long middleId = insertNote(user.getId(), "Middle", "# middle", "summary");
+        Long newestId = insertNote(user.getId(), "Newest", "# newest", "summary");
+
+        LocalDateTime base = LocalDateTime.of(2026, 6, 10, 10, 0);
+        for (Long noteId : List.of(oldestId, middleId, newestId)) {
+            jdbcTemplate.update(
+                    "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                    base, noteId);
+        }
+        jdbcTemplate.update("UPDATE note SET updated_at = ? WHERE id = ?", base.plusMinutes(10), oldestId);
+        jdbcTemplate.update("UPDATE note SET updated_at = ? WHERE id = ?", base.plusMinutes(20), middleId);
+        jdbcTemplate.update("UPDATE note SET updated_at = ? WHERE id = ?", base.plusMinutes(30), newestId);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(3))
+                .andExpect(jsonPath("$.data.items[0].title").value("Newest"))
+                .andExpect(jsonPath("$.data.items[1].title").value("Middle"))
+                .andExpect(jsonPath("$.data.items[2].title").value("Oldest"));
+    }
+
+    @Test
+    void admin_listPublicNotes_pageZero_returns40001() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_p0", "AdminListP0", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=0&size=20")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void admin_listPublicNotes_sizeExceedsMax_returns40001() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_smax", "AdminListSmax", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=101")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void admin_listPublicNotes_keywordTooLong_returns40001() throws Exception {
+        AppUser admin = createEnabledUser("admin_list_kwl", "AdminListKwl", "ADMIN");
+        String adminToken = tokenOf(admin);
+
+        String longKeyword = "a".repeat(101);
+
+        mockMvc.perform(get("/api/v1/admin/notes?page=1&size=20&keyword=" + longKeyword)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
     }
 
     // ---- helpers ----

@@ -27,8 +27,8 @@ public class AdminUserController {
     @Operation(summary = "获取用户列表")
     @GetMapping
     public ApiResponse<AdminUserListResponse> list(
-            @Parameter(description = "页码, 从 1 开始") @RequestParam @Min(1) long page,
-            @Parameter(description = "每页数量, 最大 100") @RequestParam @Min(1) @Max(100) long size,
+            @Parameter(description = "页码, 从 1 开始") @Min(1) @RequestParam(defaultValue = "1") long page,
+            @Parameter(description = "每页数量, 最大 100") @Min(1) @Max(100) @RequestParam(defaultValue = "20") long size,
             @Parameter(description = "关键字") @RequestParam(required = false) @Size(max = 100) String keyword,
             @Parameter(description = "状态") @RequestParam(required = false) String status
     ) {
