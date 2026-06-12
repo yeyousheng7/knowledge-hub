@@ -255,6 +255,26 @@ class AdminNoteControllerBehaviorTest {
                 .andExpect(jsonPath("$.code").value(40401));
     }
 
+    @Test
+    void admin_takeDownPublicNoteWithoutPublishedAt_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_td_nopub", "AdminTdNopub", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_nopub", "NoteOwnerNopub", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public No PublishedAt", "# content", "summary");
+
+        // PUBLIC but publishedAt is still NULL (never published)
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL' WHERE id = ?",
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/take-down", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
     // ---- restore ----
 
     @Test
@@ -486,6 +506,27 @@ class AdminNoteControllerBehaviorTest {
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void admin_restorePublicNoteWithoutPublishedAt_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_rest_nopub", "AdminRestNopub", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_rnp", "NoteOwnerRnp", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public No PublishedAt", "# content", "summary");
+
+        // PUBLIC + TAKEN_DOWN but publishedAt is still NULL (never published)
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'TAKEN_DOWN', moderated_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 11, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(post("/api/v1/admin/notes/{noteId}/restore", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
     }
 
     // ---- detail ----

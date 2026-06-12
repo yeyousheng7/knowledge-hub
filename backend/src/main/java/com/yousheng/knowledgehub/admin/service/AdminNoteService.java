@@ -42,6 +42,7 @@ public class AdminNoteService {
                 Wrappers.lambdaQuery(Note.class)
                         .eq(Note::getId, noteId)
                         .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                        .isNotNull(Note::getPublishedAt)
                         .eq(Note::getDeleted, NOT_DELETED)
         );
         if (note == null) {
@@ -87,6 +88,7 @@ public class AdminNoteService {
                 Wrappers.lambdaQuery(Note.class)
                         .eq(Note::getId, noteId)
                         .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                        .isNotNull(Note::getPublishedAt)
                         .eq(Note::getDeleted, NOT_DELETED)
         );
 
