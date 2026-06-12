@@ -129,6 +129,29 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 ### 数据库准备
 
+**方式一：Docker Compose（推荐）**
+
+项目根目录提供了 `docker-compose.yml`，一键启动 MySQL 8.0：
+
+```bash
+# 1. 复制环境变量模板（首次）
+cp .env.example .env
+
+# 2. 按需修改 .env 中的端口和密码（可选，默认值即可运行）
+# MYSQL_DATABASE=knowledge_hub
+# MYSQL_ROOT_PASSWORD=root
+# MYSQL_USER=knowledgehub
+# MYSQL_PASSWORD=knowledgehub
+# MYSQL_PORT=3306
+
+# 3. 启动 MySQL
+docker compose up -d
+```
+
+容器启动后会自动创建 `knowledge_hub` 数据库。使用 `docker compose down` 停止，数据通过 named volume 持久化，不会丢失。
+
+**方式二：手动安装 MySQL**
+
 创建数据库：
 
 ```sql
@@ -243,5 +266,4 @@ mvnw.cmd test
 - RAG / AI 问答
 - 文件上传 / 图片上传
 - 复杂 RBAC
-- Docker Compose
 - 前端页面
