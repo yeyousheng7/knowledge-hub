@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/knowledge_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: your_username
-    password: your_password
+    username: knowledgehub
+    password: knowledgehub
   flyway:
     enabled: true
 
