@@ -1,17 +1,9 @@
 package com.yousheng.knowledgehub.admin.controller;
 
 import com.yousheng.knowledgehub.security.JwtConstants;
-import com.yousheng.knowledgehub.security.JwtTokenProvider;
+import com.yousheng.knowledgehub.support.ControllerBehaviorTestSupport;
 import com.yousheng.knowledgehub.user.entity.AppUser;
-import com.yousheng.knowledgehub.user.enums.UserStatus;
-import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,30 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-class AdminNoteControllerBehaviorTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
-
-    @Autowired
-    private AppUserMapper appUserMapper;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void cleanDatabase() {
-        jdbcTemplate.execute("DELETE FROM note_tag");
-        jdbcTemplate.execute("DELETE FROM note");
-        jdbcTemplate.execute("DELETE FROM tag");
-        jdbcTemplate.execute("DELETE FROM category");
-        jdbcTemplate.execute("DELETE FROM app_user");
-    }
+class AdminNoteControllerBehaviorTest extends ControllerBehaviorTestSupport {
 
     @Test
     void admin_takeDownPublicNote_returns200() throws Exception {
@@ -870,37 +839,6 @@ class AdminNoteControllerBehaviorTest {
     }
 
     // ---- helpers ----
-
-    private AppUser createEnabledUser(String username, String nickname, String role) {
-        LocalDateTime now = LocalDateTime.now();
-
-        AppUser user = new AppUser();
-        user.setUsername(username);
-        user.setPasswordHash("unused-hash");
-        user.setNickname(nickname);
-        user.setRole(role);
-        user.setStatus(UserStatus.ENABLED.name());
-        user.setCreatedAt(now);
-        user.setUpdatedAt(now);
-
-        appUserMapper.insert(user);
-        return user;
-    }
-
-    private AppUser createDisabledUser(String username, String nickname, String role) {
-        AppUser user = createEnabledUser(username, nickname, role);
-        user.setStatus(UserStatus.DISABLED.name());
-        appUserMapper.updateById(user);
-        return user;
-    }
-
-    private String tokenOf(AppUser user) {
-        return jwtTokenProvider.generateAccessToken(
-                user.getId(),
-                user.getUsername(),
-                user.getRole()
-        ).accessToken();
-    }
 
     private Long insertNote(Long userId, String title, String contentMd, String summary) {
         LocalDateTime now = LocalDateTime.now();
