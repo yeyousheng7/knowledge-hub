@@ -9,6 +9,7 @@ import com.yousheng.knowledgehub.admin.dto.AdminUserListResponse;
 import com.yousheng.knowledgehub.admin.dto.AdminUserStatusResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.common.util.SqlLikeUtils;
 import com.yousheng.knowledgehub.security.CurrentUser;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserRole;
@@ -19,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
 
 @RequiredArgsConstructor
 @Service
@@ -41,10 +41,8 @@ public class AdminUserService {
             query.eq(AppUser::getStatus, normalizedStatus);
         }
 
-        String normalizedKeyword = normalizeKeyword(keyword);
-        if (normalizedKeyword != null && !normalizedKeyword.isBlank()) {
-            String pattern = "%" + normalizedKeyword + "%";
-
+        String pattern = SqlLikeUtils.toContainsPattern(keyword);
+        if (pattern != null) {
             query.and(wrapper -> wrapper
                     .apply("LOWER(username) LIKE {0} ESCAPE '!'", pattern)
                     .or()
@@ -163,21 +161,5 @@ public class AdminUserService {
         );
     }
 
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null || keyword.isEmpty()) {
-            return null;
-        }
-
-        String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
-
-        // 替换 Like 特殊符号
-        if (!normalizedKeyword.isEmpty()) {
-            normalizedKeyword = normalizedKeyword
-                    .replace("!", "!!")
-                    .replace("%", "!%")
-                    .replace("_", "!_");
-        }
-        return normalizedKeyword;
-    }
 
 }

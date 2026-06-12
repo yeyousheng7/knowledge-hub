@@ -8,6 +8,7 @@ import com.yousheng.knowledgehub.category.entity.Category;
 import com.yousheng.knowledgehub.category.mapper.CategoryMapper;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.common.util.SqlLikeUtils;
 import com.yousheng.knowledgehub.note.dto.*;
 import com.yousheng.knowledgehub.note.entity.Note;
 import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
@@ -28,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -130,10 +130,8 @@ public class NoteService {
             query.in(Note::getId, noteTagIds);
         }
 
-        String normalizedKeyword = normalizeKeyword(keyword);
-        if (normalizedKeyword != null && !normalizedKeyword.isBlank()) {
-            String pattern = "%" + normalizedKeyword + "%";
-
+        String pattern = SqlLikeUtils.toContainsPattern(keyword);
+        if (pattern != null) {
             query.and(wrapper -> wrapper
                     .apply("LOWER(title) LIKE {0} ESCAPE '!'", pattern)
                     .or()
@@ -558,23 +556,6 @@ public class NoteService {
         }
 
         return distinctTagIds;
-    }
-
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null || keyword.isEmpty()) {
-            return null;
-        }
-
-        String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
-
-        // 替换 Like 特殊符号
-        if (!normalizedKeyword.isEmpty()) {
-            normalizedKeyword = normalizedKeyword
-                    .replace("!", "!!")
-                    .replace("%", "!%")
-                    .replace("_", "!_");
-        }
-        return normalizedKeyword;
     }
 
     private void bindTags(Long noteId, List<Long> tagIds) {

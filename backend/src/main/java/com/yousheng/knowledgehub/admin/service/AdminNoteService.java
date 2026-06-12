@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yousheng.knowledgehub.admin.dto.*;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.common.util.SqlLikeUtils;
 import com.yousheng.knowledgehub.note.entity.Note;
 import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
 import com.yousheng.knowledgehub.note.enums.NoteVisibility;
@@ -19,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -137,10 +137,8 @@ public class AdminNoteService {
                 .orderByDesc(Note::getUpdatedAt)
                 .orderByDesc(Note::getId);
 
-        String normalizedKeyword = normalizeKeyword(keyword);
-        if (normalizedKeyword != null && !normalizedKeyword.isBlank()) {
-            String pattern = "%" + normalizedKeyword + "%";
-
+        String pattern = SqlLikeUtils.toContainsPattern(keyword);
+        if (pattern != null) {
             query.and(wrapper -> wrapper
                     .apply("LOWER(title) LIKE {0} ESCAPE '!'", pattern)
                     .or()
@@ -252,20 +250,4 @@ public class AdminNoteService {
         );
     }
 
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null || keyword.isEmpty()) {
-            return null;
-        }
-
-        String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
-
-        // 替换 Like 特殊符号
-        if (!normalizedKeyword.isEmpty()) {
-            normalizedKeyword = normalizedKeyword
-                    .replace("!", "!!")
-                    .replace("%", "!%")
-                    .replace("_", "!_");
-        }
-        return normalizedKeyword;
-    }
 }
