@@ -1,5 +1,6 @@
 package com.yousheng.knowledgehub.admin.controller;
 
+import com.yousheng.knowledgehub.admin.dto.AdminNoteDetailResponse;
 import com.yousheng.knowledgehub.admin.dto.AdminNoteListResponse;
 import com.yousheng.knowledgehub.admin.dto.AdminNoteModerationResponse;
 import com.yousheng.knowledgehub.admin.service.AdminNoteService;
@@ -34,6 +35,11 @@ public class AdminNoteController {
         return ApiResponse.ok(adminNoteService.listPublicNotesForAdmin(page, size, keyword, moderationStatus));
     }
 
+    @Operation(summary = "获取笔记详情")
+    @GetMapping("/{noteId}")
+    public ApiResponse<AdminNoteDetailResponse> detail(@PathVariable Long noteId) {
+        return ApiResponse.ok(adminNoteService.getNoteDetail(noteId));
+    }
 
     @Operation(summary = "下架公开笔记")
     @PostMapping("/{noteId}/take-down")

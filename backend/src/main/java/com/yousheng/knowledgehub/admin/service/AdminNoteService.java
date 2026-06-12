@@ -4,10 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yousheng.knowledgehub.admin.dto.AdminNoteAuthorResponse;
-import com.yousheng.knowledgehub.admin.dto.AdminNoteItemResponse;
-import com.yousheng.knowledgehub.admin.dto.AdminNoteListResponse;
-import com.yousheng.knowledgehub.admin.dto.AdminNoteModerationResponse;
+import com.yousheng.knowledgehub.admin.dto.*;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.entity.Note;
@@ -132,11 +129,11 @@ public class AdminNoteService {
         Page<Note> pageParam = Page.of(page, size);
 
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .isNotNull(Note::getPublishedAt)
+                .eq(Note::getDeleted, NOT_DELETED)
                 .orderByDesc(Note::getUpdatedAt)
                 .orderByDesc(Note::getId);
-
-        query.eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
-                .eq(Note::getDeleted, NOT_DELETED);
 
         String normalizedKeyword = normalizeKeyword(keyword);
         if (normalizedKeyword != null && !normalizedKeyword.isBlank()) {
@@ -208,6 +205,48 @@ public class AdminNoteService {
                 notePage.getTotal(),
                 notePage.getCurrent(),
                 notePage.getSize()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AdminNoteDetailResponse getNoteDetail(Long noteId) {
+        adminPermissionService.requireCurrentAdminEnabled();
+
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .eq(Note::getDeleted, NOT_DELETED)
+                .isNotNull(Note::getPublishedAt);
+
+        Note note = noteMapper.selectOne(query);
+
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        AppUser user = appUserMapper.selectById(note.getUserId());
+        AdminNoteAuthorResponse author =
+                user == null ? null
+                        : new AdminNoteAuthorResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getNickname(),
+                        user.getStatus()
+                );
+
+
+        return new AdminNoteDetailResponse(
+                note.getId(),
+                note.getTitle(),
+                note.getContentMd(),
+                note.getSummary(),
+                author,
+                note.getVisibility(),
+                note.getModerationStatus(),
+                note.getPublishedAt(),
+                note.getModeratedAt(),
+                note.getCreatedAt(),
+                note.getUpdatedAt()
         );
     }
 

@@ -488,6 +488,117 @@ class AdminNoteControllerBehaviorTest {
                 .andExpect(jsonPath("$.code").value(40301));
     }
 
+    // ---- detail ----
+
+    @Test
+    void admin_getPublicNoteDetail_returnsDetail() throws Exception {
+        AppUser admin = createEnabledUser("admin_detail", "AdminDetail", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_dtl", "NoteOwnerDtl", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Public Note Detail", "# content", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.noteId").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.title").value("Public Note Detail"))
+                .andExpect(jsonPath("$.data.contentMd").value("# content"))
+                .andExpect(jsonPath("$.data.summary").value("summary"))
+                .andExpect(jsonPath("$.data.author.userId").value(user.getId().intValue()))
+                .andExpect(jsonPath("$.data.visibility").value("PUBLIC"))
+                .andExpect(jsonPath("$.data.moderationStatus").value("NORMAL"));
+    }
+
+    @Test
+    void admin_getTakenDownPublicNoteDetail_returnsDetail() throws Exception {
+        AppUser admin = createEnabledUser("admin_detail_td", "AdminDetailTd", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_dtl_td", "NoteOwnerDtlTd", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Taken Down Note", "# taken", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'TAKEN_DOWN', published_at = ?, moderated_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                LocalDateTime.of(2026, 6, 11, 10, 0),
+                noteId
+        );
+
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.noteId").value(noteId.intValue()))
+                .andExpect(jsonPath("$.data.moderationStatus").value("TAKEN_DOWN"));
+    }
+
+    @Test
+    void admin_getPrivateNoteDetail_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_detail_priv", "AdminDetailPriv", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_dp", "NoteOwnerDp", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Private Note", "# private", "summary");
+
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void admin_getDeletedNoteDetail_returns40401() throws Exception {
+        AppUser admin = createEnabledUser("admin_detail_del", "AdminDetailDel", "ADMIN");
+        AppUser user = createEnabledUser("note_owner_dd", "NoteOwnerDd", "USER");
+        String adminToken = tokenOf(admin);
+
+        Long noteId = insertNote(user.getId(), "Deleted Note", "# deleted", "summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ?, deleted = 1, deleted_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 10, 10, 0),
+                LocalDateTime.now(),
+                noteId
+        );
+
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40401));
+    }
+
+    @Test
+    void user_getAdminNoteDetail_returns403() throws Exception {
+        AppUser user = createEnabledUser("user_detail", "UserDetail", "USER");
+        String userToken = tokenOf(user);
+
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", 1L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticated_getAdminNoteDetail_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void disabledAdmin_getAdminNoteDetail_returns40301() throws Exception {
+        AppUser disabledAdmin = createDisabledUser("disabled_admin_dtl", "DisabledAdminDtl", "ADMIN");
+        String adminToken = tokenOf(disabledAdmin);
+
+        mockMvc.perform(get("/api/v1/admin/notes/{noteId}", 1L)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
     // ---- list ----
 
     @Test
