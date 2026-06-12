@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.yousheng.knowledgehub.category.dto.*;
 import com.yousheng.knowledgehub.category.entity.Category;
 import com.yousheng.knowledgehub.category.mapper.CategoryMapper;
+import com.yousheng.knowledgehub.common.constant.SoftDeleteConstants;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.entity.Note;
@@ -27,8 +28,6 @@ import java.util.List;
 public class CategoryService {
     private final AppUserMapper appUserMapper;
     private final CategoryMapper categoryMapper;
-    private static final int DELETED = 1;
-    private static final int NOT_DELETED = 0;
     private final NoteMapper noteMapper;
 
     @Transactional
@@ -60,7 +59,7 @@ public class CategoryService {
 
         LambdaQueryWrapper<Category> queryByCategory = Wrappers.lambdaQuery(Category.class)
                 .eq(Category::getUserId, userId)
-                .eq(Category::getDeleted, NOT_DELETED)
+                .eq(Category::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .orderByDesc(Category::getUpdatedAt)
                 .orderByDesc(Category::getId);
 
@@ -88,7 +87,7 @@ public class CategoryService {
         LambdaUpdateWrapper<Category> updateWrapper = Wrappers.lambdaUpdate(Category.class)
                 .eq(Category::getUserId, userId)
                 .eq(Category::getId, categoryId)
-                .eq(Category::getDeleted, NOT_DELETED)
+                .eq(Category::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Category::getName, newName);
 
         int affectedRows = 0;
@@ -105,7 +104,7 @@ public class CategoryService {
         LambdaQueryWrapper<Category> queryByCategory = Wrappers.lambdaQuery(Category.class)
                 .eq(Category::getUserId, userId)
                 .eq(Category::getId, categoryId)
-                .eq(Category::getDeleted, NOT_DELETED);
+                .eq(Category::getDeleted, SoftDeleteConstants.NOT_DELETED);
         Category category = categoryMapper.selectOne(queryByCategory);
         return new CategoryUpdateResponse(
                 category.getId(),
@@ -122,8 +121,8 @@ public class CategoryService {
         LambdaUpdateWrapper<Category> deleteCategory = Wrappers.lambdaUpdate(Category.class)
                 .eq(Category::getUserId, userId)
                 .eq(Category::getId, categoryId)
-                .eq(Category::getDeleted, NOT_DELETED)
-                .set(Category::getDeleted, DELETED)
+                .eq(Category::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .set(Category::getDeleted, SoftDeleteConstants.DELETED)
                 .set(Category::getDeletedAt, now)
                 .set(Category::getDeletedMarker, categoryId);
 
@@ -136,7 +135,7 @@ public class CategoryService {
         LambdaUpdateWrapper<Note> updateNote = Wrappers.lambdaUpdate(Note.class)
                 .eq(Note::getUserId, userId)
                 .eq(Note::getCategoryId, categoryId)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Note::getCategoryId, null);
 
         noteMapper.update(new Note(), updateNote);

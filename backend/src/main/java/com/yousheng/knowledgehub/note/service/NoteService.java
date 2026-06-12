@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yousheng.knowledgehub.category.entity.Category;
 import com.yousheng.knowledgehub.category.mapper.CategoryMapper;
+import com.yousheng.knowledgehub.common.constant.SoftDeleteConstants;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.common.util.SqlLikeUtils;
@@ -39,8 +40,6 @@ public class NoteService {
     private final AppUserMapper appUserMapper;
     private final NoteMapper noteMapper;
     private final CategoryMapper categoryMapper;
-    private static final int NOT_DELETED = 0;
-    private static final int DELETED = 1;
     private final NoteTagMapper noteTagMapper;
     private final TagMapper tagMapper;
 
@@ -58,7 +57,7 @@ public class NoteService {
         note.setCategoryId(request.categoryId());
         note.setVisibility(NoteVisibility.PRIVATE.name());
         note.setModerationStatus(NoteModerationStatus.NORMAL.name());
-        note.setDeleted(NOT_DELETED);
+        note.setDeleted(SoftDeleteConstants.NOT_DELETED);
 
         noteMapper.insert(note);
 
@@ -88,7 +87,7 @@ public class NoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED);
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
 
         Note note = noteMapper.selectOne(query);
 
@@ -106,7 +105,7 @@ public class NoteService {
         Page<Note> pageParam = Page.of(page, size);
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .orderByDesc(Note::getUpdatedAt)
                 .orderByDesc(Note::getId);
 
@@ -191,7 +190,7 @@ public class NoteService {
                 Wrappers.lambdaQuery(Note.class)
                         .eq(Note::getId, noteId)
                         .eq(Note::getUserId, userId)
-                        .eq(Note::getDeleted, NOT_DELETED)
+                        .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
         );
 
         if (note == null) {
@@ -204,7 +203,7 @@ public class NoteService {
         LambdaUpdateWrapper<Note> updateWrapper = Wrappers.lambdaUpdate(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Note::getTitle, request.title().trim())
                 .set(Note::getContentMd, request.contentMd())
                 .set(Note::getSummary, request.summary())
@@ -229,7 +228,7 @@ public class NoteService {
                 Wrappers.lambdaQuery(Note.class)
                         .eq(Note::getId, noteId)
                         .eq(Note::getUserId, userId)
-                        .eq(Note::getDeleted, NOT_DELETED)
+                        .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
         );
 
         return toDetailResponse(updateNote);
@@ -241,13 +240,13 @@ public class NoteService {
         LocalDateTime now = LocalDateTime.now();
 
         Note updateNote = new Note();
-        updateNote.setDeleted(DELETED);
+        updateNote.setDeleted(SoftDeleteConstants.DELETED);
         updateNote.setDeletedAt(now);
 
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED);
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
 
         int affectedRows = noteMapper.update(updateNote, query);
         if (affectedRows == 0) {
@@ -267,7 +266,7 @@ public class NoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED);
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
 
         Note note = noteMapper.selectOne(query);
         if (note == null) {
@@ -285,7 +284,7 @@ public class NoteService {
         int affectedRows = noteMapper.update(updateNote, new LambdaUpdateWrapper<Note>()
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Note::getVisibility, note.getVisibility())
                 .set(Note::getPublishedAt, note.getPublishedAt()));
         if (affectedRows == 0) {
@@ -302,7 +301,7 @@ public class NoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED);
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
 
         Note note = noteMapper.selectOne(query);
         if (note == null) {
@@ -319,7 +318,7 @@ public class NoteService {
         int affectedRows = noteMapper.update(updateNote, new LambdaUpdateWrapper<Note>()
                 .eq(Note::getId, noteId)
                 .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Note::getVisibility, note.getVisibility()));
         if (affectedRows == 0) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
@@ -335,7 +334,7 @@ public class NoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
                 .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .isNotNull(Note::getPublishedAt)
                 .orderByDesc(Note::getPublishedAt)
                 .orderByDesc(Note::getId);
@@ -404,7 +403,7 @@ public class NoteService {
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
                 .isNotNull(Note::getPublishedAt)
                 .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
-                .eq(Note::getDeleted, NOT_DELETED);
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
         Note note = noteMapper.selectOne(query);
         if (note == null) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
@@ -515,7 +514,7 @@ public class NoteService {
         LambdaQueryWrapper<Category> query = Wrappers.lambdaQuery(Category.class)
                 .eq(Category::getId, categoryId)
                 .eq(Category::getUserId, userId)
-                .eq(Category::getDeleted, NOT_DELETED);
+                .eq(Category::getDeleted, SoftDeleteConstants.NOT_DELETED);
 
         if (categoryMapper.selectCount(query) == 0) {
             throw new BizException(ErrorCode.CATEGORY_NOT_FOUND);
@@ -530,7 +529,7 @@ public class NoteService {
         LambdaQueryWrapper<Tag> query = Wrappers.lambdaQuery(Tag.class)
                 .eq(Tag::getId, tagId)
                 .eq(Tag::getUserId, userId)
-                .eq(Tag::getDeleted, NOT_DELETED);
+                .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED);
         Long cnt = tagMapper.selectCount(query);
         if (cnt == 0) {
             throw new BizException(ErrorCode.TAG_NOT_FOUND);
@@ -547,7 +546,7 @@ public class NoteService {
         long validTagCount = tagMapper.selectCount(
                 Wrappers.lambdaQuery(Tag.class)
                         .eq(Tag::getUserId, userId)
-                        .eq(Tag::getDeleted, NOT_DELETED)
+                        .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED)
                         .in(Tag::getId, distinctTagIds)
         );
 

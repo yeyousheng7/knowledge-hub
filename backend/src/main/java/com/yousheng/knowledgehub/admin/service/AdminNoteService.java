@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yousheng.knowledgehub.admin.dto.*;
+import com.yousheng.knowledgehub.common.constant.SoftDeleteConstants;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.common.util.SqlLikeUtils;
@@ -30,7 +31,6 @@ public class AdminNoteService {
 
     private final NoteMapper noteMapper;
 
-    private static final int NOT_DELETED = 0;
     private final AppUserMapper appUserMapper;
 
 
@@ -43,7 +43,7 @@ public class AdminNoteService {
                         .eq(Note::getId, noteId)
                         .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
                         .isNotNull(Note::getPublishedAt)
-                        .eq(Note::getDeleted, NOT_DELETED)
+                        .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
         );
         if (note == null) {
             throw new BizException(ErrorCode.NOTE_NOT_FOUND);
@@ -62,7 +62,7 @@ public class AdminNoteService {
                 .eq(Note::getId, noteId)
                 .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Note::getModerationStatus, NoteModerationStatus.TAKEN_DOWN.name())
                 .set(Note::getModeratedAt, now);
 
@@ -89,7 +89,7 @@ public class AdminNoteService {
                         .eq(Note::getId, noteId)
                         .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
                         .isNotNull(Note::getPublishedAt)
-                        .eq(Note::getDeleted, NOT_DELETED)
+                        .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
         );
 
         if (note == null) {
@@ -107,7 +107,7 @@ public class AdminNoteService {
         LocalDateTime now = LocalDateTime.now();
         LambdaUpdateWrapper<Note> updateWrapper = Wrappers.lambdaUpdate(Note.class)
                 .eq(Note::getId, noteId)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
                 .eq(Note::getModerationStatus, NoteModerationStatus.TAKEN_DOWN.name())
                 .set(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
@@ -133,7 +133,7 @@ public class AdminNoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
                 .isNotNull(Note::getPublishedAt)
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .orderByDesc(Note::getUpdatedAt)
                 .orderByDesc(Note::getId);
 
@@ -215,7 +215,7 @@ public class AdminNoteService {
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getId, noteId)
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
-                .eq(Note::getDeleted, NOT_DELETED)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .isNotNull(Note::getPublishedAt);
 
         Note note = noteMapper.selectOne(query);

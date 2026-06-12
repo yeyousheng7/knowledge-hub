@@ -3,6 +3,7 @@ package com.yousheng.knowledgehub.tag.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.yousheng.knowledgehub.common.constant.SoftDeleteConstants;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.security.CurrentUser;
@@ -28,9 +29,6 @@ public class TagService {
     private final TagMapper tagMapper;
     private final NoteTagMapper noteTagMapper;
     private final AppUserMapper appUserMapper;
-    private static final int DELETED = 1;
-    private static final int NOT_DELETED = 0;
-
 
     @Transactional
     public TagCreateResponse createTag(TagCreateRequest tagCreateRequest) {
@@ -62,7 +60,7 @@ public class TagService {
 
         LambdaQueryWrapper<Tag> queryWrapper = Wrappers.lambdaQuery(Tag.class)
                 .eq(Tag::getUserId, userId)
-                .eq(Tag::getDeleted, NOT_DELETED)
+                .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .orderByDesc(Tag::getUpdatedAt)
                 .orderByDesc(Tag::getId);
 
@@ -89,7 +87,7 @@ public class TagService {
         LambdaUpdateWrapper<Tag> updateWrapper = Wrappers.lambdaUpdate(Tag.class)
                 .eq(Tag::getUserId, userId)
                 .eq(Tag::getId, tagId)
-                .eq(Tag::getDeleted, NOT_DELETED)
+                .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Tag::getName, tagName);
 
         int affectedRows = 0;
@@ -107,7 +105,7 @@ public class TagService {
         LambdaQueryWrapper<Tag> queryWrapper = Wrappers.lambdaQuery(Tag.class)
                 .eq(Tag::getId, tagId)
                 .eq(Tag::getUserId, userId)
-                .eq(Tag::getDeleted, NOT_DELETED);
+                .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED);
         Tag tag = tagMapper.selectOne(queryWrapper);
         if (tag == null) {
             throw new BizException(ErrorCode.TAG_NOT_FOUND);
@@ -131,8 +129,8 @@ public class TagService {
         LambdaUpdateWrapper<Tag> updateWrapper = Wrappers.lambdaUpdate(Tag.class)
                 .eq(Tag::getId, tagId)
                 .eq(Tag::getUserId, userId)
-                .eq(Tag::getDeleted, NOT_DELETED)
-                .set(Tag::getDeleted, DELETED)
+                .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .set(Tag::getDeleted, SoftDeleteConstants.DELETED)
                 .set(Tag::getDeletedAt, now)
                 .set(Tag::getDeletedMarker, tagId);
 
@@ -166,7 +164,7 @@ public class TagService {
         LambdaQueryWrapper<Tag> queryWrapper = Wrappers.lambdaQuery(Tag.class)
                 .eq(Tag::getId, tagId)
                 .eq(Tag::getUserId, userId)
-                .eq(Tag::getDeleted, NOT_DELETED);
+                .eq(Tag::getDeleted, SoftDeleteConstants.NOT_DELETED);
 
         Tag tag = tagMapper.selectOne(queryWrapper);
         if (tag == null) {
