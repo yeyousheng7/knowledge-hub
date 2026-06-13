@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yousheng.knowledgehub.common.constant.SoftDeleteConstants;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.common.util.SqlLikeUtils;
 import com.yousheng.knowledgehub.note.dto.*;
 import com.yousheng.knowledgehub.note.entity.Note;
 import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
@@ -31,7 +32,7 @@ public class PublicNoteService {
     private final AppUserMapper appUserMapper;
 
     @Transactional(readOnly = true)
-    public PublicNoteListResponse listPublicNotes(long page, long size) {
+    public PublicNoteListResponse listPublicNotes(long page, long size, String keyword) {
         Page<Note> pageParam = Page.of(page, size);
         LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
                 .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
@@ -40,6 +41,17 @@ public class PublicNoteService {
                 .isNotNull(Note::getPublishedAt)
                 .orderByDesc(Note::getPublishedAt)
                 .orderByDesc(Note::getId);
+
+        String pattern = SqlLikeUtils.toContainsPattern(keyword);
+        if (pattern != null) {
+            query.and(wrapper -> wrapper
+                    .apply("LOWER(title) LIKE {0} ESCAPE '!'", pattern)
+                    .or()
+                    .apply("LOWER(summary) LIKE {0} ESCAPE '!'", pattern)
+                    .or()
+                    .apply("LOWER(content_md) LIKE {0} ESCAPE '!'", pattern)
+            );
+        }
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
 

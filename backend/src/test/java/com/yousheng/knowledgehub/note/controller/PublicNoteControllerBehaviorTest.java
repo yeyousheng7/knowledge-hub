@@ -291,4 +291,145 @@ class PublicNoteControllerBehaviorTest extends AbstractControllerBehaviorTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(40401));
     }
+
+    // ---- listPublicNotes with keyword ----
+
+    @Test
+    void public_listWithKeyword_matchesTitleSummaryContent() throws Exception {
+        AppUser user = createEnabledUser("pub_list_kw", "PubListKw", "USER");
+
+        // keyword in title
+        Long kwTitle = insertNote(user.getId(), "Spring Boot Guide", "content about DI", "no match here", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 14, 0), kwTitle);
+
+        // keyword in summary
+        Long kwSummary = insertNote(user.getId(), "Java Basics", "learn java", "spring summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 14, 1), kwSummary);
+
+        // keyword in content (case-insensitive: keyword=spring matches "SPRING")
+        Long kwContent = insertNote(user.getId(), "Docker Tutorial", "learn SPRING framework", "docker intro", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 14, 2), kwContent);
+
+        // no keyword
+        Long noKw = insertNote(user.getId(), "Other", "other content", "other summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 14, 3), noKw);
+
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20&keyword=spring"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(3))
+                .andExpect(jsonPath("$.data.items.length()").value(3));
+    }
+
+    @Test
+    void public_listWithKeyword_doesNotReturnPrivateDeletedTakenDownUnpublished() throws Exception {
+        AppUser user = createEnabledUser("pub_list_kw_filter", "PubListKwFilter", "USER");
+
+        // public + normal + published + matches keyword
+        Long match = insertNote(user.getId(), "Spring Public", "spring content", "spring summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 15, 0), match);
+
+        // private + matches keyword
+        insertNote(user.getId(), "Spring Private", "spring content", "spring summary", 0, null);
+
+        // deleted + matches keyword
+        Long deleted = createDeletedNote(user.getId(), "Spring Deleted", "spring content", "spring summary");
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 15, 5), deleted);
+
+        // taken down + matches keyword
+        Long takenDown = insertNote(user.getId(), "Spring Taken Down", "spring content", "spring summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'TAKEN_DOWN', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 15, 10), takenDown);
+
+        // public + normal + published_at IS NULL (unpublished) + matches keyword
+        Long unpublished = insertNote(user.getId(), "Spring Unpublished", "spring content", "spring summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL' WHERE id = ?",
+                unpublished);
+
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20&keyword=spring"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Spring Public"));
+    }
+
+    @Test
+    void public_listWithEscapedKeyword_matchesLiteralPercentUnderscoreBang() throws Exception {
+        AppUser user = createEnabledUser("pub_list_kw_esc", "PubListKwEsc", "USER");
+
+        // note with literal %
+        Long percentNote = insertNote(user.getId(), "100% Pure", "percent content", "percent summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 16, 0), percentNote);
+
+        // note without % as wildcard trap (LIKE '%%' would match everything)
+        Long noPercent = insertNote(user.getId(), "No Percent", "no percent content", "no percent summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 16, 1), noPercent);
+
+        // note with literal _
+        Long underscoreNote = insertNote(user.getId(), "under_score", "underscore content", "underscore summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 16, 2), underscoreNote);
+
+        // note without _ as wildcard trap (LIKE '_' would match any single char)
+        Long noUnderscore = insertNote(user.getId(), "X", "underscore content", "underscore summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 16, 3), noUnderscore);
+
+        // note with literal !
+        Long bangNote = insertNote(user.getId(), "Important!", "bang content", "bang summary", 0, null);
+        jdbcTemplate.update(
+                "UPDATE note SET visibility = 'PUBLIC', moderation_status = 'NORMAL', published_at = ? WHERE id = ?",
+                LocalDateTime.of(2026, 6, 3, 16, 4), bangNote);
+
+        // % matches literal percent only
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20&keyword=%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("100% Pure"));
+
+        // _ matches literal underscore only
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20&keyword=_"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("under_score"));
+
+        // ! matches literal exclamation
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20&keyword=!"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("Important!"));
+    }
+
+    @Test
+    void public_listWithKeywordTooLong_returns40001() throws Exception {
+        String longKeyword = "a".repeat(101);
+
+        mockMvc.perform(get("/api/v1/public/notes?page=1&size=20&keyword=" + longKeyword))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
 }
