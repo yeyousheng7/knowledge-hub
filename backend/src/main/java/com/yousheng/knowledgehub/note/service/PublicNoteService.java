@@ -34,11 +34,7 @@ public class PublicNoteService {
     @Transactional(readOnly = true)
     public PublicNoteListResponse listPublicNotes(long page, long size, String keyword) {
         Page<Note> pageParam = Page.of(page, size);
-        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
-                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
-                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
-                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
-                .isNotNull(Note::getPublishedAt)
+        LambdaQueryWrapper<Note> query = basePublicNoteQuery()
                 .orderByDesc(Note::getPublishedAt)
                 .orderByDesc(Note::getId);
 
@@ -54,11 +50,50 @@ public class PublicNoteService {
         }
 
         Page<Note> notePage = noteMapper.selectPage(pageParam, query);
+        return toPublicNoteListResponse(notePage);
+    }
 
+    @Transactional(readOnly = true)
+    public PublicNoteListResponse listPublicNotesByAuthorId(Long authorId, long page, long size) {
+        Page<Note> pageParam = Page.of(page, size);
+        LambdaQueryWrapper<Note> query = basePublicNoteQuery()
+                .eq(Note::getUserId, authorId)
+                .orderByDesc(Note::getPublishedAt)
+                .orderByDesc(Note::getId);
+
+        Page<Note> notePage = noteMapper.selectPage(pageParam, query);
+        return toPublicNoteListResponse(notePage);
+    }
+
+    @Transactional(readOnly = true)
+    public PublicNoteDetailResponse getPublicNoteDetail(Long noteId) {
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getId, noteId)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .isNotNull(Note::getPublishedAt)
+                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
+        Note note = noteMapper.selectOne(query);
+        if (note == null) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
+        }
+
+        return toPublicDetailResponse(note);
+    }
+
+    private LambdaQueryWrapper<Note> basePublicNoteQuery() {
+        return Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .isNotNull(Note::getPublishedAt);
+    }
+
+    private PublicNoteListResponse toPublicNoteListResponse(Page<Note> notePage) {
+        List<Note> notes = notePage.getRecords();
         Map<Long, List<PublicNoteTagResponse>> tagsByNoteId;
         Map<Long, PublicNoteAuthorResponse> authorByUserId;
 
-        List<Note> notes = notePage.getRecords();
         if (notes.isEmpty()) {
             tagsByNoteId = Map.of();
             authorByUserId = Map.of();
@@ -107,22 +142,6 @@ public class PublicNoteService {
                 notePage.getCurrent(),
                 notePage.getSize()
         );
-    }
-
-    @Transactional(readOnly = true)
-    public PublicNoteDetailResponse getPublicNoteDetail(Long noteId) {
-        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
-                .eq(Note::getId, noteId)
-                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
-                .isNotNull(Note::getPublishedAt)
-                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
-                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED);
-        Note note = noteMapper.selectOne(query);
-        if (note == null) {
-            throw new BizException(ErrorCode.NOTE_NOT_FOUND);
-        }
-
-        return toPublicDetailResponse(note);
     }
 
     private PublicNoteListItemResponse toPublicListItemResponse(Note note, List<PublicNoteTagResponse> tags, PublicNoteAuthorResponse author) {

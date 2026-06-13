@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.note.dto.PublicNoteListResponse;
+import com.yousheng.knowledgehub.note.service.PublicNoteService;
 import com.yousheng.knowledgehub.user.dto.PublicUserProfileResponse;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
@@ -17,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PublicUserService {
     private final AppUserMapper appUserMapper;
 
+    private final PublicNoteService publicNoteService;
+
     @Transactional(readOnly = true)
     public PublicUserProfileResponse getPublicUserProfile(String username) {
         AppUser user = requireEnabledUserByUsername(username);
@@ -26,6 +30,12 @@ public class PublicUserService {
                 user.getBio(),
                 user.getCreatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public PublicNoteListResponse listUserPublicNotes(String username, long page, long size) {
+        AppUser user = requireEnabledUserByUsername(username);
+        return publicNoteService.listPublicNotesByAuthorId(user.getId(), page, size);
     }
 
     private AppUser requireEnabledUserByUsername(String username) {
