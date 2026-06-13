@@ -53,18 +53,28 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 ### Note 私有笔记管理
 
-- 创建私有笔记（支持 categoryId 绑定分类，支持 tagIds 绑定标签）
+- 创建私有笔记（支持 categoryId 绑定分类，支持 tagIds 绑定标签，summary 为空时自动从正文生成）
 - 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId、tagId 和 keyword 筛选）
 - 我的笔记详情（返回 categoryId 和 tags）
-- 更新笔记（支持 categoryId，支持 tagIds 全量替换标签）
+- 更新笔记（支持 categoryId，支持 tagIds 全量替换标签，summary 为空时自动从正文生成）
 - 软删除笔记（自动清除 note_tag 关联）
 - 发布笔记
 - 取消发布笔记
 
 ### Public Note 公开笔记阅读
 
-- 公开笔记列表（分页，按 publishedAt 倒序，返回标签和作者）
+- 公开笔记列表（分页，按 publishedAt 倒序，返回标签和作者，支持 keyword 关键字搜索）
 - 公开笔记详情（返回正文、标签和作者）
+
+### Public User 公开用户
+
+- 用户公开主页（返回用户名、昵称、简介、注册时间）
+- 用户公开笔记列表（分页，返回该用户发布且当前公开可见的笔记）
+
+### User Profile 用户信息
+
+- 获取当前登录用户完整信息（含 id、role、status）
+- 更新当前用户昵称和/或个人简介（不改变 username、role、status）
 
 ## API 文档
 
@@ -92,10 +102,10 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId 和 tagIds） |
+| POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
 | GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId、tagId 和 keyword 筛选） |
 | GET | `/api/v1/notes/{noteId}` | 笔记详情（返回 categoryId 和 tags） |
-| PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId 和 tagIds） |
+| PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
 | DELETE | `/api/v1/notes/{noteId}` | 软删除笔记（自动清除 note_tag 关联） |
 | POST | `/api/v1/notes/{noteId}/publish` | 发布笔记 |
 | POST | `/api/v1/notes/{noteId}/unpublish` | 取消发布 |
@@ -104,8 +114,22 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/public/notes` | 公开笔记列表（返回标签名和作者信息） |
+| GET | `/api/v1/public/notes` | 公开笔记列表（支持 keyword 关键字搜索，返回标签名和作者信息） |
 | GET | `/api/v1/public/notes/{noteId}` | 公开笔记详情（返回正文、标签名和作者信息） |
+
+### 公开用户
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/public/users/{username}` | 获取用户公开主页信息（用户名、昵称、简介、注册时间） |
+| GET | `/api/v1/public/users/{username}/notes` | 查询用户公开笔记列表（分页，支持 page、size） |
+
+### 用户信息
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/users/me` | 获取当前登录用户完整信息（含 id、role、status） |
+| PUT | `/api/v1/users/me` | 更新当前用户昵称和/或个人简介 |
 
 ### Admin 管理
 

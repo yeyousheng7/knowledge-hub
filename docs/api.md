@@ -30,10 +30,10 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | /api/v1/notes | Yes | 创建私有笔记（支持 categoryId 和 tagIds） |
+| POST | /api/v1/notes | Yes | 创建私有笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
 | GET | /api/v1/notes | Yes | 我的笔记列表（支持 keyword、categoryId 和 tagId 筛选） |
 | GET | /api/v1/notes/{noteId} | Yes | 我的笔记详情（返回 categoryId 和 tags） |
-| PUT | /api/v1/notes/{noteId} | Yes | 更新我的笔记（支持 categoryId 和 tagIds） |
+| PUT | /api/v1/notes/{noteId} | Yes | 更新我的笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
 | DELETE | /api/v1/notes/{noteId} | Yes | 软删除我的笔记（自动清除 note_tag 关联） |
 | POST | /api/v1/notes/{noteId}/publish | Yes | 发布笔记 |
 | POST | /api/v1/notes/{noteId}/unpublish | Yes | 取消发布笔记 |
@@ -42,8 +42,22 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | /api/v1/public/notes | No | 公开笔记列表（返回标签名和作者信息） |
+| GET | /api/v1/public/notes | No | 公开笔记列表（支持 keyword 关键字搜索，返回标签名和作者信息） |
 | GET | /api/v1/public/notes/{noteId} | No | 公开笔记详情（返回正文、标签名和作者信息） |
+
+## Public User
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | /api/v1/public/users/{username} | No | 获取用户公开主页信息（用户名、昵称、简介、注册时间） |
+| GET | /api/v1/public/users/{username}/notes | No | 查询用户公开笔记列表（分页，支持 page、size） |
+
+## User Profile
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | /api/v1/users/me | Yes | 获取当前登录用户完整信息（含 id、role、status） |
+| PUT | /api/v1/users/me | Yes | 更新当前用户昵称和/或个人简介 |
 
 ## System
 
@@ -124,6 +138,33 @@
 - 空白关键字（全空格或 trim 后为空）视为不筛选
 - LIKE 通配符（`%`、`_`、`!`）按字面量匹配，不产生 SQL LIKE 通配符语义
 - 关键字最大 100 字符（`@Size(max = 100)`），超长返回 40001
+- 公开笔记也支持 keyword 关键字搜索，搜索范围为标题、摘要和正文，不区分大小写
+
+## 摘要自动生成
+
+- 笔记创建/更新时，若 `summary` 为 null、空白字符串或未传入，系统自动从 `contentMd` 正文生成摘要
+- 生成规则：移除 Markdown 语法（标题、粗体/斜体、代码块、链接、图片、列表、引用、分隔线等），保留纯文本
+- 生成摘要最大长度为 200 字符，超过部分截断
+- 正文为 null 或空白时，生成摘要返回 null
+- 手动传入非空 `summary` 时，使用手动值（trim 后），不触发自动生成
+
+## 公开用户接口
+
+- `GET /api/v1/public/users/{username}` 仅返回 ENABLED 状态用户，禁用用户 / 不存在的用户返回 40402
+- `GET /api/v1/public/users/{username}/notes` 仅返回该用户 PUBLIC + NORMAL + publishedAt 非空的笔记
+- 私有笔记、已删除笔记、已下架笔记、其他用户的笔记不会出现在结果中
+- 支持分页（`page`、`size`），按 publishedAt DESC, id DESC 排序
+- username 校验：3-30 字符，仅允许字母数字和下划线（`@Pattern(regexp = "^[0-9a-zA-Z_]+$")`、`@Size(min = 3, max = 30)`）
+
+## 用户个人信息接口
+
+- `GET /api/v1/users/me` 返回当前登录用户的完整信息（id、username、nickname、bio、role、status、createdAt、updatedAt）
+- `PUT /api/v1/users/me` 可更新当前用户的 nickname 和/或 bio，未传字段保持不变
+- 更新接口不改变 username、role、status，仅更新 nickname 和 bio
+- 空请求体 `{}` 视为无变更，返回当前信息
+- 昵称校验：3-30 字符（`@Size`），不能全为空白（`@Pattern(regexp = ".*\\S.*")`）
+- 个人简介最大 60 字符（`@Size(max = 60)`）
+- 需登录，未登录返回 401；禁用用户调用 GET/PUT 均返回 40301
 
 ## 公开接口暴露规则
 
