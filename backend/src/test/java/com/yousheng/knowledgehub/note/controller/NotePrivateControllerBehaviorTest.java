@@ -1291,4 +1291,71 @@ class NotePrivateControllerBehaviorTest extends AbstractControllerBehaviorTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001));
     }
+
+    // ---- create / update with blank summary (auto-generate) ----
+
+    @Test
+    void createNote_blankSummary_generatesSummary() throws Exception {
+        AppUser user = createEnabledUser("note_create_bs", "NoteCreateBs", "USER");
+        String token = tokenOf(user);
+
+        String body = """
+                {
+                  "title": "My Note",
+                  "contentMd": "# Hello World\\nSome paragraph here."
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/notes")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.summary").value("Hello World Some paragraph here."));
+    }
+
+    @Test
+    void updateNote_blankSummary_regeneratesSummary() throws Exception {
+        AppUser user = createEnabledUser("note_upd_bs", "NoteUpdBs", "USER");
+        String token = tokenOf(user);
+        Long noteId = insertNote(user.getId(), "Old Title", "old content", "old summary", 0, null);
+
+        String body = """
+                {
+                  "title": "Updated Title",
+                  "contentMd": "## Updated Content\\nNew paragraph."
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notes/{noteId}", noteId)
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.summary").value("Updated Content New paragraph."));
+    }
+
+    @Test
+    void createNote_manualSummary_usesManualSummary() throws Exception {
+        AppUser user = createEnabledUser("note_create_ms", "NoteCreateMs", "USER");
+        String token = tokenOf(user);
+
+        String body = """
+                {
+                  "title": "My Note",
+                  "contentMd": "# Hello World",
+                  "summary": "  My custom summary  "
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/notes")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.summary").value("My custom summary"));
+    }
 }

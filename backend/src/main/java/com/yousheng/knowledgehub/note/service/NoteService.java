@@ -15,6 +15,7 @@ import com.yousheng.knowledgehub.note.entity.Note;
 import com.yousheng.knowledgehub.note.enums.NoteModerationStatus;
 import com.yousheng.knowledgehub.note.enums.NoteVisibility;
 import com.yousheng.knowledgehub.note.mapper.NoteMapper;
+import com.yousheng.knowledgehub.note.util.NoteSummaryUtils;
 import com.yousheng.knowledgehub.security.CurrentUser;
 import com.yousheng.knowledgehub.tag.dto.NoteTagQueryRow;
 import com.yousheng.knowledgehub.tag.entity.NoteTag;
@@ -53,7 +54,7 @@ public class NoteService {
         note.setUserId(userId);
         note.setTitle(request.title().trim());
         note.setContentMd(request.contentMd());
-        note.setSummary(request.summary());
+        note.setSummary(NoteSummaryUtils.resolveSummary(request.summary(), request.contentMd()));
         note.setCategoryId(request.categoryId());
         note.setVisibility(NoteVisibility.PRIVATE.name());
         note.setModerationStatus(NoteModerationStatus.NORMAL.name());
@@ -71,6 +72,7 @@ public class NoteService {
         return new NoteCreateResponse(
                 note.getId(),
                 note.getTitle(),
+                note.getSummary(),
                 note.getVisibility(),
                 note.getModerationStatus(),
                 note.getCategoryId(),
@@ -206,7 +208,7 @@ public class NoteService {
                 .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
                 .set(Note::getTitle, request.title().trim())
                 .set(Note::getContentMd, request.contentMd())
-                .set(Note::getSummary, request.summary())
+                .set(Note::getSummary, NoteSummaryUtils.resolveSummary(request.summary(), request.contentMd()))
                 .set(Note::getCategoryId, request.categoryId());
 
         // updatedAt 由 MP 自动更新

@@ -8,6 +8,7 @@ import java.util.List;
 public record NoteCreateResponse(
         Long id,
         String title,
+        String summary,
         @Schema(description = "可见性，PRIVATE 表示私有，PUBLIC 表示公开")
         String visibility,
         @Schema(description = "内容治理状态，NORMAL 表示正常，TAKEN_DOWN 表示已下架")
