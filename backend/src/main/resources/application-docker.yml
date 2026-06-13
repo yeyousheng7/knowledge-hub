@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:knowledge_hub}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USERNAME:knowledgehub}
+    password: ${DB_PASSWORD:knowledgehub}
+  flyway:
+    enabled: true
+
+app:
+  invite-code: ${APP_INVITE_CODE:dev-invite-code}
+  jwt:
+    secret: ${JWT_SECRET:local-dev-jwt-secret-change-me-at-least-32-bytes}
+    expire-seconds: ${JWT_EXPIRE_SECONDS:86400}

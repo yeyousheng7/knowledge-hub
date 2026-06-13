@@ -21,6 +21,7 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 | API 文档 | Springdoc OpenAPI / Swagger UI |
 | 测试 | H2 内存数据库 + MockMvc |
 | 工具 | Lombok |
+| 容器化 | Docker & Docker Compose |
 
 ## 当前已完成功能
 
@@ -124,64 +125,77 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 ### 环境要求
 
-- Java 17+
-- MySQL 8.0+
+- Java 17+（本地 IDE / Maven 运行时需要）
+- Docker & Docker Compose（Docker 运行时需要）
+- MySQL 8.0+（手动安装时需要）
 
-### 数据库准备
+### 方式一：Docker Compose 一键启动（推荐）
 
-**方式一：Docker Compose（推荐）**
-
-项目根目录提供了 `docker-compose.yml`，一键启动 MySQL 8.0：
+项目根目录提供了 `docker-compose.yml`，一键启动 MySQL 8.0 + 后端服务：
 
 ```bash
 # 1. 复制环境变量模板（首次）
 cp .env.example .env
 
-# 2. 按需修改 .env 中的端口和密码（可选，默认值即可运行）
+# 2. 按需修改 .env 中的配置（可选，默认值即可运行）
 # MYSQL_DATABASE=knowledge_hub
 # MYSQL_ROOT_PASSWORD=root
 # MYSQL_USER=knowledgehub
 # MYSQL_PASSWORD=knowledgehub
 # MYSQL_PORT=3306
+# BACKEND_PORT=8080
+# APP_INVITE_CODE=dev-invite-code
+# JWT_SECRET=local-dev-jwt-secret-change-me-at-least-32-bytes
+# JWT_EXPIRE_SECONDS=86400
 
-# 3. 启动 MySQL
+# 3. 启动所有服务
 docker compose up -d
 ```
 
-容器启动后会自动创建 `knowledge_hub` 数据库。使用 `docker compose down` 停止，数据通过 named volume 持久化，不会丢失。
+这会依次启动：
+1. **MySQL 8.0** — 自动创建 `knowledge_hub` 数据库，等待 healthy 后后端才启动
+2. **Backend** — 使用 `spring.profiles.active=docker` 启动，通过 `application-docker.yml` 从环境变量读取数据库连接和密钥
 
-**方式二：手动安装 MySQL**
+数据通过 named volume（`knowledgehub_mysql_data`）持久化，`docker compose down` 不会丢失数据。如需清空数据，使用 `docker compose down -v`。
 
-创建数据库：
+启动后访问：
+- API: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui.html
+
+### 方式二：手动环境（IDE / Maven）
+
+#### 数据库准备
+
+使用 Docker Compose 单独启动 MySQL：
+
+```bash
+docker compose up -d mysql
+```
+
+也可以手动安装 MySQL 并创建数据库：
 
 ```sql
 CREATE DATABASE knowledge_hub DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-项目使用 Flyway 管理数据库迁移，启动时自动建表。
+#### 配置
 
-### 配置
-
-项目核心配置在 `application.yml` 中（使用环境变量占位符），数据库连接配置在 local profile 中。
-
-在 `backend/src/main/resources/` 目录下提供了 `application-local.example.yml` 作为本地配置模板。
-
-复制并填写本地配置：
+在 `backend/src/main/resources/` 目录下复制本地配置模板：
 
 ```bash
-cp src/main/resources/application-local.example.yml src/main/resources/application-local.yml
+cp backend/src/main/resources/application-local.example.yml backend/src/main/resources/application-local.yml
 ```
 
-编辑 `application-local.yml`，填入你的数据库连接信息和密钥。该文件包含完整的 datasource 配置和本地 app 配置：
+编辑 `application-local.yml`，填入数据库连接信息和密钥：
 
 - `spring.datasource.*`：MySQL 连接信息
 - `app.invite-code`：注册邀请码
 - `app.jwt.secret`：JWT 签名密钥（至少 32 字节）
 - `app.jwt.expire-seconds`：JWT 过期时间
 
-`application-local.example.yml` 中仅包含示例值，不包含真实密钥。`application-local.yml` 不应提交到仓库。
+`application-local.example.yml` 中仅包含示例值，不包含真实密钥。`application-local.yml` 已加入 `.gitignore`，不应提交到仓库。
 
-### 启动
+#### 启动
 
 ```bash
 # Linux / macOS
@@ -193,10 +207,7 @@ cd backend
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-启动后访问：
-
-- API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger-ui.html
+项目使用 Flyway 管理数据库迁移，启动时自动建表。
 
 ## 测试
 

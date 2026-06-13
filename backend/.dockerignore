@@ -1,0 +1,24 @@
+target/
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+*.iml
+*.log
+application-local.yml
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Windows (container runs Linux)
+mvnw.cmd
+
+# Environment
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db

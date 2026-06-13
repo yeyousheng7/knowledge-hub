@@ -18,5 +18,27 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: knowledgehub-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:-knowledge_hub}
+      DB_USERNAME: ${MYSQL_USER:-knowledgehub}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-knowledgehub}
+      APP_INVITE_CODE: ${APP_INVITE_CODE:-dev-invite-code}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me-at-least-32-bytes}
+      JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-86400}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+
 volumes:
   knowledgehub_mysql_data:
