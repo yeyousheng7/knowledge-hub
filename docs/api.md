@@ -58,7 +58,7 @@
 |--------|------|------|-------------|
 | GET | /api/v1/users/me | Yes | 获取当前登录用户完整信息（含 id、role、status） |
 | PUT | /api/v1/users/me | Yes | 更新当前用户昵称和/或个人简介 |
-| PUT | /api/v1/users/password | Yes | 修改密码（需旧密码验证，新密码 8-72 字符） |
+| PUT | /api/v1/users/me/password | Yes | 修改密码（需旧密码验证，新密码 8-72 字符） |
 
 ## System
 
@@ -165,7 +165,7 @@
 - 空请求体 `{}` 视为无变更，返回当前信息
 - 昵称校验：3-30 字符（`@Size`），不能全为空白（`@Pattern(regexp = ".*\\S.*")`）
 - 个人简介最大 60 字符（`@Size(max = 60)`）
-- `PUT /api/v1/users/password` 修改密码，需旧密码验证，新密码 8-72 字符
+- `PUT /api/v1/users/me/password` 修改密码，需旧密码验证，新密码 8-72 字符
 - 旧密码不匹配返回 40102（INVALID_CREDENTIALS），修改成功后可使用新密码登录
 - 需登录，未登录返回 401；禁用用户调用以上接口均返回 40301
 

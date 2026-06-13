@@ -245,7 +245,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -264,7 +264,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -281,7 +281,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized())
@@ -305,7 +305,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -324,7 +324,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -343,7 +343,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -362,7 +362,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -392,7 +392,7 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 }
                 """;
 
-        mockMvc.perform(put("/api/v1/users/password")
+        mockMvc.perform(put("/api/v1/users/me/password")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))

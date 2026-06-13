@@ -30,7 +30,7 @@ public class UserProfileController {
         return ApiResponse.ok(userProfileService.updateMyProfile(request));
     }
 
-    @PutMapping("/password")
+    @PutMapping("/me/password")
     public ApiResponse<Void> updatePassword(@Valid @RequestBody UserPasswordUpdateRequest request) {
         userProfileService.updateCurrentUserPassword(request);
         return ApiResponse.ok();
