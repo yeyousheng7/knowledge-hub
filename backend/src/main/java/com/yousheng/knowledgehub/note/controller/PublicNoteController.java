@@ -3,7 +3,7 @@ package com.yousheng.knowledgehub.note.controller;
 import com.yousheng.knowledgehub.common.response.ApiResponse;
 import com.yousheng.knowledgehub.note.dto.PublicNoteDetailResponse;
 import com.yousheng.knowledgehub.note.dto.PublicNoteListResponse;
-import com.yousheng.knowledgehub.note.service.NoteService;
+import com.yousheng.knowledgehub.note.service.PublicNoteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/public/notes")
 @Validated
 public class PublicNoteController {
-    private final NoteService noteService;
+    private final PublicNoteService publicNoteService;
 
     @Operation(summary = "查询公开笔记列表")
     @GetMapping
@@ -27,13 +27,13 @@ public class PublicNoteController {
             @Parameter(description = "页码，从 1 开始") @Min(1) @RequestParam(defaultValue = "1") long page,
             @Parameter(description = "每页数量，最大 100") @Min(1) @Max(100) @RequestParam(defaultValue = "20") long size
     ) {
-        return ApiResponse.ok(noteService.listPublicNotes(page, size));
+        return ApiResponse.ok(publicNoteService.listPublicNotes(page, size));
     }
 
     @Operation(summary = "查询公开笔记详情")
     @GetMapping("/{noteId}")
     public ApiResponse<PublicNoteDetailResponse> getPublicNoteDetail(
             @Parameter(description = "笔记 ID", required = true) @PathVariable Long noteId) {
-        return ApiResponse.ok(noteService.getPublicNoteDetail(noteId));
+        return ApiResponse.ok(publicNoteService.getPublicNoteDetail(noteId));
     }
 }
