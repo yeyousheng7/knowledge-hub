@@ -75,6 +75,7 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 
 - 获取当前登录用户完整信息（含 id、role、status）
 - 更新当前用户昵称和/或个人简介（不改变 username、role、status）
+- 修改密码（需旧密码验证，新密码加密存储）
 
 ## API 文档
 
@@ -130,6 +131,7 @@ KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdo
 |------|------|------|
 | GET | `/api/v1/users/me` | 获取当前登录用户完整信息（含 id、role、status） |
 | PUT | `/api/v1/users/me` | 更新当前用户昵称和/或个人简介 |
+| PUT | `/api/v1/users/password` | 修改密码（需旧密码验证） |
 
 ### Admin 管理
 

@@ -1,12 +1,13 @@
 package com.yousheng.knowledgehub.user.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yousheng.knowledgehub.security.JwtConstants;
 import com.yousheng.knowledgehub.support.ControllerBehaviorTestSupport;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -229,5 +230,206 @@ class UserProfileControllerBehaviorTest extends ControllerBehaviorTestSupport {
                 .andExpect(jsonPath("$.data.nickname").value("Me Empty"))
                 .andExpect(jsonPath("$.data.role").value("USER"))
                 .andExpect(jsonPath("$.data.status").value("ENABLED"));
+    }
+
+    // ---- updatePassword ----
+
+    @Test
+    void updatePassword_success() throws Exception {
+        String token = registerAndGetToken("pwduser1", "OldPass123", "Pwd User 1");
+
+        String body = """
+                {
+                  "oldPassword": "OldPass123",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    void updatePassword_wrongOldPassword_returns40102() throws Exception {
+        String token = registerAndGetToken("pwduser2", "OldPass123", "Pwd User 2");
+
+        String body = """
+                {
+                  "oldPassword": "WrongOldPass",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40102));
+    }
+
+    @Test
+    void updatePassword_withoutToken_returns40100() throws Exception {
+        String body = """
+                {
+                  "oldPassword": "OldPass123",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
+    }
+
+    @Test
+    void updatePassword_disabledUser_returns40301() throws Exception {
+        String token = registerAndGetToken("pwduser3", "OldPass123", "Pwd User 3");
+
+        AppUser user = appUserMapper.selectOne(
+                new LambdaQueryWrapper<AppUser>()
+                        .eq(AppUser::getUsername, "pwduser3"));
+        user.setStatus("DISABLED");
+        appUserMapper.updateById(user);
+
+        String body = """
+                {
+                  "oldPassword": "OldPass123",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void updatePassword_newPasswordTooShort_returns40001() throws Exception {
+        String token = registerAndGetToken("pwduser4", "OldPass123", "Pwd User 4");
+
+        String body = """
+                {
+                  "oldPassword": "OldPass123",
+                  "newPassword": "Short1"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void updatePassword_oldPasswordTooShort_returns40001() throws Exception {
+        String token = registerAndGetToken("pwduser5", "OldPass123", "Pwd User 5");
+
+        String body = """
+                {
+                  "oldPassword": "Short1",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void updatePassword_canLoginWithNewPassword() throws Exception {
+        String token = registerAndGetToken("pwduser6", "OldPass123", "Pwd User 6");
+
+        String body = """
+                {
+                  "oldPassword": "OldPass123",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        // can login with new password
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "pwduser6",
+                                  "password": "NewPass456"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    void updatePassword_cannotLoginWithOldPassword() throws Exception {
+        String token = registerAndGetToken("pwduser7", "OldPass123", "Pwd User 7");
+
+        String body = """
+                {
+                  "oldPassword": "OldPass123",
+                  "newPassword": "NewPass456"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/password")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        // cannot login with old password
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "pwduser7",
+                                  "password": "OldPass123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40102));
+    }
+
+    // ---- helpers ----
+
+    private String registerAndGetToken(String username, String password, String nickname) throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "%s",
+                                  "password": "%s",
+                                  "nickname": "%s",
+                                  "inviteCode": "test-invite-code"
+                                }
+                                """.formatted(username, password, nickname)))
+                .andExpect(status().isOk());
+
+        AppUser user = appUserMapper.selectOne(
+                new LambdaQueryWrapper<AppUser>()
+                        .eq(AppUser::getUsername, username));
+
+        return jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
     }
 }

@@ -2,6 +2,7 @@ package com.yousheng.knowledgehub.user.controller;
 
 import com.yousheng.knowledgehub.common.response.ApiResponse;
 import com.yousheng.knowledgehub.config.openapi.OpenApiConfig;
+import com.yousheng.knowledgehub.user.dto.UserPasswordUpdateRequest;
 import com.yousheng.knowledgehub.user.dto.UserProfileResponse;
 import com.yousheng.knowledgehub.user.dto.UserProfileUpdateRequest;
 import com.yousheng.knowledgehub.user.service.UserProfileService;
@@ -25,8 +26,14 @@ public class UserProfileController {
     }
 
     @PutMapping("/me")
-    public ApiResponse<UserProfileResponse> update(@Valid @RequestBody UserProfileUpdateRequest request) {
+    public ApiResponse<UserProfileResponse> updateProfile(@Valid @RequestBody UserProfileUpdateRequest request) {
         return ApiResponse.ok(userProfileService.updateMyProfile(request));
+    }
+
+    @PutMapping("/password")
+    public ApiResponse<Void> updatePassword(@Valid @RequestBody UserPasswordUpdateRequest request) {
+        userProfileService.updateCurrentUserPassword(request);
+        return ApiResponse.ok();
     }
 
 }

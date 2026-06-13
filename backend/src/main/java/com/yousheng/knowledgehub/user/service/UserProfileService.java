@@ -6,12 +6,14 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.security.CurrentUser;
+import com.yousheng.knowledgehub.user.dto.UserPasswordUpdateRequest;
 import com.yousheng.knowledgehub.user.dto.UserProfileResponse;
 import com.yousheng.knowledgehub.user.dto.UserProfileUpdateRequest;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UserProfileService {
     private final AppUserMapper appUserMapper;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile() {
@@ -36,11 +39,15 @@ public class UserProfileService {
 
     @Transactional
     public UserProfileResponse updateMyProfile(UserProfileUpdateRequest request) {
-        requireCurrentUserEnabled();
+        AppUser user = requireCurrentEnabledUser();
 
         LambdaUpdateWrapper<AppUser> updateWrapper = Wrappers.lambdaUpdate(AppUser.class)
                 .eq(AppUser::getId, CurrentUser.getUserId())
                 .eq(AppUser::getStatus, UserStatus.ENABLED.name());
+
+        if (request.nickname() == null && request.bio() == null) {
+            return toUserProfileResponse(user);
+        }
 
         if (request.nickname() != null) {
             updateWrapper.set(AppUser::getNickname, request.nickname());
@@ -63,7 +70,30 @@ public class UserProfileService {
         return toUserProfileResponse(appUser);
     }
 
-    private void requireCurrentUserEnabled() {
+    @Transactional
+    public void updateCurrentUserPassword(UserPasswordUpdateRequest request) {
+        AppUser user = requireCurrentEnabledUser();
+
+        if (!passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
+            throw new BizException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        AppUser updateUser = new AppUser();
+        updateUser.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+
+        int affectedRows = appUserMapper.update(
+                updateUser,
+                Wrappers.lambdaUpdate(AppUser.class)
+                        .eq(AppUser::getId, user.getId())
+                        .eq(AppUser::getStatus, UserStatus.ENABLED.name())
+        );
+
+        if (affectedRows == 0) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private AppUser requireCurrentEnabledUser() {
         AppUser user = appUserMapper.selectById(CurrentUser.getUserId());
         if (user == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
@@ -72,6 +102,8 @@ public class UserProfileService {
         if (!UserStatus.ENABLED.name().equals(user.getStatus())) {
             throw new BizException(ErrorCode.USER_DISABLED);
         }
+
+        return user;
     }
 
     private UserProfileResponse toUserProfileResponse(AppUser user) {
