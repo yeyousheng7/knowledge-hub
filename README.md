@@ -1,259 +1,116 @@
 # KnowledgeHub
 
-## 项目简介
+面向个人学习、技术复盘和求职准备的 Markdown 知识库系统。多用户支持，私有笔记可选择性发布为公开内容。
 
-KnowledgeHub 是一个面向个人学习、技术复盘和求职准备的 Markdown 知识库系统。支持多用户使用，用户可以创建私有 Markdown 笔记并选择将部分笔记发布为公开内容。
 
-当前阶段已完成认证基础设施、Note MVP、Category 分类模块、Tag 标签模块和 Admin 管理模块（笔记审核 + 用户管理），覆盖注册登录、私有笔记 CRUD、分类/标签管理、发布/取消发布、公开阅读和管理员内容审核。
+## 快速启动（Docker Compose，一键）
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+启动后：
+
+- API 地址: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui.html
+
+环境要求：Docker & Docker Compose。
+
+
+## 已完成功能
+
+| 模块 | 能力 |
+|------|------|
+| **Auth** | 邀请码注册、JWT 登录、获取当前用户、USER/ADMIN 角色、ENABLED/DISABLED 状态、BCrypt 加密 |
+| **User Profile** | 获取完整用户信息、更新昵称/简介、修改密码（需旧密码验证） |
+| **Category** | 创建/查看/重命名/软删除，删除后笔记自动取消分类 |
+| **Tag** | 创建/查看/重命名/软删除，自动清除关联 |
+| **Note** | 创建/查看/更新/软删除，绑定分类与标签，摘要自动生成，关键字搜索 |
+| **Publish** | 发布/取消发布，公开列表、公开详情、用户公开主页 |
+| **Admin** | 笔记审核（下架/恢复）、用户管理（禁用/启用） |
+
 
 ## 技术栈
 
 | 类型 | 选型 |
 |------|------|
-| 编程语言 | Java 17 |
-| 后端框架 | Spring Boot 3.5.x |
-| 构建工具 | Maven |
-| 数据库 | MySQL |
+| 语言 | Java 17 |
+| 框架 | Spring Boot 3.5.x |
+| 构建 | Maven |
+| 数据库 | MySQL 8.0 |
 | ORM | MyBatis-Plus 3.5.x |
 | 数据库迁移 | Flyway |
-| 安全认证 | Spring Security + JWT (jjwt 0.12.x) |
-| 参数校验 | Bean Validation |
+| 认证 | Spring Security + JWT (jjwt 0.12.x) |
 | API 文档 | Springdoc OpenAPI / Swagger UI |
 | 测试 | H2 内存数据库 + MockMvc |
-| 工具 | Lombok |
 | 容器化 | Docker & Docker Compose |
 
-## 当前已完成功能
 
-### Auth 认证
+## 文档
 
-- 邀请码注册
-- 登录获取 JWT
-- 获取当前登录用户
-- 角色：USER / ADMIN
-- 用户状态：ENABLED / DISABLED
-- 密码 BCrypt 加密
-- 未登录返回 401，无权限返回 403，统一 JSON 响应
-
-### Category 笔记分类
-
-- 创建分类（同用户下未删除分类名唯一）
-- 我的分类列表（按 updatedAt 倒序）
-- 删除分类（软删除，不物理删除）
-- 删除分类后，该分类下的 Note 自动变为未分类
-- 删除分类后可重新创建同名分类
-
-### Tag 笔记标签
-
-- 创建标签（同用户下未删除标签名唯一）
-- 我的标签列表（按 updatedAt, id 倒序）
-- 重命名标签
-- 删除标签（软删除，自动清除 note_tag 关联）
-- 删除标签后可重新创建同名标签
-
-### Note 私有笔记管理
-
-- 创建私有笔记（支持 categoryId 绑定分类，支持 tagIds 绑定标签，summary 为空时自动从正文生成）
-- 我的笔记列表（分页，按 updatedAt 倒序，支持 categoryId、tagId 和 keyword 筛选）
-- 我的笔记详情（返回 categoryId 和 tags）
-- 更新笔记（支持 categoryId，支持 tagIds 全量替换标签，summary 为空时自动从正文生成）
-- 软删除笔记（自动清除 note_tag 关联）
-- 发布笔记
-- 取消发布笔记
-
-### Public Note 公开笔记阅读
-
-- 公开笔记列表（分页，按 publishedAt 倒序，返回标签和作者，支持 keyword 关键字搜索）
-- 公开笔记详情（返回正文、标签和作者）
-
-### Public User 公开用户
-
-- 用户公开主页（返回用户名、昵称、简介、注册时间）
-- 用户公开笔记列表（分页，返回该用户发布且当前公开可见的笔记）
-
-### User Profile 用户信息
-
-- 获取当前登录用户完整信息（含 id、role、status）
-- 更新当前用户昵称和/或个人简介（不改变 username、role、status）
-- 修改密码（需旧密码验证，新密码加密存储）
-
-## API 文档
-
-详见 [docs/api.md](docs/api.md)。
-
-### 分类相关
-
-| 方法 | 路径 | 说明 |
+| 文档 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/categories` | 创建分类 |
-| GET | `/api/v1/categories` | 获取我的分类列表 |
-| PUT | `/api/v1/categories/{categoryId}` | 更新分类名称 |
-| DELETE | `/api/v1/categories/{categoryId}` | 删除分类 |
+| API 文档 | [docs/api.md](docs/api.md) | 接口列表、请求/响应格式、业务语义 |
+| 冒烟测试 | [docs/smoke-test.md](docs/smoke-test.md) | 34 步联动测试，覆盖全链路 |
 
-### 标签相关
+> 冒烟测试最近一次运行：**2026-06-14**，被测代码 Commit `b803270`，Docker Compose 环境，结果 **PASS**（无遗留问题）。
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/tags` | 创建标签 |
-| GET | `/api/v1/tags` | 获取我的标签列表 |
-| PUT | `/api/v1/tags/{tagId}` | 更新标签名称 |
-| DELETE | `/api/v1/tags/{tagId}` | 删除标签 |
 
-### 笔记相关
+## 运行测试
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/notes` | 创建私有笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
-| GET | `/api/v1/notes` | 我的笔记列表（支持 categoryId、tagId 和 keyword 筛选） |
-| GET | `/api/v1/notes/{noteId}` | 笔记详情（返回 categoryId 和 tags） |
-| PUT | `/api/v1/notes/{noteId}` | 更新笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
-| DELETE | `/api/v1/notes/{noteId}` | 软删除笔记（自动清除 note_tag 关联） |
-| POST | `/api/v1/notes/{noteId}/publish` | 发布笔记 |
-| POST | `/api/v1/notes/{noteId}/unpublish` | 取消发布 |
-
-### 公开笔记
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/public/notes` | 公开笔记列表（支持 keyword 关键字搜索，返回标签名和作者信息） |
-| GET | `/api/v1/public/notes/{noteId}` | 公开笔记详情（返回正文、标签名和作者信息） |
-
-### 公开用户
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/public/users/{username}` | 获取用户公开主页信息（用户名、昵称、简介、注册时间） |
-| GET | `/api/v1/public/users/{username}/notes` | 查询用户公开笔记列表（分页，支持 page、size） |
-
-### 用户信息
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/users/me` | 获取当前登录用户完整信息（含 id、role、status） |
-| PUT | `/api/v1/users/me` | 更新当前用户昵称和/或个人简介 |
-| PUT | `/api/v1/users/me/password` | 修改密码（需旧密码验证） |
-
-### Admin 管理
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/admin/notes` | 公开笔记审核列表（支持 keyword 和 moderationStatus 筛选） |
-| GET | `/api/v1/admin/notes/{noteId}` | 公开笔记审核详情（返回正文和作者信息） |
-| POST | `/api/v1/admin/notes/{noteId}/take-down` | 下架公开笔记 |
-| POST | `/api/v1/admin/notes/{noteId}/restore` | 恢复已下架公开笔记 |
-| GET | `/api/v1/admin/users` | 用户列表（支持 keyword 和 status 筛选） |
-| POST | `/api/v1/admin/users/{userId}/disable` | 禁用用户（仅限 USER 角色） |
-| POST | `/api/v1/admin/users/{userId}/enable` | 启用用户（仅限 USER 角色） |
-
-所有 Admin 接口需 ADMIN 角色 + ENABLED 状态，禁用管理员返回 40301。
-
-## 本地运行
-
-### 环境要求
-
-- Java 17+（本地 IDE / Maven 运行时需要）
-- Docker & Docker Compose（Docker 运行时需要）
-- MySQL 8.0+（手动安装时需要）
-
-### 方式一：Docker Compose 一键启动（推荐）
-
-项目根目录提供了 `docker-compose.yml`，一键启动 MySQL 8.0 + 后端服务：
+测试使用 H2 内存数据库，无需 MySQL：
 
 ```bash
-# 1. 复制环境变量模板（首次）
-cp .env.example .env
+cd backend
 
-# 2. 按需修改 .env 中的配置（可选，默认值即可运行）
-# MYSQL_DATABASE=knowledge_hub
-# MYSQL_ROOT_PASSWORD=root
-# MYSQL_USER=knowledgehub
-# MYSQL_PASSWORD=knowledgehub
-# MYSQL_PORT=3306
-# BACKEND_PORT=8080
-# APP_INVITE_CODE=dev-invite-code
-# JWT_SECRET=local-dev-jwt-secret-change-me-at-least-32-bytes
-# JWT_EXPIRE_SECONDS=86400
+# Linux / macOS
+./mvnw test
 
-# 3. 启动所有服务
-docker compose up -d
+# Windows
+mvnw.cmd test
 ```
 
-这会依次启动：
-1. **MySQL 8.0** — 自动创建 `knowledge_hub` 数据库，等待 healthy 后后端才启动
-2. **Backend** — 使用 `spring.profiles.active=docker` 启动，通过 `application-docker.yml` 从环境变量读取数据库连接和密钥
 
-数据通过 named volume（`knowledgehub_mysql_data`）持久化，`docker compose down` 不会丢失数据。如需清空数据，使用 `docker compose down -v`。
+## 手动运行（IDE / Maven）
 
-启动后访问：
-- API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger-ui.html
-
-### 方式二：手动环境（IDE / Maven）
-
-#### 数据库准备
-
-使用 Docker Compose 单独启动 MySQL：
+需要本地 MySQL 8.0。推荐复用 Docker Compose 中的 MySQL：
 
 ```bash
 docker compose up -d mysql
 ```
 
-也可以手动安装 MySQL 并创建数据库：
+如果使用手动安装的 MySQL，请先创建数据库和用户，并保持账号密码与 `application-local.example.yml` 一致：
 
 ```sql
 CREATE DATABASE knowledge_hub DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'knowledgehub'@'%' IDENTIFIED BY 'knowledgehub';
+GRANT ALL PRIVILEGES ON knowledge_hub.* TO 'knowledgehub'@'%';
+FLUSH PRIVILEGES;
 ```
 
-#### 配置
-
-在 `backend/src/main/resources/` 目录下复制本地配置模板：
+复制配置模板：
 
 ```bash
 cp backend/src/main/resources/application-local.example.yml backend/src/main/resources/application-local.yml
 ```
 
-编辑 `application-local.yml`，填入数据库连接信息和密钥：
-
-- `spring.datasource.*`：MySQL 连接信息
-- `app.invite-code`：注册邀请码
-- `app.jwt.secret`：JWT 签名密钥（至少 32 字节）
-- `app.jwt.expire-seconds`：JWT 过期时间
-
-`application-local.example.yml` 中仅包含示例值，不包含真实密钥。`application-local.yml` 已加入 `.gitignore`，不应提交到仓库。
-
-#### 启动
+编辑 `application-local.yml` 填入数据库连接和密钥，然后：
 
 ```bash
-# Linux / macOS
 cd backend
+
+# Linux / macOS
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 
 # Windows
-cd backend
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-项目使用 Flyway 管理数据库迁移，启动时自动建表。
 
-## 测试
+## 核心设计
 
-测试使用 H2 内存数据库，通过 `schema.sql` 初始化表结构，不依赖本地 MySQL。
-
-```bash
-# Linux / macOS
-cd backend
-./mvnw test
-
-# Windows
-cd backend
-mvnw.cmd test
-```
-
-测试基于 MockMvc 进行行为测试，覆盖 Auth 认证、Category 分类、Tag 标签、Note 模块和 Admin 管理模块的核心业务规则。
-
-## 核心设计说明
-
-### 分层约定
+### 分层
 
 | 层 | 职责 |
 |----|------|
@@ -261,46 +118,26 @@ mvnw.cmd test
 | Service | 业务规则、权限校验、事务边界 |
 | Mapper | 数据库访问 |
 | Entity | 数据库表映射，不暴露给前端 |
-| Request DTO | 接收前端请求 |
-| Response DTO | 返回给前端 |
+| DTO | Request / Response，前端交互 |
 
-### 关键设计决策
+### 关键决策
 
-- 删除采用软删除（`deleted` 字段标记），不使用物理删除
-- 私有接口不存在 / 别人的 / 已删除统一返回 `NOTE_NOT_FOUND`，不暴露资源存在性
-- 公开接口严格过滤 PRIVATE、DELETED、TAKEN_DOWN 状态，要求 publishedAt 必须存在
-- 下架/恢复仅限 PUBLIC + 未删除笔记，PRIVATE / 已删除的笔记返回 40401
-- 下架：NORMAL -> TAKEN_DOWN，恢复：TAKEN_DOWN -> NORMAL，重复操作幂等（moderated_at 不变）
-- 审核列表和详情接口管理员可查看所有公开笔记（含 TAKEN_DOWN）
-- 审核列表按 updatedAt, id 倒序
-- 管理员禁用/启用仅限 USER 角色账户，不能操作自己，重复操作幂等
-- Admin 接口强制校验管理员存在且 ENABLED，禁用管理员返回 40301
-- 公开接口不暴露标签 ID，仅返回标签名
-- 公开接口不暴露用户 ID，仅返回用户名和昵称
-- 公开接口不暴露 categoryId
-- 重复发布不刷新 `publishedAt`，防止用户通过反复发布刷公开首页排序
-- **Category 是用户私有资源**，接口强制校验分类属于当前用户且未删除
-- 同一用户下未删除分类名唯一（通过 `deleted_marker` 实现，删除后可复用同名）
-- Note 绑定/更新分类时必须校验分类属于当前用户且未删除，传 null 表示取消分类
-- Note 列表支持按 categoryId 筛选，只能筛选自己的分类
-- **Tag 是用户私有资源**，接口强制校验标签属于当前用户且未删除
-- 同一用户下未删除标签名唯一（通过 `deleted_marker` 实现，删除后可复用同名）
-- Note 绑定标签时校验标签属于当前用户且未删除，传别人的标签 ID 返回 `TAG_NOT_FOUND`
-- Note 更新标签为全量替换（传空数组清空所有标签），一个 Note 最多绑定 10 个标签
-- Note 列表支持按 tagId 筛选，支持 categoryId 和 tagId 联合过滤取交集
-- 删除 Note 或删除 Tag 时，自动清除对应的 note_tag 关联记录
-- Note 列表支持 keyword 关键字搜索，不区分大小写，搜索范围为标题、摘要和正文，支持 categoryId 和 tagId 联合过滤
-- 关键字搜索对 LIKE 通配符（`%`、`_`、`!`）进行转义，按字面量匹配，空格仅关键字等同于不筛选
-- 关键字最大 100 个字符，超长返回 40001
+- **软删除**：删除操作使用 `deleted` 标记，不物理删除
+- **权限隔离**：不存在/别人的/已删除的资源统一返回 `NOT_FOUND`，不暴露资源存在性
+- **公开接口**：不暴露标签 ID、用户 ID、categoryId，仅返回名称；严格过滤 PRIVATE/DELETED/TAKEN_DOWN 状态
+- **幂等设计**：重复发布不刷新 `publishedAt`；下架/恢复/禁用/启用均为幂等操作
+- **资源归属**：Category 和 Tag 均为用户私有资源，操作时强制校验归属
+- **标签替换**：Note 更新标签为全量替换，最多 10 个
+- **关键字搜索**：标题、摘要、正文模糊匹配，不区分大小写，LIKE 通配符按字面量匹配，最大 100 字符
+- **摘要自动生成**：summary 为空时自动从 contentMd 生成，最大 200 字符
+- **统一响应**：`{ code, msg, data }` 结构
 
-## 当前暂不做
 
-以下功能为未来规划，当前版本未实现：
+## 暂未实现
 
 - refresh token / token 黑名单
 - Admin 角色管理 / 权限细分
 - Redis 缓存
 - RAG / AI 问答
 - 文件上传 / 图片上传
-- 复杂 RBAC
 - 前端页面
