@@ -5,6 +5,11 @@ spring:
     password: ${DB_PASSWORD:knowledgehub}
   flyway:
     enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
 
 app:
   invite-code: ${APP_INVITE_CODE:dev-invite-code}

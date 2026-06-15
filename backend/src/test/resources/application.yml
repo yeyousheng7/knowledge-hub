@@ -6,6 +6,10 @@ spring:
     password:
   flyway:
     enabled: false
+  data:
+    redis:
+      repositories:
+        enabled: false
 
 app:
   invite-code: test-invite-code

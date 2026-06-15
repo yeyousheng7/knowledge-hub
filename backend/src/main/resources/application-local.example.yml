@@ -9,6 +9,11 @@ spring:
     password: knowledgehub
   flyway:
     enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
 
 app:
   invite-code: dev-invite-code
