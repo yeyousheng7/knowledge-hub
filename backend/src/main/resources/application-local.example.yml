@@ -11,7 +11,13 @@ spring:
     enabled: true
 
 app:
-  invite-code: ${APP_INVITE_CODE:dev-invite-code}
+  invite-code: dev-invite-code
   jwt:
     secret: local-dev-jwt-secret-change-me-at-least-32-bytes
     expire-seconds: 86400
+  admin:
+    init:
+      enabled: false
+      username: 
+      password: 
+      nickname: 

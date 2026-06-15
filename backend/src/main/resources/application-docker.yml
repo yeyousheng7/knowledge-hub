@@ -11,3 +11,9 @@ app:
   jwt:
     secret: ${JWT_SECRET:local-dev-jwt-secret-change-me-at-least-32-bytes}
     expire-seconds: ${JWT_EXPIRE_SECONDS:86400}
+  admin:
+    init:
+      enabled: ${ADMIN_INIT_ENABLED:false}
+      username: ${ADMIN_USERNAME:}
+      password: ${ADMIN_PASSWORD:}
+      nickname: ${ADMIN_NICKNAME:}

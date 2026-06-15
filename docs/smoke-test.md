@@ -15,6 +15,9 @@ BASE=http://localhost:8080/api/v1
 INVITE_CODE=dev-invite-code
 MYSQL_DATABASE=knowledge_hub
 MYSQL_ROOT_PASSWORD=root
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=smoke-admin-password-123
+ADMIN_NICKNAME=Admin
 ```
 
 以下脚本默认在空库或测试用户名不存在的环境中执行。重复运行前请清空测试数据，或替换文中的用户名。
@@ -370,16 +373,36 @@ curl -s -X GET "$BASE/public/notes/$NOTE_ID" | jq .
 
 ## 8. Admin：笔记下架与恢复
 
-> 需要 ADMIN 角色。当前项目没有自动初始化管理员账号，因此先通过注册接口创建普通用户 `admin`，再在数据库中将其角色改为 `ADMIN`，最后登录获取管理员 token。
+> 需要 ADMIN 角色。**推荐方式**：通过 `ADMIN_INIT_ENABLED=true` + 显式设置 `ADMIN_PASSWORD` 在启动时自动初始化管理员（详见 [README](../README.md#管理员初始化)）。该方式安全可靠，配置合法且已有启用的 ADMIN 用户时不会重复创建。
+>
+> **备用方式**（仅开发调试）：如未启用自动初始化，可手动通过 SQL 调整角色。下面两种方式二选一，不要连续执行。
 
 ```bash
+# ===== 方式 A（推荐）：环境变量初始化管理员 =====
+ADMIN_INIT_ENABLED=true \
+ADMIN_USERNAME="$ADMIN_USERNAME" \
+ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+ADMIN_NICKNAME="$ADMIN_NICKNAME" \
+docker compose up -d --force-recreate backend
+
+ADMIN_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "'"$ADMIN_USERNAME"'", "password": "'"$ADMIN_PASSWORD"'"}' | jq -r '.data.accessToken')
+
+echo "ADMIN_TOKEN=$ADMIN_TOKEN"
+```
+
+如未使用方式 A，可改用下面的备用方式：
+
+```bash
+# ===== 方式 B（备用）：手动 SQL 提升角色，仅开发调试 =====
 # 1. 先注册一个普通用户 admin
 curl -s -X POST "$BASE/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "admin",
-    "password": "adminpassword",
-    "nickname": "Admin",
+    "username": "'"$ADMIN_USERNAME"'",
+    "password": "'"$ADMIN_PASSWORD"'",
+    "nickname": "'"$ADMIN_NICKNAME"'",
     "inviteCode": "'"$INVITE_CODE"'"
   }' | jq .
 
@@ -387,12 +410,12 @@ curl -s -X POST "$BASE/auth/register" \
 # Docker Compose 默认 MySQL 容器名为 knowledgehub-mysql；非 Docker 环境请在对应 MySQL 中执行同等 UPDATE。
 docker exec -i knowledgehub-mysql mysql \
   -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" \
-  -e "UPDATE app_user SET role = 'ADMIN', updated_at = CURRENT_TIMESTAMP(3) WHERE username = 'admin';"
+  -e "UPDATE app_user SET role = 'ADMIN', updated_at = CURRENT_TIMESTAMP(3) WHERE username = '$ADMIN_USERNAME';"
 
 # 3. 获取管理员 token
 ADMIN_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "adminpassword"}' | jq -r '.data.accessToken')
+  -d '{"username": "'"$ADMIN_USERNAME"'", "password": "'"$ADMIN_PASSWORD"'"}' | jq -r '.data.accessToken')
 
 echo "ADMIN_TOKEN=$ADMIN_TOKEN"
 ```
