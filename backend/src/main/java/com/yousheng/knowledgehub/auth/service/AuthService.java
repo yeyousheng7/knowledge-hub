@@ -9,10 +9,7 @@ import com.yousheng.knowledgehub.auth.dto.RegisterResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.config.InviteCodeProperties;
-import com.yousheng.knowledgehub.security.CurrentUser;
-import com.yousheng.knowledgehub.security.JwtConstants;
-import com.yousheng.knowledgehub.security.JwtToken;
-import com.yousheng.knowledgehub.security.JwtTokenProvider;
+import com.yousheng.knowledgehub.security.*;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserRole;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
@@ -30,6 +27,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final InviteCodeProperties inviteCodeProperties;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Transactional
     public RegisterResponse register(RegisterRequest registerRequest) {
@@ -109,6 +107,10 @@ public class AuthService {
         );
 
         return loginResponse;
+    }
+
+    public void logout(String token) {
+        tokenBlacklistService.blacklist(token);
     }
 
     @Transactional(readOnly = true)

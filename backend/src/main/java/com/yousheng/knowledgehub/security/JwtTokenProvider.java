@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 @RequiredArgsConstructor
@@ -55,6 +56,10 @@ public class JwtTokenProvider {
     public String getRole(String token) {
         Claims claims = parseClaims(token);
         return claims.get("role", String.class);
+    }
+
+    Instant getExpiration(String token) {
+        return parseClaims(token).getExpiration().toInstant();
     }
 
     private SecretKey getSecretKey() {

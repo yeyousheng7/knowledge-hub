@@ -19,6 +19,7 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
 
     @Override
@@ -36,6 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authorization.substring(JwtConstants.BEARER_PREFIX.length());
 
         if (!tokenProvider.validateToken(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (tokenBlacklistService.isBlacklisted(token)) {
             filterChain.doFilter(request, response);
             return;
         }

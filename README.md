@@ -36,7 +36,7 @@ docker compose up -d
 
 | 模块 | 能力 |
 |------|------|
-| **Auth** | 邀请码注册、JWT 登录、获取当前用户、USER/ADMIN 角色、ENABLED/DISABLED 状态、BCrypt 加密 |
+| **Auth** | 邀请码注册、JWT 登录/登出、获取当前用户、USER/ADMIN 角色、ENABLED/DISABLED 状态、BCrypt 加密、Token 黑名单 |
 | **User Profile** | 获取完整用户信息、更新昵称/简介、修改密码（需旧密码验证） |
 | **Category** | 创建/查看/重命名/软删除，删除后笔记自动取消分类 |
 | **Tag** | 创建/查看/重命名/软删除，自动清除关联 |
@@ -53,11 +53,12 @@ docker compose up -d
 | 框架 | Spring Boot 3.5.x |
 | 构建 | Maven |
 | 数据库 | MySQL 8.0 |
+| Token 黑名单存储 | Redis 7.x |
 | ORM | MyBatis-Plus 3.5.x |
 | 数据库迁移 | Flyway |
 | 认证 | Spring Security + JWT (jjwt 0.12.x) |
 | API 文档 | Springdoc OpenAPI / Swagger UI |
-| 测试 | H2 内存数据库 + MockMvc |
+| 测试 | H2 内存数据库 + MockMvc + Mockito |
 | 容器化 | Docker & Docker Compose |
 
 
@@ -149,9 +150,8 @@ mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
 
 ## 暂未实现
 
-- refresh token / token 黑名单
+- refresh token
 - Admin 角色管理 / 权限细分
-- Redis 缓存
 - RAG / AI 问答
 - 文件上传 / 图片上传
 - 前端页面

@@ -2,6 +2,7 @@ package com.yousheng.knowledgehub.auth.controller;
 
 import com.yousheng.knowledgehub.security.JwtConstants;
 import com.yousheng.knowledgehub.security.JwtTokenProvider;
+import com.yousheng.knowledgehub.security.TokenBlacklistService;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
@@ -16,6 +18,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,6 +41,9 @@ class AuthControllerBehaviorTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
 
     @BeforeEach
     void setUp() {
@@ -89,6 +96,41 @@ class AuthControllerBehaviorTest {
                         .content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40002));
+    }
+
+    // ---- logout ----
+
+    @Test
+    void logout_withoutToken_returns40100() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
+    }
+
+    @Test
+    void logout_success() throws Exception {
+        AppUser user = createEnabledUser("logout_user", "LogoutUser", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(tokenBlacklistService).blacklist(token);
+    }
+
+    @Test
+    void protectedApi_withBlacklistedToken_returns401() throws Exception {
+        AppUser user = createEnabledUser("blacklisted_user", "BlacklistedUser", "USER");
+        String token = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole()).accessToken();
+
+        when(tokenBlacklistService.isBlacklisted(token)).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
     }
 
     private AppUser createEnabledUser(String username, String nickname, String role) {

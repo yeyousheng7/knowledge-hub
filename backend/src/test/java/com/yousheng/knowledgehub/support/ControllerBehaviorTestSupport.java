@@ -1,6 +1,7 @@
 package com.yousheng.knowledgehub.support;
 
 import com.yousheng.knowledgehub.security.JwtTokenProvider;
+import com.yousheng.knowledgehub.security.TokenBlacklistService;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,6 +30,9 @@ public abstract class ControllerBehaviorTestSupport {
 
     @Autowired
     protected JdbcTemplate jdbcTemplate;
+
+    @MockBean
+    protected TokenBlacklistService tokenBlacklistService;
 
     @BeforeEach
     void cleanDatabase() {

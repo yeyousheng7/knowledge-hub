@@ -6,6 +6,7 @@
 |--------|------|------|-------------|
 | POST | /api/v1/auth/register | No | 注册账号 |
 | POST | /api/v1/auth/login | No | 登录，返回 JWT |
+| POST | /api/v1/auth/logout | Yes | 登出，将 token 加入黑名单 |
 | GET | /api/v1/auth/me | Yes | 获取当前登录用户 |
 
 ## Category
@@ -204,12 +205,21 @@
 - 业务错误 code 非 0，msg 描述具体原因
 - HTTP 状态码保留语义（200/400/401/403/404/409/500）
 
+## 登出与 Token 黑名单
+
+- `POST /api/v1/auth/logout` 需登录，传入 Authorization header
+- 登出时将 token 写入 Redis 黑名单，TTL = token 剩余有效时间
+- Token 以 SHA-256 哈希存储，key 格式为 `auth:blacklist:<sha256>`
+- 已过期 token 不会写入 Redis（TTL <= 0 时跳过）
+- 黑名单中的 token 无法再访问任何受保护接口，返回 401（UNAUTHORIZED）
+
 ## 认证鉴权
 
 - Spring Security + JWT 无状态认证
-- Security 层验证 token 技术有效性（签名、过期）
+- Security 层验证 token 技术有效性（签名、过期）、检查黑名单
 - Service 层验证用户是否存在且 ENABLED
 - 主要包含 userId、username、role，并带 subject、issuedAt、expiration
+- 登出后的 token 通过 Redis 黑名单失效，Redis 不可用时认证黑名单相关路径不可用或返回服务异常
 
 ## 异常处理
 

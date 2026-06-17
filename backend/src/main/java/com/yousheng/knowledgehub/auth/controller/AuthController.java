@@ -4,6 +4,7 @@ import com.yousheng.knowledgehub.auth.dto.*;
 import com.yousheng.knowledgehub.auth.service.AuthService;
 import com.yousheng.knowledgehub.common.response.ApiResponse;
 import com.yousheng.knowledgehub.config.openapi.OpenApiConfig;
+import com.yousheng.knowledgehub.security.JwtConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,14 @@ public class AuthController {
         String username = loginRequest.username();
         String password = loginRequest.password();
         return ApiResponse.ok(authService.login(username, password));
+    }
+
+    @Operation(summary = "登出账号")
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@RequestHeader(JwtConstants.AUTHORIZATION_HEADER) String authorizationHeader) {
+        String token = authorizationHeader.substring(JwtConstants.BEARER_PREFIX.length());
+        authService.logout(token);
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "获取当前登录用户")
