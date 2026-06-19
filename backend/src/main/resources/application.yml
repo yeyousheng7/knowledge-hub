@@ -15,3 +15,15 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expire-seconds: ${JWT_EXPIRE_SECONDS:86400}
+  ai:
+    enabled: ${AI_ENABLED:false}
+    chat:
+      provider: ${AI_CHAT_PROVIDER:deepseek}
+      base-url: ${AI_CHAT_BASE_URL:}
+      api-key: ${AI_CHAT_API_KEY:}
+      model: ${AI_CHAT_MODEL:}
+    embedding:
+      provider: ${AI_EMBEDDING_PROVIDER:}
+      base-url: ${AI_EMBEDDING_BASE_URL:}
+      api-key: ${AI_EMBEDDING_API_KEY:}
+      model: ${AI_EMBEDDING_MODEL:}

@@ -43,14 +43,18 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
+
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: ${MYSQL_DATABASE:-knowledge_hub}
       DB_USERNAME: ${MYSQL_USER:-knowledgehub}
       DB_PASSWORD: ${MYSQL_PASSWORD:-knowledgehub}
+
       APP_INVITE_CODE: ${APP_INVITE_CODE:-dev-invite-code}
+
       JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me-at-least-32-bytes}
       JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-86400}
+
       ADMIN_INIT_ENABLED: ${ADMIN_INIT_ENABLED:-false}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
@@ -58,6 +62,16 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DATABASE: ${REDIS_DATABASE:-0}
+
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_CHAT_PROVIDER: ${AI_CHAT_PROVIDER:-deepseek}
+      AI_CHAT_BASE_URL: ${AI_CHAT_BASE_URL:-}
+      AI_CHAT_API_KEY: ${AI_CHAT_API_KEY:-}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-}
+      AI_EMBEDDING_BASE_URL: ${AI_EMBEDDING_BASE_URL:-}
+      AI_EMBEDDING_API_KEY: ${AI_EMBEDDING_API_KEY:-}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
 

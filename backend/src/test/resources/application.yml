@@ -22,3 +22,5 @@ app:
       username: admin
       password: admin123456
       nickname: admin
+  ai:
+    enabled: false
