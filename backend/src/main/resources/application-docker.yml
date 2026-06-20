@@ -34,3 +34,9 @@ app:
       base-url: ${AI_EMBEDDING_BASE_URL:}
       api-key: ${AI_EMBEDDING_API_KEY:}
       model: ${AI_EMBEDDING_MODEL:}
+      dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+    index:
+      chunk-size: ${AI_INDEX_CHUNK_SIZE:1024}
+      chunk-overlap: ${AI_INDEX_CHUNK_OVERLAP:50}
+      top-k: ${AI_INDEX_TOP_K:3}
+      vector-index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}

@@ -11,6 +11,7 @@ public class AiProperties {
     private boolean enabled;
     private Chat chat;
     private Embedding embedding;
+    private Index index;
 
     @Getter
     @Setter
@@ -28,6 +29,16 @@ public class AiProperties {
         private String baseUrl;
         private String apiKey;
         private String model;
+        private int dimensions;
+    }
+
+    @Getter
+    @Setter
+    public static final class Index {
+        private int chunkSize;
+        private int chunkOverlap;
+        private int topK;
+        private String vectorIndexName;
     }
 
 }

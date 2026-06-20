@@ -15,7 +15,12 @@ import static org.assertj.core.api.Assertions.assertThat;
         "app.ai.embedding.provider=openai",
         "app.ai.embedding.base-url=https://api.openai.com",
         "app.ai.embedding.api-key=sk-test-embedding-key",
-        "app.ai.embedding.model=text-embedding-3-small"
+        "app.ai.embedding.model=text-embedding-3-small",
+        "app.ai.embedding.dimensions=1536",
+        "app.ai.index.chunk-size=1024",
+        "app.ai.index.chunk-overlap=50",
+        "app.ai.index.top-k=3",
+        "app.ai.index.vector-index-name=kh_note_chunks"
 })
 class AiPropertiesTest {
 
@@ -43,5 +48,15 @@ class AiPropertiesTest {
         assertThat(aiProperties.getEmbedding().getBaseUrl()).isEqualTo("https://api.openai.com");
         assertThat(aiProperties.getEmbedding().getApiKey()).isEqualTo("sk-test-embedding-key");
         assertThat(aiProperties.getEmbedding().getModel()).isEqualTo("text-embedding-3-small");
+        assertThat(aiProperties.getEmbedding().getDimensions()).isEqualTo(1536);
+    }
+
+    @Test
+    void shouldBindIndexProperties() {
+        assertThat(aiProperties.getIndex()).isNotNull();
+        assertThat(aiProperties.getIndex().getChunkSize()).isEqualTo(1024);
+        assertThat(aiProperties.getIndex().getChunkOverlap()).isEqualTo(50);
+        assertThat(aiProperties.getIndex().getTopK()).isEqualTo(3);
+        assertThat(aiProperties.getIndex().getVectorIndexName()).isEqualTo("kh_note_chunks");
     }
 }
