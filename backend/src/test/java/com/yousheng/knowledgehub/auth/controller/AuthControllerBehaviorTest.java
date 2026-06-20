@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
@@ -18,8 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -131,6 +131,47 @@ class AuthControllerBehaviorTest {
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(40100));
+    }
+
+
+    // redis exception
+    @Test
+    void protectedApi_whenRedisUnavailable_returns503() throws Exception {
+        AppUser user = createEnabledUser("redis_down_user", "RedisDownUser", "USER");
+        String token = jwtTokenProvider.generateAccessToken(
+                user.getId(),
+                user.getUsername(),
+                user.getRole()
+        ).accessToken();
+
+        when(tokenBlacklistService.isBlacklisted(token))
+                .thenThrow(new RedisConnectionFailureException("Redis unavailable"));
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value(50301))
+                .andExpect(jsonPath("$.msg").value("认证服务暂时不可用"));
+    }
+
+    @Test
+    void logout_whenRedisUnavailable_returns503() throws Exception {
+        AppUser user = createEnabledUser("logout_redis_down_user", "LogoutRedisDownUser", "USER");
+        String token = jwtTokenProvider.generateAccessToken(
+                user.getId(),
+                user.getUsername(),
+                user.getRole()
+        ).accessToken();
+
+        when(tokenBlacklistService.isBlacklisted(token)).thenReturn(false);
+        doThrow(new RedisConnectionFailureException("Redis unavailable"))
+                .when(tokenBlacklistService).blacklist(token);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value(50301))
+                .andExpect(jsonPath("$.msg").value("认证服务暂时不可用"));
     }
 
     private AppUser createEnabledUser(String username, String nickname, String role) {
