@@ -3,6 +3,22 @@
 # For full Docker Compose startup, use application-docker.yml instead.
 
 spring:
+  ai:
+    model:
+      chat: none
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+    openai:
+      embedding:
+        base-url: ${AI_EMBEDDING_BASE_URL:}
+        api-key: ${AI_EMBEDDING_API_KEY:}
+        options:
+          model: ${AI_EMBEDDING_MODEL:}
+          dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
   datasource:
     url: jdbc:mysql://localhost:3306/knowledge_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: knowledgehub

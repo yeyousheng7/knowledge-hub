@@ -1,6 +1,22 @@
 spring:
   application:
     name: knowledgehub
+  ai:
+    model:
+      chat: none
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+    openai:
+      embedding:
+        base-url: ${AI_EMBEDDING_BASE_URL:}
+        api-key: ${AI_EMBEDDING_API_KEY:}
+        options:
+          model: ${AI_EMBEDDING_MODEL:}
+          dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
