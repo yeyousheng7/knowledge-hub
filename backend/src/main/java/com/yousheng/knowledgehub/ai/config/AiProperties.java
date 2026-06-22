@@ -25,10 +25,6 @@ public class AiProperties {
     @Getter
     @Setter
     public static final class Embedding {
-        private String provider;
-        private String baseUrl;
-        private String apiKey;
-        private String model;
         private int dimensions;
     }
 

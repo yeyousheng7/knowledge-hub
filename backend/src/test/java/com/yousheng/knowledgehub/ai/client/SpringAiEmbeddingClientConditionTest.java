@@ -22,16 +22,29 @@ class SpringAiEmbeddingClientConditionTest {
         contextRunner
                 .withPropertyValues(
                         "app.ai.enabled=false",
+                        "spring.ai.model.embedding=openai",
                         "app.ai.embedding.dimensions=3"
                 )
                 .run(context -> assertThat(context).doesNotHaveBean(EmbeddingClient.class));
     }
 
     @Test
-    void shouldCreateClientWhenAiEnabled() {
+    void shouldNotCreateClientWhenSpringAiEmbeddingDisabled() {
         contextRunner
                 .withPropertyValues(
                         "app.ai.enabled=true",
+                        "spring.ai.model.embedding=none",
+                        "app.ai.embedding.dimensions=3"
+                )
+                .run(context -> assertThat(context).doesNotHaveBean(EmbeddingClient.class));
+    }
+
+    @Test
+    void shouldCreateClientWhenAiEnabledAndSpringAiEmbeddingOpenAi() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=true",
+                        "spring.ai.model.embedding=openai",
                         "app.ai.embedding.dimensions=3"
                 )
                 .run(context -> assertThat(context).hasSingleBean(EmbeddingClient.class));

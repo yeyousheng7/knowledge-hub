@@ -39,10 +39,6 @@ app:
       api-key: ${AI_CHAT_API_KEY:}
       model: ${AI_CHAT_MODEL:}
     embedding:
-      provider: ${AI_EMBEDDING_PROVIDER:}
-      base-url: ${AI_EMBEDDING_BASE_URL:}
-      api-key: ${AI_EMBEDDING_API_KEY:}
-      model: ${AI_EMBEDDING_MODEL:}
       dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
     index:
       chunk-size: ${AI_INDEX_CHUNK_SIZE:1024}

@@ -19,10 +19,6 @@ class AiPropertiesTest {
                     "app.ai.chat.base-url=https://api.openai.com",
                     "app.ai.chat.api-key=sk-test-chat-key",
                     "app.ai.chat.model=gpt-4",
-                    "app.ai.embedding.provider=openai",
-                    "app.ai.embedding.base-url=https://api.openai.com",
-                    "app.ai.embedding.api-key=sk-test-embedding-key",
-                    "app.ai.embedding.model=text-embedding-3-small",
                     "app.ai.embedding.dimensions=1536",
                     "app.ai.index.chunk-size=1024",
                     "app.ai.index.chunk-overlap=50",
@@ -50,10 +46,6 @@ class AiPropertiesTest {
     void shouldBindEmbeddingProperties() {
         withAiProperties(aiProperties -> {
             assertThat(aiProperties.getEmbedding()).isNotNull();
-            assertThat(aiProperties.getEmbedding().getProvider()).isEqualTo("openai");
-            assertThat(aiProperties.getEmbedding().getBaseUrl()).isEqualTo("https://api.openai.com");
-            assertThat(aiProperties.getEmbedding().getApiKey()).isEqualTo("sk-test-embedding-key");
-            assertThat(aiProperties.getEmbedding().getModel()).isEqualTo("text-embedding-3-small");
             assertThat(aiProperties.getEmbedding().getDimensions()).isEqualTo(1536);
         });
     }

@@ -1,22 +1,20 @@
 package com.yousheng.knowledgehub.ai.client;
 
 import com.yousheng.knowledgehub.ai.config.AiProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+@RequiredArgsConstructor
 @Service
 @ConditionalOnProperty(prefix = "app.ai", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "spring.ai.model", name = "embedding", havingValue = "openai")
 public class SpringAiEmbeddingClient implements EmbeddingClient {
 
     private final EmbeddingModel embeddingModel;
     private final AiProperties aiProperties;
-
-    public SpringAiEmbeddingClient(EmbeddingModel embeddingModel, AiProperties aiProperties) {
-        this.embeddingModel = embeddingModel;
-        this.aiProperties = aiProperties;
-    }
 
     @Override
     public float[] embed(String text) {
