@@ -12,6 +12,7 @@ public class AiProperties {
     private Chat chat;
     private Embedding embedding;
     private Index index;
+    private Rag rag;
 
     @Getter
     @Setter
@@ -36,6 +37,12 @@ public class AiProperties {
         private int topK;
         private String vectorIndexName;
         private String vectorStore;
+    }
+
+    @Getter
+    @Setter
+    public static final class Rag {
+        private boolean enabled;
     }
 
 }

@@ -58,3 +58,5 @@ app:
       top-k: ${AI_INDEX_TOP_K:3}
       vector-index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
       vector-store: ${AI_INDEX_VECTOR_STORE:none}
+    rag:
+      enabled: ${AI_RAG_ENABLED:false}
