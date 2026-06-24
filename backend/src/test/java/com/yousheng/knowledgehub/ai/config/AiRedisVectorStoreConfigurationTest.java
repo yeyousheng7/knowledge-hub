@@ -123,7 +123,8 @@ class AiRedisVectorStoreConfigurationTest {
                                     "chunkIndex",
                                     "visibility",
                                     "updatedAt",
-                                    "contentHash"
+                                    "contentHash",
+                                    "indexGeneration"
                             );
                     assertThat(metadataFields)
                             .extracting(MetadataField::fieldType)
@@ -134,6 +135,7 @@ class AiRedisVectorStoreConfigurationTest {
                                     FieldType.NUMERIC,
                                     FieldType.TAG,
                                     FieldType.TEXT,
+                                    FieldType.TAG,
                                     FieldType.TAG
                             );
                 });

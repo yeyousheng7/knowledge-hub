@@ -72,7 +72,8 @@ public class AiRedisVectorStoreConfiguration {
                         MetadataField.numeric("chunkIndex"),
                         MetadataField.tag("visibility"),
                         MetadataField.text("updatedAt"),
-                        MetadataField.tag("contentHash"))
+                        MetadataField.tag("contentHash"),
+                        MetadataField.tag("indexGeneration"))
                 .build();
     }
 

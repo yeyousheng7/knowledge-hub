@@ -35,6 +35,7 @@ public enum ErrorCode {
     TAG_NAME_EXISTS(40903, "标签名已存在", HttpStatus.CONFLICT),
 
     AUTH_SERVICE_UNAVAILABLE(50301, "认证服务暂时不可用", HttpStatus.SERVICE_UNAVAILABLE),
+    AI_INDEX_SERVICE_UNAVAILABLE(50302, "AI 索引服务暂时不可用", HttpStatus.SERVICE_UNAVAILABLE),
 
     INTERNAL_ERROR(50000, "系统异常", HttpStatus.INTERNAL_SERVER_ERROR);
 
