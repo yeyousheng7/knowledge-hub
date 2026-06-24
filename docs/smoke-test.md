@@ -20,6 +20,17 @@ ADMIN_PASSWORD=smoke-admin-password-123
 ADMIN_NICKNAME=Admin
 ```
 
+默认 AI/RAG 关闭：
+
+```bash
+AI_ENABLED=false
+AI_RAG_ENABLED=false
+SPRING_AI_MODEL_EMBEDDING=none
+SPRING_AI_MODEL_CHAT=none
+```
+
+普通 smoke test 不依赖 AI key、DeepSeek、SiliconFlow，也不依赖 Redis VectorStore schema 初始化。RAG flow 是可选联调项，启用环境变量见 [deployment.md](deployment.md)。
+
 以下脚本默认在空库或测试用户名不存在的环境中执行。重复运行前请清空测试数据，或替换文中的用户名。
 
 ---
@@ -570,6 +581,114 @@ curl -s -X POST "$BASE/auth/login" \
 ```
 
 **预期**: `code: 0`，返回 `accessToken`。
+
+---
+
+## 10. 可选：RAG flow smoke test
+
+> 仅在真实联调 RAG 时执行。执行前按 [deployment.md](deployment.md) 启用 AI/RAG，并确认服务包含 MySQL、Redis Stack 和 backend。
+>
+> DeepSeek 通过 Spring AI OpenAI-compatible chat 配置接入；不要在文档、命令历史或提交中写入真实 key。
+
+### 10.1 启动服务
+
+Docker Compose 环境：
+
+```bash
+docker compose up -d mysql redis backend
+```
+
+**预期**: backend 正常启动，Redis 服务使用 `redis/redis-stack-server`。
+
+### 10.2 注册 / 登录，拿 token
+
+如果已经有可用的 `USER_TOKEN`，可复用前文 token。否则重新注册并登录：
+
+```bash
+curl -s -X POST "$BASE/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "raguser",
+    "password": "password123",
+    "nickname": "RAG Tester",
+    "inviteCode": "'"$INVITE_CODE"'"
+  }' | jq .
+
+USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "raguser", "password": "password123"}' | jq -r '.data.accessToken')
+
+echo "USER_TOKEN=$USER_TOKEN"
+```
+
+**预期**: 登录返回 `accessToken`。
+
+### 10.3 创建几条笔记
+
+```bash
+RAG_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Spring Boot 自动配置",
+    "contentMd": "Spring Boot 的自动配置会根据 classpath 和配置属性创建常用 Bean，减少重复配置。"
+  }' | jq -r '.data.id')
+
+RAG_NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Redis Stack 向量检索",
+    "contentMd": "Redis Stack 提供 RediSearch 和向量索引能力，RAG 索引需要使用 Redis Stack 而不是普通 Redis。"
+  }' | jq -r '.data.id')
+
+echo "RAG_NOTE1_ID=$RAG_NOTE1_ID"
+echo "RAG_NOTE2_ID=$RAG_NOTE2_ID"
+```
+
+**预期**: 两条笔记均创建成功。
+
+### 10.4 手动重建当前用户索引
+
+```bash
+curl -s -X POST "$BASE/ai/index/rebuild" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: `code: 0`，`data.chunkCount` 大于 `0`，并返回 `indexedAt`。
+
+### 10.5 发起 RAG 问答
+
+```bash
+curl -s -X POST "$BASE/ai/rag/ask" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "question": "根据我的笔记，Redis Stack 在 RAG 中用于什么？"
+  }' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 非空，`data.sources` 包含参考来源。
+
+### 10.6 RAG flow 边界确认
+
+当前已完成：
+
+- 手动 index rebuild
+- generation-based index switch
+- current-user vector search
+- Spring AI chat adapter
+- RAG ask endpoint
+
+当前未完成：
+
+- 自动 CRUD 同步索引
+- streaming
+- chat memory
+- tool calling / agent
+- structured output
+- 管理后台 AI 操作
+- 多轮会话
 
 ---
 

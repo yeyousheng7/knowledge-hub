@@ -67,6 +67,24 @@
 |--------|------|------|-------------|
 | GET | /api/v1/ping | Yes | Ping test |
 
+## AI Index / RAG
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /api/v1/ai/index/rebuild | Yes | 手动重建当前用户笔记向量索引，返回 `userId`、`chunkCount`、`indexedAt` |
+| POST | /api/v1/ai/rag/ask | Yes | 基于当前用户向量索引进行 RAG 问答，返回 `answer` 和 `sources` |
+
+- 默认关闭；启用条件和环境变量见 [deployment.md](deployment.md)。
+- `POST /api/v1/ai/index/rebuild` 需要 `AI_ENABLED=true`、`SPRING_AI_MODEL_EMBEDDING=openai`、`AI_INDEX_VECTOR_STORE=redis`。
+- `POST /api/v1/ai/rag/ask` 还需要 `SPRING_AI_MODEL_CHAT=openai` 和 `AI_RAG_ENABLED=true`。
+- RAG 请求体：
+
+```json
+{
+  "question": "根据我的笔记，xxx 是什么？"
+}
+```
+
 ## Admin
 
 | Method | Path | Auth | Description |
