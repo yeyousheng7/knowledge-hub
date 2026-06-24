@@ -16,9 +16,6 @@ class AiPropertiesTest {
             .withPropertyValues(
                     "app.ai.enabled=true",
                     "app.ai.chat.provider=openai",
-                    "app.ai.chat.base-url=https://api.openai.com",
-                    "app.ai.chat.api-key=sk-test-chat-key",
-                    "app.ai.chat.model=gpt-4",
                     "app.ai.embedding.dimensions=1536",
                     "app.ai.index.chunk-size=1024",
                     "app.ai.index.chunk-overlap=50",
@@ -37,9 +34,6 @@ class AiPropertiesTest {
         withAiProperties(aiProperties -> {
             assertThat(aiProperties.getChat()).isNotNull();
             assertThat(aiProperties.getChat().getProvider()).isEqualTo("openai");
-            assertThat(aiProperties.getChat().getBaseUrl()).isEqualTo("https://api.openai.com");
-            assertThat(aiProperties.getChat().getApiKey()).isEqualTo("sk-test-chat-key");
-            assertThat(aiProperties.getChat().getModel()).isEqualTo("gpt-4");
         });
     }
 

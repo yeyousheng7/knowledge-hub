@@ -52,9 +52,6 @@ app:
     enabled: ${AI_ENABLED:false}
     chat:
       provider: ${AI_CHAT_PROVIDER:deepseek}
-      base-url: ${AI_CHAT_BASE_URL:}
-      api-key: ${AI_CHAT_API_KEY:}
-      model: ${AI_CHAT_MODEL:}
     embedding:
       dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
     index:

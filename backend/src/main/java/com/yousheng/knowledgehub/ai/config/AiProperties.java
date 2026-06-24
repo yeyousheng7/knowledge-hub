@@ -18,9 +18,6 @@ public class AiProperties {
     @Setter
     public static final class Chat {
         private String provider;
-        private String baseUrl;
-        private String apiKey;
-        private String model;
     }
 
     @Getter
