@@ -5,7 +5,7 @@
 spring:
   ai:
     model:
-      chat: none
+      chat: ${SPRING_AI_MODEL_CHAT:none}
       embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
       image: none
       audio:
@@ -13,6 +13,11 @@ spring:
         transcription: none
       moderation: none
     openai:
+      chat:
+        base-url: ${AI_CHAT_BASE_URL:}
+        api-key: ${AI_CHAT_API_KEY:}
+        options:
+          model: ${AI_CHAT_MODEL:}
       embedding:
         base-url: ${AI_EMBEDDING_BASE_URL:}
         api-key: ${AI_EMBEDDING_API_KEY:}
