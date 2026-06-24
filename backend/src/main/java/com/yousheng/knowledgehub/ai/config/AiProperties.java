@@ -35,6 +35,7 @@ public class AiProperties {
         private int chunkOverlap;
         private int topK;
         private String vectorIndexName;
+        private String vectorStore;
     }
 
 }

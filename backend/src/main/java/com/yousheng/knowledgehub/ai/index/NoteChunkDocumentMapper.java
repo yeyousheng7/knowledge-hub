@@ -22,7 +22,7 @@ public class NoteChunkDocumentMapper {
         metadata.put("title", noteChunk.title());
         metadata.put("chunkIndex", noteChunk.chunkIndex());
         metadata.put("visibility", noteChunk.visibility());
-        metadata.put("updatedAt", noteChunk.updatedAt());
+        metadata.put("updatedAt", noteChunk.updatedAt().toString());
         metadata.put("contentHash", noteChunk.contentHash());
 
         return Document.builder()

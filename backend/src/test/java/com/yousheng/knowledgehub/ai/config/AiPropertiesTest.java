@@ -23,7 +23,8 @@ class AiPropertiesTest {
                     "app.ai.index.chunk-size=1024",
                     "app.ai.index.chunk-overlap=50",
                     "app.ai.index.top-k=3",
-                    "app.ai.index.vector-index-name=kh_note_chunks"
+                    "app.ai.index.vector-index-name=kh_note_chunks",
+                    "app.ai.index.vector-store=redis"
             );
 
     @Test
@@ -58,6 +59,7 @@ class AiPropertiesTest {
             assertThat(aiProperties.getIndex().getChunkOverlap()).isEqualTo(50);
             assertThat(aiProperties.getIndex().getTopK()).isEqualTo(3);
             assertThat(aiProperties.getIndex().getVectorIndexName()).isEqualTo("kh_note_chunks");
+            assertThat(aiProperties.getIndex().getVectorStore()).isEqualTo("redis");
         });
     }
 

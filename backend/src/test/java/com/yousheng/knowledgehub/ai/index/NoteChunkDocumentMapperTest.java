@@ -29,7 +29,7 @@ class NoteChunkDocumentMapperTest {
         assertThat(metadata).containsEntry("title", "Spring Boot Guide");
         assertThat(metadata).containsEntry("chunkIndex", 0);
         assertThat(metadata).containsEntry("visibility", "PUBLIC");
-        assertThat(metadata).containsEntry("updatedAt", LocalDateTime.of(2026, 6, 22, 10, 0));
+        assertThat(metadata).containsEntry("updatedAt", "2026-06-22T10:00");
         assertThat(metadata).containsEntry("contentHash", "abc123");
     }
 

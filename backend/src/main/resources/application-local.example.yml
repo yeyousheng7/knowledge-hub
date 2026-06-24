@@ -19,6 +19,11 @@ spring:
         options:
           model: ${AI_EMBEDDING_MODEL:}
           dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+    vectorstore:
+      redis:
+        initialize-schema: ${AI_VECTORSTORE_REDIS_INITIALIZE_SCHEMA:false}
+        index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
+        prefix: "${AI_VECTORSTORE_REDIS_PREFIX:kh:ai:note:chunk:}"
   datasource:
     url: jdbc:mysql://localhost:3306/knowledge_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: knowledgehub
@@ -56,3 +61,4 @@ app:
       chunk-overlap: ${AI_INDEX_CHUNK_OVERLAP:50}
       top-k: ${AI_INDEX_TOP_K:3}
       vector-index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
+      vector-store: ${AI_INDEX_VECTOR_STORE:none}
