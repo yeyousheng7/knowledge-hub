@@ -1,7 +1,7 @@
 package com.yousheng.knowledgehub.ai.config;
 
-import com.yousheng.knowledgehub.ai.index.AiIndexWriterService;
 import com.yousheng.knowledgehub.ai.index.AiIndexGenerationService;
+import com.yousheng.knowledgehub.ai.index.AiIndexWriterService;
 import com.yousheng.knowledgehub.ai.index.AiNoteIndexSourceService;
 import com.yousheng.knowledgehub.ai.index.NoteChunkDocumentMapper;
 import org.springframework.ai.vectorstore.VectorStore;

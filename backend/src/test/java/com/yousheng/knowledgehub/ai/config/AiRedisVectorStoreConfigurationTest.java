@@ -6,8 +6,8 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore.MetadataField;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.util.ClassUtils;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.util.ClassUtils;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.search.Schema.FieldType;
 
