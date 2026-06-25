@@ -1,0 +1,130 @@
+package com.yousheng.knowledgehub.ai.config;
+
+import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
+import com.yousheng.knowledgehub.note.service.NoteService;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class AiAgentConfigurationTest {
+
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withUserConfiguration(TestConfig.class, AiAgentConfiguration.class);
+
+    @Test
+    void shouldNotLoadAgentBeansWhenAiDisabled() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=false",
+                        "app.ai.agent.enabled=true",
+                        "spring.ai.model.chat=openai",
+                        "app.ai.chat.provider=deepseek"
+                )
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentChatService.class);
+                });
+    }
+
+    @Test
+    void shouldNotLoadAgentBeansWhenAgentDisabled() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=true",
+                        "app.ai.agent.enabled=false",
+                        "spring.ai.model.chat=openai",
+                        "app.ai.chat.provider=deepseek"
+                )
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentChatService.class);
+                });
+    }
+
+    @Test
+    void shouldNotLoadAgentBeansWhenChatModelIsNone() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=true",
+                        "app.ai.agent.enabled=true",
+                        "spring.ai.model.chat=none",
+                        "app.ai.chat.provider=deepseek"
+                )
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentChatService.class);
+                });
+    }
+
+    @Test
+    void shouldNotLoadAgentBeansWhenProviderMismatch() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=true",
+                        "app.ai.agent.enabled=true",
+                        "spring.ai.model.chat=openai",
+                        "app.ai.chat.provider=unknown"
+                )
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentChatService.class);
+                });
+    }
+
+    @Test
+    void shouldLoadAgentBeansWhenConditionsMatchDeepSeek() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=true",
+                        "app.ai.agent.enabled=true",
+                        "spring.ai.model.chat=openai",
+                        "app.ai.chat.provider=deepseek"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(NoteReadToolFacade.class);
+                    assertThat(context).hasSingleBean(NoteReadTools.class);
+                    assertThat(context).hasSingleBean(AiAgentChatService.class);
+                });
+    }
+
+    @Test
+    void shouldLoadAgentBeansWhenConditionsMatchOpenAiCompatible() {
+        contextRunner
+                .withPropertyValues(
+                        "app.ai.enabled=true",
+                        "app.ai.agent.enabled=true",
+                        "spring.ai.model.chat=openai",
+                        "app.ai.chat.provider=openai-compatible"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(NoteReadToolFacade.class);
+                    assertThat(context).hasSingleBean(NoteReadTools.class);
+                    assertThat(context).hasSingleBean(AiAgentChatService.class);
+                });
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class TestConfig {
+
+        @Bean
+        ChatModel chatModel() {
+            return Mockito.mock(ChatModel.class);
+        }
+
+        @Bean
+        NoteService noteService() {
+            return Mockito.mock(NoteService.class);
+        }
+    }
+}

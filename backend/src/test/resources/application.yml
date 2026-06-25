@@ -42,3 +42,5 @@ app:
       vector-store: none
     rag:
       enabled: false
+    agent:
+      enabled: false

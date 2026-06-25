@@ -55,3 +55,5 @@ app:
       vector-store: ${AI_INDEX_VECTOR_STORE:none}
     rag:
       enabled: ${AI_RAG_ENABLED:false}
+    agent:
+      enabled: ${AI_AGENT_ENABLED:false}

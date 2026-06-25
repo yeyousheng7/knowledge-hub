@@ -4,6 +4,8 @@ import com.yousheng.knowledgehub.ai.tool.model.AiToolResult;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 class AiToolArgumentsTest {
 
     @Test
