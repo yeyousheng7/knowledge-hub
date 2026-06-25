@@ -10,4 +10,5 @@ public record AiRagSource(
         Double distance,
         String visibility,
         LocalDateTime updatedAt
-) {}
+) {
+}

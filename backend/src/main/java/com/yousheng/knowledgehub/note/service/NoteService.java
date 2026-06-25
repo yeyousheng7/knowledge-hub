@@ -184,6 +184,59 @@ public class NoteService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public NoteListResponse listMyPublishedNotes(long page, long size) {
+        Long userId = requireCurrentEnabledUserId();
+        Page<Note> pageParam = Page.of(page, size);
+        LambdaQueryWrapper<Note> query = Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .isNotNull(Note::getPublishedAt)
+                .orderByDesc(Note::getPublishedAt)
+                .orderByDesc(Note::getId);
+
+        Page<Note> notePage = noteMapper.selectPage(pageParam, query);
+        List<Note> notes = notePage.getRecords();
+
+        Map<Long, List<NoteTagResponse>> tagsByNoteId;
+        if (notes.isEmpty()) {
+            tagsByNoteId = Map.of();
+        } else {
+            List<Long> noteIds = notes.stream()
+                    .map(Note::getId)
+                    .toList();
+
+            tagsByNoteId = noteTagMapper.selectTagRowsByNoteIds(noteIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            NoteTagQueryRow::noteId,
+                            Collectors.mapping(
+                                    row -> new NoteTagResponse(
+                                            row.tagId(),
+                                            row.tagName()
+                                    ),
+                                    Collectors.toList()
+                            )
+                    ));
+        }
+
+        List<NoteListItemResponse> items = notes.stream()
+                .map(note -> toListItemResponse(
+                        note,
+                        tagsByNoteId.getOrDefault(note.getId(), List.of())
+                ))
+                .toList();
+
+        return new NoteListResponse(
+                items,
+                notePage.getTotal(),
+                notePage.getCurrent(),
+                notePage.getSize()
+        );
+    }
+
     @Transactional
     public NoteDetailResponse updateNote(Long noteId, NoteUpdateRequest request) {
         Long userId = requireCurrentEnabledUserId();

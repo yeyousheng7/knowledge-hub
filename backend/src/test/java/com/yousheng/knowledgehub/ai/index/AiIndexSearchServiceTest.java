@@ -24,10 +24,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -157,7 +154,7 @@ class AiIndexSearchServiceTest {
     }
 
     @Test
-    void search_distanceFromScoreKey_isExtracted(){
+    void search_distanceFromScoreKey_isExtracted() {
         try (var ignored = mockStatic(CurrentUser.class)) {
             when(CurrentUser.getUserId()).thenReturn(1L);
             when(appUserMapper.selectById(1L)).thenReturn(enabledUser());

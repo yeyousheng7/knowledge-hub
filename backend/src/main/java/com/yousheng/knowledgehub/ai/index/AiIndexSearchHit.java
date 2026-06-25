@@ -10,4 +10,5 @@ public record AiIndexSearchHit(
         Double distance,
         String visibility,
         LocalDateTime updatedAt
-) {}
+) {
+}

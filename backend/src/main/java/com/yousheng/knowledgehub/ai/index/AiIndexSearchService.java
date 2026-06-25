@@ -14,6 +14,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Collections;
