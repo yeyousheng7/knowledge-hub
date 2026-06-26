@@ -1,5 +1,8 @@
 package com.yousheng.knowledgehub.ai.agent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yousheng.knowledgehub.ai.agent.dto.ActionEnvelope;
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import org.slf4j.Logger;
@@ -18,6 +21,8 @@ public class AiAgentChatService {
     private static final String AGENT_SYSTEM = """
             你是 KnowledgeHub 的笔记助手。
             只能使用工具读取当前用户自己的笔记，以及执行单篇笔记的发布与下架。
+            当用户明确要求演示结构化操作或 structured action 时，可以调用 prepare_demo_action。
+            prepare_demo_action 只是实验性演示工具，不会执行真实业务，不代表支持 pending confirm。
             不要编造不存在的笔记内容。
             如果工具返回 success=false，根据 code/message 向用户解释。
             如果列表结果不足，引导用户提供更具体关键词或翻页。
@@ -26,6 +31,7 @@ public class AiAgentChatService {
     private final ChatClient chatClient;
     private final AiAgentSessionService sessionService;
     private final MessageChatMemoryAdvisor memoryAdvisor;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
                               MessageChatMemoryAdvisor memoryAdvisor, Object... tools) {
@@ -42,7 +48,7 @@ public class AiAgentChatService {
         this.chatClient = builder.build();
     }
 
-    public String chat(String message) {
+    public AiAgentChatResponse chat(String message) {
         Long userId = sessionService.requireCurrentEnabledUserId();
 
         if (message == null || message.isBlank()) {
@@ -64,12 +70,24 @@ public class AiAgentChatService {
                 throw new BizException(ErrorCode.AI_CHAT_SERVICE_UNAVAILABLE, "AI 助手返回了空回复");
             }
 
-            return content;
+            return parseActionEnvelope(content);
         } catch (BizException e) {
             throw e;
         } catch (RuntimeException e) {
             log.warn("AI agent chat failed", e);
             throw new BizException(ErrorCode.AI_CHAT_SERVICE_UNAVAILABLE, e);
+        }
+    }
+
+    private AiAgentChatResponse parseActionEnvelope(String content) {
+        try {
+            ActionEnvelope envelope = objectMapper.readValue(content, ActionEnvelope.class);
+            if ((envelope.answer() == null || envelope.answer().isBlank()) && envelope.actions().isEmpty()) {
+                return AiAgentChatResponse.text(content);
+            }
+            return envelope.toResponse();
+        } catch (Exception e) {
+            return AiAgentChatResponse.text(content);
         }
     }
 }

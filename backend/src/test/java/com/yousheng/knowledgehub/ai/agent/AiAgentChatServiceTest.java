@@ -1,5 +1,7 @@
 package com.yousheng.knowledgehub.ai.agent;
 
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
+import com.yousheng.knowledgehub.ai.tool.demo.DemoActionTools;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.security.CurrentUserPrincipal;
@@ -18,6 +20,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -81,9 +84,33 @@ class AiAgentChatServiceTest {
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("Hello from AI!"), sessionService(), null);
 
-        String result = service.chat("Hi there");
+        AiAgentChatResponse result = service.chat("Hi there");
 
-        assertThat(result).isEqualTo("Hello from AI!");
+        assertThat(result.answer()).isEqualTo("Hello from AI!");
+        assertThat(result.actions()).isEmpty();
+    }
+
+    @Test
+    void demoActionTool_isReturnDirect() throws Exception {
+        Tool tool = DemoActionTools.class
+                .getMethod("prepareDemoAction", String.class)
+                .getAnnotation(Tool.class);
+
+        assertThat(tool.returnDirect()).isTrue();
+    }
+
+    @Test
+    void actionEnvelopeContent_parsesActions() {
+        String toolResult = new DemoActionTools().prepareDemoAction("Spike preview");
+        AiAgentChatService service = new AiAgentChatService(
+                new FakeChatModel(toolResult), sessionService(), null);
+
+        AiAgentChatResponse result = service.chat("demo structured action");
+
+        assertThat(result.answer()).isEqualTo("Demo action prepared. No real business operation was executed.");
+        assertThat(result.actions()).hasSize(1);
+        assertThat(result.actions().get(0).type()).isEqualTo("DEMO_ACTION");
+        assertThat(result.actions().get(0).payload()).containsEntry("source", "returnDirect-spike");
     }
 
     @Test
@@ -137,9 +164,10 @@ class AiAgentChatServiceTest {
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("single turn"), sessionService(), null);
 
-        String result = service.chat("query");
+        AiAgentChatResponse result = service.chat("query");
 
-        assertThat(result).isEqualTo("single turn");
+        assertThat(result.answer()).isEqualTo("single turn");
+        assertThat(result.actions()).isEmpty();
     }
 
     @Test
@@ -168,9 +196,9 @@ class AiAgentChatServiceTest {
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("multi turn"), sessionService, advisor);
 
-        String result = service.chat("first question");
+        AiAgentChatResponse result = service.chat("first question");
 
-        assertThat(result).isEqualTo("multi turn");
+        assertThat(result.answer()).isEqualTo("multi turn");
         assertThat(repo.findByConversationId("kh:ai:agent:session:1:current")).isNotEmpty();
     }
 

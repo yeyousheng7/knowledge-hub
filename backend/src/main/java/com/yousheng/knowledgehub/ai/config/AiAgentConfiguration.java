@@ -2,6 +2,7 @@ package com.yousheng.knowledgehub.ai.config;
 
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
 import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
+import com.yousheng.knowledgehub.ai.tool.demo.DemoActionTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
@@ -51,6 +52,12 @@ public class AiAgentConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public DemoActionTools demoActionTools() {
+        return new DemoActionTools();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public AiAgentSessionService aiAgentSessionService(
             ObjectProvider<ChatMemory> chatMemoryProvider,
             AppUserMapper appUserMapper) {
@@ -65,7 +72,9 @@ public class AiAgentConfiguration {
                                                  AiAgentSessionService sessionService,
                                                  ObjectProvider<MessageChatMemoryAdvisor> advisorProvider,
                                                  NoteReadTools noteReadTools,
-                                                 NoteWriteTools noteWriteTools) {
-        return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(), noteReadTools, noteWriteTools);
+                                                 NoteWriteTools noteWriteTools,
+                                                 DemoActionTools demoActionTools) {
+        return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(),
+                noteReadTools, noteWriteTools, demoActionTools);
     }
 }

@@ -2,15 +2,15 @@ package com.yousheng.knowledgehub.ai.agent.dto;
 
 import java.util.List;
 
-public record AiAgentChatResponse(
+public record ActionEnvelope(
         String answer,
         List<AgentAction> actions
 ) {
-    public AiAgentChatResponse {
+    public ActionEnvelope {
         actions = actions == null ? List.of() : List.copyOf(actions);
     }
 
-    public static AiAgentChatResponse text(String answer) {
-        return new AiAgentChatResponse(answer, List.of());
+    public AiAgentChatResponse toResponse() {
+        return new AiAgentChatResponse(answer, actions);
     }
 }
