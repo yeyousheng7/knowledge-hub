@@ -692,6 +692,192 @@ curl -s -X POST "$BASE/ai/rag/ask" \
 
 ---
 
+## 11. 可选：AI Agent Tool Calling smoke test
+
+> 仅在真实联调 Agent Tool Calling 时执行。Agent 只需真实 chat key，不需要 embedding key、RAG、VectorStore。
+>
+> Agent 依赖 `app.ai.enabled=true` + `app.ai.agent.enabled=true` + `spring.ai.model.chat=openai` + `app.ai.chat.provider=deepseek`（或 `openai-compatible`）。
+> 不要在文档、命令历史或提交中写入真实 key。
+
+### 11.1 环境变量
+
+与 RAG 不同，Agent smoke 只需要 chat 相关变量：
+
+```bash
+# Agent smoke 只需 chat 配置，不需要 embedding / vector 变量
+AI_ENABLED=true
+AI_AGENT_ENABLED=true
+SPRING_AI_MODEL_CHAT=openai
+AI_CHAT_PROVIDER=deepseek
+AI_CHAT_BASE_URL=https://api.deepseek.com
+AI_CHAT_API_KEY=<your-deepseek-api-key>
+AI_CHAT_MODEL=deepseek-chat
+```
+
+以下变量 Agent smoke **不需要**（与 RAG 的区别）：
+- `AI_RAG_ENABLED` — Agent 不依赖 RAG
+- `SPRING_AI_MODEL_EMBEDDING` — Agent 不依赖 embedding
+- `AI_EMBEDDING_*` 系列 — 无 embedding 调用
+- `AI_INDEX_*` / `AI_VECTORSTORE_*` — 无向量存储
+
+### 11.2 启动服务
+
+Docker Compose 环境：
+
+```bash
+AI_ENABLED=true \
+AI_AGENT_ENABLED=true \
+SPRING_AI_MODEL_CHAT=openai \
+AI_CHAT_PROVIDER=deepseek \
+AI_CHAT_BASE_URL=https://api.deepseek.com \
+AI_CHAT_API_KEY=<your-deepseek-api-key> \
+AI_CHAT_MODEL=deepseek-chat \
+docker compose up -d mysql redis backend
+```
+
+**预期**: backend 正常启动，日志中无 Agent 相关报错。
+
+### 11.3 注册 / 登录，拿 token
+
+如果已经有可用的 `USER_TOKEN`，可复用前文 token。否则重新注册并登录：
+
+```bash
+curl -s -X POST "$BASE/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "agentuser",
+    "password": "password123",
+    "nickname": "Agent Tester",
+    "inviteCode": "'"$INVITE_CODE"'"
+  }' | jq .
+
+USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "agentuser", "password": "password123"}' | jq -r '.data.accessToken')
+
+echo "USER_TOKEN=$USER_TOKEN"
+```
+
+**预期**: 登录返回 `accessToken`。
+
+### 11.4 准备测试笔记
+
+Agent 只能操作用户自己的笔记。先创建几条笔记供搜索和详情测试，并发布一条供 list published 测试：
+
+```bash
+# 创建笔记 1
+AGENT_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Spring Boot 与 Docker 部署",
+    "contentMd": "Spring Boot 应用可以通过 Docker 容器化部署。使用 multi-stage build 可以减小镜像体积。"
+  }' | jq -r '.data.id')
+
+# 创建笔记 2
+AGENT_NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Java 21 虚拟线程",
+    "contentMd": "Java 21 引入了虚拟线程（Virtual Threads），基于 Project Loom，大幅简化了高并发编程模型。"
+  }' | jq -r '.data.id')
+
+# 发布笔记 2
+curl -s -X POST "$BASE/notes/$AGENT_NOTE2_ID/publish" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+
+echo "AGENT_NOTE1_ID=$AGENT_NOTE1_ID"
+echo "AGENT_NOTE2_ID=$AGENT_NOTE2_ID"
+```
+
+**预期**: 两条笔记创建成功，笔记 2 发布成功。
+
+### 11.5 Agent Chat：搜索笔记
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "帮我搜索关于 Docker 的笔记"}' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 非空，回答提及 Docker 相关笔记标题或内容。
+
+### 11.6 Agent Chat：查看笔记详情
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "帮我查看笔记 '"$AGENT_NOTE1_ID"' 的详细内容"}' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 非空，回答包含笔记标题和内容。
+
+### 11.7 Agent Chat：列出已发布笔记
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "我有哪些已发布的笔记？"}' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 非空，回答列出已发布的笔记。
+
+### 11.8 负向检查：未登录返回 401
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "帮我搜索笔记"}' | jq .
+```
+
+**预期**: HTTP 401，`code: 40100`。
+
+### 11.9 负向检查：Agent 默认关闭
+
+启动时保持 `AI_AGENT_ENABLED=false`（默认值也是 `false`），则 Agent 接口不可用：
+
+```bash
+# 显式关闭 Agent，验证 Controller 未注册
+AI_ENABLED=true \
+AI_AGENT_ENABLED=false \
+SPRING_AI_MODEL_CHAT=openai \
+AI_CHAT_PROVIDER=deepseek \
+AI_CHAT_BASE_URL=https://api.deepseek.com \
+AI_CHAT_API_KEY=<your-deepseek-api-key> \
+AI_CHAT_MODEL=deepseek-chat \
+docker compose up -d --force-recreate backend
+
+# Agent 接口应返回 404（controller 未注册）
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "帮我搜索笔记"}' | jq .
+```
+
+**预期**: HTTP 404（`AI_AGENT_ENABLED` 默认 `false`，Controller 未注册）。
+
+### 11.10 Agent Tool Calling 边界确认
+
+当前已完成：
+- `search_my_notes` 工具调用
+- `get_my_note_detail` 工具调用
+- `list_my_published_notes` 工具调用
+- Agent chat endpoint（`POST /api/v1/ai/agent/chat`）
+- 条件装配（`AI_AGENT_ENABLED` 开关）
+
+当前未完成：
+- 写工具（创建/更新/删除笔记）
+- streaming
+- chat memory
+- 多轮会话
+- structured output
+
+---
+
 ## 完整链路验证清单
 
 | # | 步骤 | 预期 |
