@@ -16,12 +16,12 @@ public class AiAgentChatService {
     private static final Logger log = LoggerFactory.getLogger(AiAgentChatService.class);
 
     private static final String AGENT_SYSTEM = """
-            你是 KnowledgeHub 的只读笔记助手。
-            只能使用工具读取当前用户自己的笔记。
+            你是 KnowledgeHub 的笔记助手。
+            只能使用工具读取当前用户自己的笔记，以及执行单篇笔记的发布与下架。
             不要编造不存在的笔记内容。
             如果工具返回 success=false，根据 code/message 向用户解释。
             如果列表结果不足，引导用户提供更具体关键词或翻页。
-            不要声称已经创建、修改、删除、发布、下架笔记。""";
+            不要声称已经创建、修改、删除笔记，不要声称支持批量操作。""";
 
     private final ChatClient chatClient;
     private final AiAgentSessionService sessionService;

@@ -4,6 +4,8 @@ import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
 import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
+import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.NoteWriteTools;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -37,6 +39,18 @@ public class AiAgentConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public NoteWriteToolFacade noteWriteToolFacade(NoteService noteService) {
+        return new NoteWriteToolFacade(noteService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public NoteWriteTools noteWriteTools(NoteWriteToolFacade noteWriteToolFacade) {
+        return new NoteWriteTools(noteWriteToolFacade);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public AiAgentSessionService aiAgentSessionService(
             ObjectProvider<ChatMemory> chatMemoryProvider,
             AppUserMapper appUserMapper) {
@@ -50,7 +64,8 @@ public class AiAgentConfiguration {
     public AiAgentChatService aiAgentChatService(ChatModel chatModel,
                                                  AiAgentSessionService sessionService,
                                                  ObjectProvider<MessageChatMemoryAdvisor> advisorProvider,
-                                                 NoteReadTools noteReadTools) {
-        return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(), noteReadTools);
+                                                 NoteReadTools noteReadTools,
+                                                 NoteWriteTools noteWriteTools) {
+        return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(), noteReadTools, noteWriteTools);
     }
 }

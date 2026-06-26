@@ -139,7 +139,7 @@ public class NoteReadToolFacade {
         );
     }
 
-    private static NoteToolDetail buildDetail(NoteDetailResponse detail, List<String> warnings) {
+    static NoteToolDetail buildDetail(NoteDetailResponse detail, List<String> warnings) {
         List<NoteToolTag> tags = detail.tags() != null
                 ? detail.tags().stream()
                 .map(t -> new NoteToolTag(t.id(), t.name()))

@@ -4,6 +4,8 @@ import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
 import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
+import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.NoteWriteTools;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,8 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -49,6 +53,8 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -66,6 +72,8 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -83,6 +91,8 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -100,6 +110,8 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(NoteReadToolFacade.class);
                     assertThat(context).hasSingleBean(NoteReadTools.class);
+                    assertThat(context).hasSingleBean(NoteWriteToolFacade.class);
+                    assertThat(context).hasSingleBean(NoteWriteTools.class);
                     assertThat(context).hasSingleBean(AiAgentSessionService.class);
                     assertThat(context).hasSingleBean(AiAgentChatService.class);
                 });
@@ -117,6 +129,8 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(NoteReadToolFacade.class);
                     assertThat(context).hasSingleBean(NoteReadTools.class);
+                    assertThat(context).hasSingleBean(NoteWriteToolFacade.class);
+                    assertThat(context).hasSingleBean(NoteWriteTools.class);
                     assertThat(context).hasSingleBean(AiAgentSessionService.class);
                     assertThat(context).hasSingleBean(AiAgentChatService.class);
                 });
