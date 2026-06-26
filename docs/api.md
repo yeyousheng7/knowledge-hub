@@ -74,6 +74,7 @@
 | POST | /api/v1/ai/index/rebuild | Yes | 手动重建当前用户笔记向量索引，返回 `userId`、`chunkCount`、`indexedAt` |
 | POST | /api/v1/ai/rag/ask | Yes | 基于当前用户向量索引进行 RAG 问答，返回 `answer` 和 `sources` |
 | POST | /api/v1/ai/agent/chat | Yes | 基于 Spring AI Tool Calling 的只读 Agent 对话，可读取当前用户自己的笔记 |
+| POST | /api/v1/ai/agent/session/clear | Yes | 清除当前用户 Agent 会话上下文，返回 `{ "cleared": true }` |
 
 - 默认关闭；启用条件和环境变量见 [deployment.md](deployment.md)。
 - `POST /api/v1/ai/index/rebuild` 需要 `AI_ENABLED=true`、`SPRING_AI_MODEL_EMBEDDING=openai`、`AI_INDEX_VECTOR_STORE=redis`。
@@ -127,6 +128,29 @@
 - 工具结果不会以 raw JSON 暴露给用户，由模型生成最终 `answer`。
 - 未登录返回 401。
 - Agent 默认关闭（`AI_AGENT_ENABLED=false`），关闭时接口返回 404。
+
+### Agent Memory（可选）
+
+Agent 支持 InMemory 多轮会话上下文，默认关闭：
+
+- `AI_AGENT_MEMORY_ENABLED=true` 开启，默认 `false`。
+- `AI_AGENT_MEMORY_MAX_MESSAGES=20` 窗口大小，默认 `20`。
+- 同一用户自动使用固定 conversationId，不同用户会话隔离。
+- 会话不跨用户共享。
+- **InMemory 重启丢失**，生产化 Redis TTL 留到后续阶段。
+- 不依赖 RAG、embedding、VectorStore。
+
+**清除会话**：
+
+```bash
+curl -s -X POST "$BASE/ai/agent/session/clear" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: `code: 0`，`data.cleared == true`。
+
+- memory disabled 时 clear 为 no-op，仍返回 `cleared: true`。
+- 未登录返回 401。
 
 ## Admin
 

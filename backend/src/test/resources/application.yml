@@ -44,3 +44,6 @@ app:
       enabled: false
     agent:
       enabled: false
+      memory:
+        enabled: false
+        max-messages: 20

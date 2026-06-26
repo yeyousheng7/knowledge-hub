@@ -74,6 +74,22 @@ Agent 不依赖以下配置（与 RAG 的关键区别）：
 - `AI_VECTORSTORE_REDIS_*` — 不需要
 - Redis Stack — 不需要（普通 Redis 即可满足 token 黑名单需求）
 
+### 启用 Agent Memory（可选）
+
+Agent 支持 InMemory 多轮会话，默认关闭。开启后同一用户对话上下文会被保留（最多 `AI_AGENT_MEMORY_MAX_MESSAGES` 条消息窗口）：
+
+```bash
+AI_AGENT_MEMORY_ENABLED=true
+AI_AGENT_MEMORY_MAX_MESSAGES=20
+```
+
+Agent Memory 边界：
+- 仅 Agent 专属，不接 RAG。
+- InMemory 实现，**重启丢失**。
+- 当前不做 Redis 持久化、不做 TTL，生产化留到后续阶段。
+- 不同用户 conversationId 严格隔离。
+- 可通过 `POST /api/v1/ai/agent/session/clear` 手动清除当前用户会话。
+
 ## 启动依赖
 
 RAG 联调需要以下服务：

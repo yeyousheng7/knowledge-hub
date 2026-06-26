@@ -57,3 +57,6 @@ app:
       enabled: ${AI_RAG_ENABLED:false}
     agent:
       enabled: ${AI_AGENT_ENABLED:false}
+      memory:
+        enabled: ${AI_AGENT_MEMORY_ENABLED:false}
+        max-messages: ${AI_AGENT_MEMORY_MAX_MESSAGES:20}

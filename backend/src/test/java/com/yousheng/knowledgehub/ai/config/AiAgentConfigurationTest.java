@@ -1,9 +1,11 @@
 package com.yousheng.knowledgehub.ai.config;
 
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
 import com.yousheng.knowledgehub.note.service.NoteService;
+import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.ai.chat.model.ChatModel;
@@ -30,6 +32,7 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
     }
@@ -46,6 +49,7 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
     }
@@ -62,6 +66,7 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
     }
@@ -78,6 +83,7 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(NoteReadToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
+                    assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
     }
@@ -94,6 +100,7 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(NoteReadToolFacade.class);
                     assertThat(context).hasSingleBean(NoteReadTools.class);
+                    assertThat(context).hasSingleBean(AiAgentSessionService.class);
                     assertThat(context).hasSingleBean(AiAgentChatService.class);
                 });
     }
@@ -110,6 +117,7 @@ class AiAgentConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(NoteReadToolFacade.class);
                     assertThat(context).hasSingleBean(NoteReadTools.class);
+                    assertThat(context).hasSingleBean(AiAgentSessionService.class);
                     assertThat(context).hasSingleBean(AiAgentChatService.class);
                 });
     }
@@ -125,6 +133,11 @@ class AiAgentConfigurationTest {
         @Bean
         NoteService noteService() {
             return Mockito.mock(NoteService.class);
+        }
+
+        @Bean
+        AppUserMapper appUserMapper() {
+            return Mockito.mock(AppUserMapper.class);
         }
     }
 }

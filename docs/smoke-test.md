@@ -872,9 +872,134 @@ curl -s -X POST "$BASE/ai/agent/chat" \
 当前未完成：
 - 写工具（创建/更新/删除笔记）
 - streaming
-- chat memory
-- 多轮会话
+- Redis 持久化会话 / agent session TTL
 - structured output
+
+---
+
+## 12. 可选：Agent Memory 多轮会话 smoke test
+
+> 仅在已启用 Agent Tool Calling 且需要验证多轮上下文时执行。
+> Agent Memory 依赖 `AI_AGENT_MEMORY_ENABLED=true`，默认关闭。
+> 不要在文档、命令历史或提交中写入真实 key。
+
+### 12.1 启动服务
+
+在 Agent smoke 环境变量的基础上增加 `AI_AGENT_MEMORY_ENABLED=true`：
+
+```bash
+AI_ENABLED=true \
+AI_AGENT_ENABLED=true \
+AI_AGENT_MEMORY_ENABLED=true \
+AI_AGENT_MEMORY_MAX_MESSAGES=20 \
+SPRING_AI_MODEL_CHAT=openai \
+AI_CHAT_PROVIDER=deepseek \
+AI_CHAT_BASE_URL=https://api.deepseek.com \
+AI_CHAT_API_KEY=<your-deepseek-api-key> \
+AI_CHAT_MODEL=deepseek-chat \
+docker compose up -d mysql redis backend
+```
+
+**预期**: backend 正常启动。
+
+### 12.2 注册 / 登录，拿 token
+
+```bash
+curl -s -X POST "$BASE/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "memuser",
+    "password": "password123",
+    "nickname": "Memory Tester",
+    "inviteCode": "'"$INVITE_CODE"'"
+  }' | jq .
+
+USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "memuser", "password": "password123"}' | jq -r '.data.accessToken')
+
+echo "USER_TOKEN=$USER_TOKEN"
+```
+
+**预期**: 登录返回 `accessToken`。
+
+### 12.3 准备测试笔记
+
+```bash
+curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Spring Boot 自动配置原理",
+    "contentMd": "Spring Boot 自动配置基于 @EnableAutoConfiguration 注解，通过 spring.factories 机制加载自动配置类。"
+  }' | jq .
+
+curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Redis Stack 向量检索入门",
+    "contentMd": "Redis Stack 提供 RediSearch 和向量索引能力，支持 KNN 向量检索。"
+  }' | jq .
+```
+
+**预期**: 两条笔记均创建成功。
+
+### 12.4 第一轮：搜索笔记
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "搜索我关于 Spring Boot 的笔记"}' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 提到 Spring Boot 自动配置相关笔记。
+
+### 12.5 第二轮：基于上文追问
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "刚才第一条笔记详细展开一下"}' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 基于上一轮搜索结果展开 Spring Boot 笔记内容。说明多轮上下文生效。
+
+### 12.6 清除会话
+
+```bash
+curl -s -X POST "$BASE/ai/agent/session/clear" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: `code: 0`，`data.cleared == true`。
+
+### 12.7 确认上下文已清除
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "刚才第一条是什么？"}' | jq .
+```
+
+**预期**: `code: 0`，回答不再依赖已清除的上下文（模型可能表示不知道或要求提供更具体信息）。
+
+### 12.8 Agent Memory 边界确认
+
+当前已完成：
+- Agent 专属 InMemory 多轮会话（MessageWindowChatMemory）
+- 同一用户自动维护 conversationId
+- 不同用户会话隔离
+- 会话清除 endpoint
+- `AI_AGENT_MEMORY_ENABLED` 开关
+
+当前未完成：
+- Redis ChatMemoryRepository 持久化
+- agent session TTL
+- 跨设备会话共享
 
 ---
 

@@ -54,6 +54,24 @@ class AiAgentControllerBehaviorTest extends ControllerBehaviorTestSupport {
     }
 
     @Test
+    void chat_disabledUserToken_returns40301() throws Exception {
+        AppUser user = createDisabledUser("agentdisabled", "Agent Disabled", "USER");
+        String token = tokenOf(user);
+
+        when(aiAgentChatService.chat("Hello"))
+                .thenThrow(new BizException(ErrorCode.USER_DISABLED));
+
+        mockMvc.perform(post("/api/v1/ai/agent/chat")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
+                        .contentType("application/json")
+                        .content("{\"message\":\"Hello\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+
+        verify(aiAgentChatService).chat("Hello");
+    }
+
+    @Test
     void chat_withoutToken_returns401() throws Exception {
         mockMvc.perform(post("/api/v1/ai/agent/chat")
                         .contentType("application/json")
@@ -102,5 +120,47 @@ class AiAgentControllerBehaviorTest extends ControllerBehaviorTestSupport {
                         .content("{\"message\":\"crash\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value(50303));
+    }
+
+    @Test
+    void clearSession_loggedInUser_returnsCleared() throws Exception {
+        AppUser user = createEnabledUser("agentuser5", "Agent User 5", "USER");
+        String token = tokenOf(user);
+
+        mockMvc.perform(post("/api/v1/ai/agent/session/clear")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.cleared").value(true));
+    }
+
+    @Test
+    void clearSession_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/ai/agent/session/clear"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
+    }
+
+    @Test
+    void clearSession_disabledUserToken_returns40301() throws Exception {
+        AppUser user = createDisabledUser("agentdisabled2", "Agent Disabled 2", "USER");
+        String token = tokenOf(user);
+
+        mockMvc.perform(post("/api/v1/ai/agent/session/clear")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void clearSession_missingUserToken_returns40100() throws Exception {
+        AppUser user = createEnabledUser("agentmissing", "Agent Missing", "USER");
+        String token = tokenOf(user);
+        appUserMapper.deleteById(user.getId());
+
+        mockMvc.perform(post("/api/v1/ai/agent/session/clear")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
     }
 }

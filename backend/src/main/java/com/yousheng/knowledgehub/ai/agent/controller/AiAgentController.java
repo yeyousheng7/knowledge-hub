@@ -1,8 +1,10 @@
 package com.yousheng.knowledgehub.ai.agent.controller;
 
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
 import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatRequest;
 import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
+import com.yousheng.knowledgehub.ai.agent.dto.SessionClearResponse;
 import com.yousheng.knowledgehub.common.response.ApiResponse;
 import com.yousheng.knowledgehub.config.openapi.OpenApiConfig;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,10 +30,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AiAgentController {
 
     private final AiAgentChatService aiAgentChatService;
+    private final AiAgentSessionService aiAgentSessionService;
 
     @PostMapping("/chat")
     public ApiResponse<AiAgentChatResponse> chat(@Valid @RequestBody AiAgentChatRequest request) {
         String answer = aiAgentChatService.chat(request.message());
         return ApiResponse.ok(new AiAgentChatResponse(answer));
+    }
+
+    @PostMapping("/session/clear")
+    public ApiResponse<SessionClearResponse> clearSession() {
+        aiAgentSessionService.clearSession();
+        return ApiResponse.ok(new SessionClearResponse(true));
     }
 }

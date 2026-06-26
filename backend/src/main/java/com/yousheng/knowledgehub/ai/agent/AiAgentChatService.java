@@ -5,7 +5,11 @@ import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+
+import java.util.Objects;
 
 public class AiAgentChatService {
 
@@ -20,26 +24,41 @@ public class AiAgentChatService {
             不要声称已经创建、修改、删除、发布、下架笔记。""";
 
     private final ChatClient chatClient;
+    private final AiAgentSessionService sessionService;
+    private final MessageChatMemoryAdvisor memoryAdvisor;
 
-    public AiAgentChatService(ChatModel chatModel, Object... tools) {
+    public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
+                              MessageChatMemoryAdvisor memoryAdvisor, Object... tools) {
+        this.sessionService = Objects.requireNonNull(sessionService, "sessionService must not be null");
+        this.memoryAdvisor = memoryAdvisor;
         ChatClient.Builder builder = ChatClient.builder(chatModel)
                 .defaultSystem(AGENT_SYSTEM);
         if (tools.length > 0) {
             builder.defaultTools(tools);
         }
+        if (memoryAdvisor != null) {
+            builder.defaultAdvisors(memoryAdvisor);
+        }
         this.chatClient = builder.build();
     }
 
     public String chat(String message) {
+        Long userId = sessionService.requireCurrentEnabledUserId();
+
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("message must not be blank");
         }
 
         try {
-            String content = chatClient.prompt()
-                    .user(message)
-                    .call()
-                    .content();
+            ChatClient.ChatClientRequestSpec spec = chatClient.prompt()
+                    .user(message);
+
+            if (memoryAdvisor != null) {
+                String conversationId = sessionService.generateConversationId(userId);
+                spec.advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId));
+            }
+
+            String content = spec.call().content();
 
             if (content == null || content.isBlank()) {
                 throw new BizException(ErrorCode.AI_CHAT_SERVICE_UNAVAILABLE, "AI 助手返回了空回复");

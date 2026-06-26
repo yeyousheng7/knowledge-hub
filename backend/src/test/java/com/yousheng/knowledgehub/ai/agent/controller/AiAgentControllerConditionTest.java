@@ -1,6 +1,8 @@
 package com.yousheng.knowledgehub.ai.agent.controller;
 
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
+import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -11,7 +13,9 @@ class AiAgentControllerConditionTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(AiAgentController.class)
-            .withBean(AiAgentChatService.class, () -> mock(AiAgentChatService.class));
+            .withBean(AiAgentChatService.class, () -> mock(AiAgentChatService.class))
+            .withBean(AiAgentSessionService.class,
+                    () -> new AiAgentSessionService(null, mock(AppUserMapper.class)));
 
     @Test
     void shouldNotCreateControllerWhenAiDisabled() {

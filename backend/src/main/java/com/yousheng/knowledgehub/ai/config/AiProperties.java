@@ -13,6 +13,7 @@ public class AiProperties {
     private Embedding embedding;
     private Index index;
     private Rag rag;
+    private Agent agent;
 
     @Getter
     @Setter
@@ -42,4 +43,17 @@ public class AiProperties {
         private boolean enabled;
     }
 
+    @Getter
+    @Setter
+    public static final class Agent {
+        private boolean enabled;
+        private Memory memory;
+
+        @Getter
+        @Setter
+        public static final class Memory {
+            private boolean enabled;
+            private int maxMessages = 20;
+        }
+    }
 }
