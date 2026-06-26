@@ -65,7 +65,6 @@ public class AiAgentConfiguration {
     public ToolCallAdvisor agentToolCallAdvisor() {
         return ToolCallAdvisor.builder()
                 .advisorOrder(AGENT_TOOL_CALL_ADVISOR_ORDER)
-                .disableMemory()
                 .build();
     }
 

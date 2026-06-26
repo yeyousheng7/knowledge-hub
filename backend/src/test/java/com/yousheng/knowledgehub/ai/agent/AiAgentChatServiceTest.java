@@ -116,9 +116,7 @@ class AiAgentChatServiceTest {
 
     @Test
     void toolCallAdvisorEnabled_plainContentStillReturnsTextResponse() {
-        ToolCallAdvisor toolCallAdvisor = ToolCallAdvisor.builder()
-                .disableMemory()
-                .build();
+        ToolCallAdvisor toolCallAdvisor = ToolCallAdvisor.builder().build();
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("plain advisor response"), sessionService(), null,
                 toolCallAdvisor, new DemoActionTools());
