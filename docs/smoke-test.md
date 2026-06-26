@@ -866,14 +866,18 @@ curl -s -X POST "$BASE/ai/agent/chat" \
 - `search_my_notes` 工具调用
 - `get_my_note_detail` 工具调用
 - `list_my_published_notes` 工具调用
+- `publish_my_note` / `unpublish_my_note` 单篇发布与下架工具
+- terminal structured action：`prepare_batch_unpublish_published_notes`
 - Agent chat endpoint（`POST /api/v1/ai/agent/chat`）
+- structured action response（`answer` + `actions[]`）
+- operation confirm endpoint（`POST /api/v1/ai/operations/{operationId}/confirm`）
 - 条件装配（`AI_AGENT_ENABLED` 开关）
 
 当前未完成：
-- 写工具（创建/更新/删除笔记）
+- cancel operation endpoint
+- create note / note draft action
 - streaming
 - Redis 持久化会话 / agent session TTL
-- structured output
 
 ---
 
@@ -1000,6 +1004,182 @@ curl -s -X POST "$BASE/ai/agent/chat" \
 - Redis ChatMemoryRepository 持久化
 - agent session TTL
 - 跨设备会话共享
+
+---
+
+## 13. 可选：AI Agent 批量下架 pending action + confirm smoke test
+
+> 仅在真实联调 Agent Tool Calling 和 operation confirm 时执行。
+> 该流程验证：Agent 先生成 `PENDING_OPERATION` action，不直接批量下架；用户确认后调用 confirm endpoint，后端一次性消费 pending operation 并真实下架公开笔记。
+> 不要在文档、命令历史或提交中写入真实 key。
+
+### 13.1 启动服务
+
+启用 Agent，memory 可开可不开。operation confirm 使用 Redis 保存短期 pending operation，Docker Compose 需启动 `redis`：
+
+```bash
+AI_ENABLED=true \
+AI_AGENT_ENABLED=true \
+AI_AGENT_MEMORY_ENABLED=true \
+AI_AGENT_MEMORY_MAX_MESSAGES=20 \
+SPRING_AI_MODEL_CHAT=openai \
+AI_CHAT_PROVIDER=deepseek \
+AI_CHAT_BASE_URL=https://api.deepseek.com \
+AI_CHAT_API_KEY=<your-deepseek-api-key> \
+AI_CHAT_MODEL=deepseek-chat \
+docker compose up -d mysql redis backend
+```
+
+**预期**: backend 正常启动。
+
+### 13.2 注册 / 登录，拿 token
+
+如果已经有可用的 `USER_TOKEN`，可复用前文 token。否则重新注册并登录：
+
+```bash
+curl -s -X POST "$BASE/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "opuser",
+    "password": "password123",
+    "nickname": "Operation Tester",
+    "inviteCode": "'"$INVITE_CODE"'"
+  }' | jq .
+
+USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "opuser", "password": "password123"}' | jq -r '.data.accessToken')
+
+echo "USER_TOKEN=$USER_TOKEN"
+```
+
+**预期**: 登录返回 `accessToken`。
+
+### 13.3 创建并发布两篇公开笔记
+
+```bash
+OP_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Agent 批量下架测试 A",
+    "contentMd": "这是用于 Agent pending operation smoke 的公开笔记 A。"
+  }' | jq -r '.data.id')
+
+OP_NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "Agent 批量下架测试 B",
+    "contentMd": "这是用于 Agent pending operation smoke 的公开笔记 B。"
+  }' | jq -r '.data.id')
+
+curl -s -X POST "$BASE/notes/$OP_NOTE1_ID/publish" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+
+curl -s -X POST "$BASE/notes/$OP_NOTE2_ID/publish" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+
+echo "OP_NOTE1_ID=$OP_NOTE1_ID"
+echo "OP_NOTE2_ID=$OP_NOTE2_ID"
+```
+
+**预期**: 两篇笔记创建并发布成功。
+
+### 13.4 让 Agent 准备批量下架待确认操作
+
+```bash
+AGENT_ACTION_RESPONSE=$(curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message":"请准备把我所有已发布的公开笔记批量下架。只生成待确认操作，不要直接执行。"}')
+
+echo "$AGENT_ACTION_RESPONSE" | jq .
+
+OPERATION_ID=$(echo "$AGENT_ACTION_RESPONSE" | jq -r '.data.actions[0].payload.operationId')
+echo "OPERATION_ID=$OPERATION_ID"
+```
+
+**预期**:
+
+- `code: 0`
+- `data.answer` 非空
+- `data.actions[0].type == "PENDING_OPERATION"`
+- `data.actions[0].payload.operationType == "BATCH_UNPUBLISH_NOTES"`
+- `OPERATION_ID` 非空且不是 `null`
+- 此时只是生成 pending operation，笔记仍应公开可见
+
+验证仍公开：
+
+```bash
+curl -s -X GET "$BASE/public/notes" \
+  | jq '.data.items | map(select(.id == '"$OP_NOTE1_ID"' or .id == '"$OP_NOTE2_ID"'))'
+```
+
+**预期**: 列表中仍包含这两篇笔记。
+
+### 13.5 确认并执行批量下架
+
+```bash
+curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**:
+
+- `code: 0`
+- `data.operationType == "BATCH_UNPUBLISH_NOTES"`
+- `data.status == "EXECUTED"`
+- `data.affectedCount >= 2`
+- `data.affectedItems` 包含刚才发布的笔记
+
+### 13.6 重复 confirm 应失败
+
+```bash
+curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: 非 0，通常为 `40400`，表示 pending operation 不存在、已过期或已消费；不能重复执行。
+
+### 13.7 公开侧不再可见
+
+```bash
+curl -s -X GET "$BASE/public/notes" \
+  | jq '.data.items | map(select(.id == '"$OP_NOTE1_ID"' or .id == '"$OP_NOTE2_ID"'))'
+```
+
+**预期**: 空数组 `[]`。
+
+私有详情仍可访问，且 visibility 已变为 `PRIVATE`：
+
+```bash
+curl -s -X GET "$BASE/notes/$OP_NOTE1_ID" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq '.data.visibility'
+
+curl -s -X GET "$BASE/notes/$OP_NOTE2_ID" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq '.data.visibility'
+```
+
+**预期**: 两次均输出 `"PRIVATE"`。
+
+### 13.8 Agent Operation Confirm 边界确认
+
+当前已完成：
+
+- `prepare_batch_unpublish_published_notes` 只生成 pending operation，不真实执行
+- pending operation 写入 Redis，默认 TTL 30 分钟
+- confirm 使用当前登录用户消费 `ai:operation:{userId}:{operationId}`
+- confirm 一次性消费，重复 confirm 失败
+- confirm 执行前重新校验 noteIds 当前仍属于当前用户、未删除、PUBLIC、NORMAL、已发布
+- confirm 成功后真实批量下架为 PRIVATE
+
+当前未完成：
+
+- cancel endpoint
+- operation detail/list endpoint
+- create note draft / confirm
+- pending operation 审计历史
 
 ---
 

@@ -73,8 +73,9 @@
 |--------|------|------|-------------|
 | POST | /api/v1/ai/index/rebuild | Yes | 手动重建当前用户笔记向量索引，返回 `userId`、`chunkCount`、`indexedAt` |
 | POST | /api/v1/ai/rag/ask | Yes | 基于当前用户向量索引进行 RAG 问答，返回 `answer` 和 `sources` |
-| POST | /api/v1/ai/agent/chat | Yes | 基于 Spring AI Tool Calling 的只读 Agent 对话，可读取当前用户自己的笔记 |
+| POST | /api/v1/ai/agent/chat | Yes | 基于 Spring AI Tool Calling 的 Agent 对话，可读取当前用户笔记，支持单篇发布/下架工具和结构化 action |
 | POST | /api/v1/ai/agent/session/clear | Yes | 清除当前用户 Agent 会话上下文，返回 `{ "cleared": true }` |
+| POST | /api/v1/ai/operations/{operationId}/confirm | Yes | 确认并执行 Agent 生成的待确认操作；当前支持批量下架公开笔记 |
 
 - 默认关闭；启用条件和环境变量见 [deployment.md](deployment.md)。
 - `POST /api/v1/ai/index/rebuild` 需要 `AI_ENABLED=true`、`SPRING_AI_MODEL_EMBEDDING=openai`、`AI_INDEX_VECTOR_STORE=redis`。
@@ -98,6 +99,7 @@
 - 不需要 `AI_RAG_ENABLED=true`
 - 不需要 `SPRING_AI_MODEL_EMBEDDING=openai`
 - 不需要 `AI_INDEX_VECTOR_STORE=redis`
+- operation prepare/confirm 使用 Redis 保存短期 pending operation，但不依赖 Redis VectorStore。
 
 **请求体**：
 
@@ -116,18 +118,89 @@
   "code": 0,
   "msg": "OK",
   "data": {
-    "answer": "根据搜索结果，你有一篇笔记……"
+    "answer": "根据搜索结果，你有一篇笔记……",
+    "actions": []
   }
 }
 ```
 
 **语义**：
 
-- 只读 Agent 当前只开放读取当前用户笔记的工具（`search_my_notes`、`get_my_note_detail`、`list_my_published_notes`）。
-- 不创建、修改、删除、发布、下架笔记。
-- 工具结果不会以 raw JSON 暴露给用户，由模型生成最终 `answer`。
+- Agent 当前开放读取当前用户笔记的工具：`search_my_notes`、`get_my_note_detail`、`list_my_published_notes`。
+- Agent 当前开放单篇发布/下架工具：`publish_my_note`、`unpublish_my_note`。
+- 批量下架公开笔记不会直接执行。Agent 会通过 `prepare_batch_unpublish_published_notes` 生成 `PENDING_OPERATION` action，等待前端调用 confirm endpoint。
+- 普通聊天、read tools 和 single-note tools 返回 `actions: []`。
+- terminal structured action tool 返回 `actions[]`，但不会暴露 raw tool JSON。
 - 未登录返回 401。
 - Agent 默认关闭（`AI_AGENT_ENABLED=false`），关闭时接口返回 404。
+
+**结构化 action 响应示例**：
+
+```json
+{
+  "code": 0,
+  "msg": "OK",
+  "data": {
+    "answer": "我找到了 2 篇公开笔记，可以为你生成批量下架确认操作。请确认后再执行。",
+    "actions": [
+      {
+        "type": "PENDING_OPERATION",
+        "payload": {
+          "operationId": "7b4c2a0f-6c0f-4b35-8e5a-4cf93e6a4d0c",
+          "operationType": "BATCH_UNPUBLISH_NOTES",
+          "preview": "准备批量下架 2 篇公开笔记",
+          "affectedItems": [
+            { "id": 101, "title": "公开笔记 A" },
+            { "id": 102, "title": "公开笔记 B" }
+          ],
+          "expiresAt": "2026-06-26T12:30:00Z"
+        }
+      }
+    ]
+  }
+}
+```
+
+### AI Operation Confirm
+
+当前只支持确认执行 `BATCH_UNPUBLISH_NOTES` pending operation。
+
+**请求**：
+
+```bash
+curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**响应体**：
+
+```json
+{
+  "code": 0,
+  "msg": "OK",
+  "data": {
+    "operationId": "7b4c2a0f-6c0f-4b35-8e5a-4cf93e6a4d0c",
+    "operationType": "BATCH_UNPUBLISH_NOTES",
+    "status": "EXECUTED",
+    "affectedCount": 2,
+    "affectedItems": [
+      { "id": 101, "title": "公开笔记 A" },
+      { "id": 102, "title": "公开笔记 B" }
+    ],
+    "message": "已下架 2 篇公开笔记。"
+  }
+}
+```
+
+**语义**：
+
+- confirm 接口不接收 `userId`，只使用当前登录用户。
+- pending operation 使用 Redis 一次性消费，重复 confirm 会失败，不会重复执行。
+- confirm 时重新校验 operation 归属、类型、状态、过期时间和 noteIds。
+- 执行前重新校验笔记仍属于当前用户、未删除、PUBLIC、NORMAL 且已发布。
+- 任一笔记当前不可操作时整体失败，不做部分下架。
+- operation 不存在、已过期或已消费，返回 `NOT_FOUND`。
+- 当前没有 cancel endpoint，也没有 operation list/detail endpoint。
 
 ### Agent Memory（可选）
 
