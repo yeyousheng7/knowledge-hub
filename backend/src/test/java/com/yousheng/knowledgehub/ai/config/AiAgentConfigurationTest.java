@@ -11,7 +11,10 @@ import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteTools;
+import com.yousheng.knowledgehub.ai.tool.note.PublicNoteToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.PublicNoteTools;
 import com.yousheng.knowledgehub.note.service.NoteService;
+import com.yousheng.knowledgehub.note.service.PublicNoteService;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -46,6 +49,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteActionTools.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentOperationConfirmService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
@@ -68,6 +73,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteActionTools.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentOperationConfirmService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
@@ -90,6 +97,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteActionTools.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentOperationConfirmService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
@@ -112,6 +121,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
                     assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteActionTools.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteToolFacade.class);
+                    assertThat(context).doesNotHaveBean(PublicNoteTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentOperationConfirmService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
@@ -132,6 +143,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).hasSingleBean(NoteReadTools.class);
                     assertThat(context).hasSingleBean(NoteWriteToolFacade.class);
                     assertThat(context).hasSingleBean(NoteWriteTools.class);
+                    assertThat(context).hasSingleBean(PublicNoteToolFacade.class);
+                    assertThat(context).hasSingleBean(PublicNoteTools.class);
                     assertThat(context).hasSingleBean(AiAgentPendingOperationStore.class);
                     assertThat(context).hasSingleBean(NoteActionToolFacade.class);
                     assertThat(context).hasSingleBean(NoteActionTools.class);
@@ -158,6 +171,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).hasSingleBean(NoteReadTools.class);
                     assertThat(context).hasSingleBean(NoteWriteToolFacade.class);
                     assertThat(context).hasSingleBean(NoteWriteTools.class);
+                    assertThat(context).hasSingleBean(PublicNoteToolFacade.class);
+                    assertThat(context).hasSingleBean(PublicNoteTools.class);
                     assertThat(context).hasSingleBean(NoteActionTools.class);
                     assertThat(context).hasSingleBean(AiAgentSessionService.class);
                     assertThat(context).hasSingleBean(AiAgentOperationConfirmService.class);
@@ -176,6 +191,11 @@ class AiAgentConfigurationTest {
         @Bean
         NoteService noteService() {
             return Mockito.mock(NoteService.class);
+        }
+
+        @Bean
+        PublicNoteService publicNoteService() {
+            return Mockito.mock(PublicNoteService.class);
         }
 
         @Bean

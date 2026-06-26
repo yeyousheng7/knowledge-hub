@@ -11,7 +11,10 @@ import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteTools;
+import com.yousheng.knowledgehub.ai.tool.note.PublicNoteToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.PublicNoteTools;
 import com.yousheng.knowledgehub.note.service.NoteService;
+import com.yousheng.knowledgehub.note.service.PublicNoteService;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
@@ -57,6 +60,18 @@ public class AiAgentConfiguration {
     @ConditionalOnMissingBean
     public NoteWriteTools noteWriteTools(NoteWriteToolFacade noteWriteToolFacade) {
         return new NoteWriteTools(noteWriteToolFacade);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PublicNoteToolFacade publicNoteToolFacade(PublicNoteService publicNoteService) {
+        return new PublicNoteToolFacade(publicNoteService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PublicNoteTools publicNoteTools(PublicNoteToolFacade publicNoteToolFacade) {
+        return new PublicNoteTools(publicNoteToolFacade);
     }
 
     @Bean
@@ -117,8 +132,9 @@ public class AiAgentConfiguration {
                                                  ToolCallAdvisor toolCallAdvisor,
                                                  NoteReadTools noteReadTools,
                                                  NoteWriteTools noteWriteTools,
-                                                 NoteActionTools noteActionTools) {
+                                                 NoteActionTools noteActionTools,
+                                                 PublicNoteTools publicNoteTools) {
         return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(), toolCallAdvisor,
-                noteReadTools, noteWriteTools, noteActionTools);
+                noteReadTools, noteWriteTools, noteActionTools, publicNoteTools);
     }
 }

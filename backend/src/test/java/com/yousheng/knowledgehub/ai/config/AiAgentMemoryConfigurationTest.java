@@ -1,6 +1,8 @@
 package com.yousheng.knowledgehub.ai.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yousheng.knowledgehub.note.service.NoteService;
+import com.yousheng.knowledgehub.note.service.PublicNoteService;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -10,6 +12,7 @@ import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -120,8 +123,13 @@ class AiAgentMemoryConfigurationTest {
         }
 
         @Bean
-        com.yousheng.knowledgehub.note.service.NoteService noteService() {
-            return Mockito.mock(com.yousheng.knowledgehub.note.service.NoteService.class);
+        NoteService noteService() {
+            return Mockito.mock(NoteService.class);
+        }
+
+        @Bean
+        PublicNoteService publicNoteService() {
+            return Mockito.mock(PublicNoteService.class);
         }
 
         @Bean
@@ -160,7 +168,7 @@ class AiAgentMemoryConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @org.springframework.boot.context.properties.EnableConfigurationProperties(AiProperties.class)
+    @EnableConfigurationProperties(AiProperties.class)
     static class AiPropertiesConfiguration {
     }
 }
