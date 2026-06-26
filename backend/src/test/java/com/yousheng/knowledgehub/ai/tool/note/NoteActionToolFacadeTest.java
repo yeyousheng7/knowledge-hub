@@ -1,0 +1,160 @@
+package com.yousheng.knowledgehub.ai.tool.note;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yousheng.knowledgehub.ai.agent.AiAgentActionEnvelopeParser;
+import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
+import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperationStore;
+import com.yousheng.knowledgehub.ai.config.AiProperties;
+import com.yousheng.knowledgehub.common.exception.BizException;
+import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.note.dto.NoteListItemResponse;
+import com.yousheng.knowledgehub.note.dto.NoteListResponse;
+import com.yousheng.knowledgehub.note.service.NoteService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class NoteActionToolFacadeTest {
+
+    private static final Instant NOW = Instant.parse("2026-06-26T12:00:00Z");
+
+    @Mock
+    private NoteService noteService;
+
+    @Mock
+    private AiAgentSessionService sessionService;
+
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
+    private ObjectMapper objectMapper;
+    private AiAgentActionEnvelopeParser parser;
+    private NoteActionToolFacade facade;
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper().findAndRegisterModules();
+        parser = new AiAgentActionEnvelopeParser();
+        AiProperties aiProperties = new AiProperties();
+        aiProperties.getAgent().getOperation().setTtlMinutes(30);
+        AiAgentPendingOperationStore operationStore =
+                new AiAgentPendingOperationStore(stringRedisTemplate, objectMapper);
+        facade = new NoteActionToolFacade(
+                noteService,
+                sessionService,
+                operationStore,
+                aiProperties,
+                objectMapper,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void prepareBatchUnpublishPublishedNotes_withPublishedNotes_returnsPendingOperationActionAndStoresOperation()
+            throws Exception {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+        when(noteService.listMyPublishedNotes(1, NoteActionToolFacade.MAX_BATCH_UNPUBLISH_NOTES))
+                .thenReturn(new NoteListResponse(List.of(note(1L, "first"), note(2L, "second")), 2, 1, 20));
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        String content = facade.prepareBatchUnpublishPublishedNotes();
+
+        AiAgentChatResponse response = parser.parse(content);
+        assertThat(response.actions()).hasSize(1);
+        assertThat(response.actions().get(0).type()).isEqualTo("PENDING_OPERATION");
+        assertThat(response.actions().get(0).payload())
+                .containsEntry("operationType", "BATCH_UNPUBLISH_NOTES");
+        assertThat((List<?>) response.actions().get(0).payload().get("affectedItems")).hasSize(2);
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Duration> ttlCaptor = ArgumentCaptor.forClass(Duration.class);
+        verify(valueOperations).set(keyCaptor.capture(), valueCaptor.capture(), ttlCaptor.capture());
+        assertThat(keyCaptor.getValue()).startsWith("ai:operation:7:");
+        assertThat(ttlCaptor.getValue()).isEqualTo(Duration.ofMinutes(30));
+
+        JsonNode stored = objectMapper.readTree(valueCaptor.getValue());
+        assertThat(stored.get("operationType").asText()).isEqualTo("BATCH_UNPUBLISH_NOTES");
+        assertThat(stored.get("userId").asLong()).isEqualTo(7L);
+        assertThat(stored.get("status").asText()).isEqualTo("PENDING");
+        assertThat(stored.get("noteIds").size()).isEqualTo(2);
+        verify(noteService, never()).unpublishNote(anyLong());
+    }
+
+    @Test
+    void prepareBatchUnpublishPublishedNotes_withoutPublishedNotes_returnsNoActionAndDoesNotStoreOperation() {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+        when(noteService.listMyPublishedNotes(1, NoteActionToolFacade.MAX_BATCH_UNPUBLISH_NOTES))
+                .thenReturn(new NoteListResponse(List.of(), 0, 1, 20));
+
+        AiAgentChatResponse response = parser.parse(facade.prepareBatchUnpublishPublishedNotes());
+
+        assertThat(response.actions()).isEmpty();
+        verifyNoInteractions(stringRedisTemplate);
+    }
+
+    @Test
+    void prepareBatchUnpublishPublishedNotes_whenTooManyPublishedNotes_returnsNoActionAndDoesNotStoreOperation() {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+        when(noteService.listMyPublishedNotes(1, NoteActionToolFacade.MAX_BATCH_UNPUBLISH_NOTES))
+                .thenReturn(new NoteListResponse(List.of(note(1L, "first")), 21, 1, 20));
+
+        AiAgentChatResponse response = parser.parse(facade.prepareBatchUnpublishPublishedNotes());
+
+        assertThat(response.answer()).contains("缩小范围");
+        assertThat(response.actions()).isEmpty();
+        verifyNoInteractions(stringRedisTemplate);
+    }
+
+    @Test
+    void prepareBatchUnpublishPublishedNotes_disabledUserDoesNotCreateOperation() {
+        when(sessionService.requireCurrentEnabledUserId())
+                .thenThrow(new BizException(ErrorCode.USER_DISABLED));
+
+        assertThatThrownBy(() -> facade.prepareBatchUnpublishPublishedNotes())
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_DISABLED));
+        verifyNoInteractions(noteService, stringRedisTemplate);
+    }
+
+    private NoteListItemResponse note(Long id, String title) {
+        LocalDateTime now = LocalDateTime.of(2026, 6, 26, 20, 0);
+        return new NoteListItemResponse(
+                id,
+                title,
+                "summary",
+                null,
+                List.of(),
+                "PUBLIC",
+                "NORMAL",
+                now,
+                now,
+                now);
+    }
+}

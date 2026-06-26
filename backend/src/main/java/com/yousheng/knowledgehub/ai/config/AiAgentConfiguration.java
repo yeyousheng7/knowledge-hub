@@ -1,7 +1,11 @@
 package com.yousheng.knowledgehub.ai.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
 import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
+import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperationStore;
+import com.yousheng.knowledgehub.ai.tool.note.NoteActionToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.NoteActionTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
@@ -19,6 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "app.ai", name = "enabled", havingValue = "true")
@@ -54,6 +59,29 @@ public class AiAgentConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    public AiAgentPendingOperationStore aiAgentPendingOperationStore(StringRedisTemplate stringRedisTemplate,
+                                                                     ObjectMapper objectMapper) {
+        return new AiAgentPendingOperationStore(stringRedisTemplate, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public NoteActionToolFacade noteActionToolFacade(NoteService noteService,
+                                                     AiAgentSessionService sessionService,
+                                                     AiAgentPendingOperationStore operationStore,
+                                                     AiProperties aiProperties,
+                                                     ObjectMapper objectMapper) {
+        return new NoteActionToolFacade(noteService, sessionService, operationStore, aiProperties, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public NoteActionTools noteActionTools(NoteActionToolFacade noteActionToolFacade) {
+        return new NoteActionTools(noteActionToolFacade);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(ToolCallAdvisor.class)
     public ToolCallAdvisor agentToolCallAdvisor() {
         return ToolCallAdvisor.builder()
@@ -78,8 +106,9 @@ public class AiAgentConfiguration {
                                                  ObjectProvider<MessageChatMemoryAdvisor> advisorProvider,
                                                  ToolCallAdvisor toolCallAdvisor,
                                                  NoteReadTools noteReadTools,
-                                                 NoteWriteTools noteWriteTools) {
+                                                 NoteWriteTools noteWriteTools,
+                                                 NoteActionTools noteActionTools) {
         return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(), toolCallAdvisor,
-                noteReadTools, noteWriteTools);
+                noteReadTools, noteWriteTools, noteActionTools);
     }
 }

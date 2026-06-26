@@ -1,7 +1,11 @@
 package com.yousheng.knowledgehub.ai.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
 import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
+import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperationStore;
+import com.yousheng.knowledgehub.ai.tool.note.NoteActionToolFacade;
+import com.yousheng.knowledgehub.ai.tool.note.NoteActionTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadToolFacade;
 import com.yousheng.knowledgehub.ai.tool.note.NoteReadTools;
 import com.yousheng.knowledgehub.ai.tool.note.NoteWriteToolFacade;
@@ -12,16 +16,18 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AiAgentConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(TestConfig.class, AiAgentConfiguration.class);
+            .withUserConfiguration(TestConfig.class, AiAgentConfiguration.class, AiPropertiesConfiguration.class);
 
     @Test
     void shouldNotLoadAgentBeansWhenAiDisabled() {
@@ -37,6 +43,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
                     assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
+                    assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteActionTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -56,6 +64,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
                     assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
+                    assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteActionTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -75,6 +85,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
                     assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
+                    assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteActionTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -94,6 +106,8 @@ class AiAgentConfigurationTest {
                     assertThat(context).doesNotHaveBean(NoteReadTools.class);
                     assertThat(context).doesNotHaveBean(NoteWriteToolFacade.class);
                     assertThat(context).doesNotHaveBean(NoteWriteTools.class);
+                    assertThat(context).doesNotHaveBean(NoteActionToolFacade.class);
+                    assertThat(context).doesNotHaveBean(NoteActionTools.class);
                     assertThat(context).doesNotHaveBean(AiAgentSessionService.class);
                     assertThat(context).doesNotHaveBean(AiAgentChatService.class);
                 });
@@ -113,6 +127,9 @@ class AiAgentConfigurationTest {
                     assertThat(context).hasSingleBean(NoteReadTools.class);
                     assertThat(context).hasSingleBean(NoteWriteToolFacade.class);
                     assertThat(context).hasSingleBean(NoteWriteTools.class);
+                    assertThat(context).hasSingleBean(AiAgentPendingOperationStore.class);
+                    assertThat(context).hasSingleBean(NoteActionToolFacade.class);
+                    assertThat(context).hasSingleBean(NoteActionTools.class);
                     assertThat(context).hasSingleBean(ToolCallAdvisor.class);
                     assertThat(context.getBean(ToolCallAdvisor.class).getOrder())
                             .isEqualTo(AiAgentConfiguration.AGENT_TOOL_CALL_ADVISOR_ORDER);
@@ -135,6 +152,7 @@ class AiAgentConfigurationTest {
                     assertThat(context).hasSingleBean(NoteReadTools.class);
                     assertThat(context).hasSingleBean(NoteWriteToolFacade.class);
                     assertThat(context).hasSingleBean(NoteWriteTools.class);
+                    assertThat(context).hasSingleBean(NoteActionTools.class);
                     assertThat(context).hasSingleBean(AiAgentSessionService.class);
                     assertThat(context).hasSingleBean(AiAgentChatService.class);
                 });
@@ -157,5 +175,20 @@ class AiAgentConfigurationTest {
         AppUserMapper appUserMapper() {
             return Mockito.mock(AppUserMapper.class);
         }
+
+        @Bean
+        StringRedisTemplate stringRedisTemplate() {
+            return Mockito.mock(StringRedisTemplate.class);
+        }
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper().findAndRegisterModules();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableConfigurationProperties(AiProperties.class)
+    static class AiPropertiesConfiguration {
     }
 }

@@ -1,5 +1,6 @@
 package com.yousheng.knowledgehub.ai.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -125,6 +127,16 @@ class AiAgentMemoryConfigurationTest {
         @Bean
         AppUserMapper appUserMapper() {
             return Mockito.mock(AppUserMapper.class);
+        }
+
+        @Bean
+        StringRedisTemplate stringRedisTemplate() {
+            return Mockito.mock(StringRedisTemplate.class);
+        }
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper().findAndRegisterModules();
         }
     }
 
