@@ -2,6 +2,7 @@ package com.yousheng.knowledgehub.ai.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.agent.AiAgentOperationConfirmService;
 import com.yousheng.knowledgehub.ai.agent.AiAgentSessionService;
 import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperationStore;
 import com.yousheng.knowledgehub.ai.tool.note.NoteActionToolFacade;
@@ -79,6 +80,15 @@ public class AiAgentConfiguration {
     @ConditionalOnMissingBean
     public NoteActionTools noteActionTools(NoteActionToolFacade noteActionToolFacade) {
         return new NoteActionTools(noteActionToolFacade);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AiAgentOperationConfirmService aiAgentOperationConfirmService(
+            AiAgentSessionService sessionService,
+            AiAgentPendingOperationStore operationStore,
+            NoteService noteService) {
+        return new AiAgentOperationConfirmService(sessionService, operationStore, noteService);
     }
 
     @Bean

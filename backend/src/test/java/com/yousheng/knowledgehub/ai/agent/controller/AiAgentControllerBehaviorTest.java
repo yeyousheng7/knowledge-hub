@@ -1,7 +1,9 @@
 package com.yousheng.knowledgehub.ai.agent.controller;
 
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.agent.AiAgentOperationConfirmService;
 import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentOperationConfirmResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.security.JwtConstants;
@@ -11,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -32,6 +36,9 @@ class AiAgentControllerBehaviorTest extends ControllerBehaviorTestSupport {
 
     @MockBean
     private AiAgentChatService aiAgentChatService;
+
+    @MockBean
+    private AiAgentOperationConfirmService aiAgentOperationConfirmService;
 
     @MockBean
     private ChatModel chatModel;
@@ -164,5 +171,29 @@ class AiAgentControllerBehaviorTest extends ControllerBehaviorTestSupport {
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(40100));
+    }
+
+    @Test
+    void confirmOperation_loggedInUser_returnsExecutionResult() throws Exception {
+        AppUser user = createEnabledUser("agentop", "Agent Operation", "USER");
+        String token = tokenOf(user);
+        when(aiAgentOperationConfirmService.confirm("op-1"))
+                .thenReturn(new AiAgentOperationConfirmResponse(
+                        "op-1",
+                        "BATCH_UNPUBLISH_NOTES",
+                        "EXECUTED",
+                        2,
+                        List.of(),
+                        "已下架 2 篇公开笔记。"));
+
+        mockMvc.perform(post("/api/v1/ai/operations/op-1/confirm")
+                        .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.operationId").value("op-1"))
+                .andExpect(jsonPath("$.data.status").value("EXECUTED"))
+                .andExpect(jsonPath("$.data.affectedCount").value(2));
+
+        verify(aiAgentOperationConfirmService).confirm("op-1");
     }
 }

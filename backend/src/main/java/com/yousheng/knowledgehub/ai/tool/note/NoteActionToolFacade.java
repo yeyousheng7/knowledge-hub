@@ -23,9 +23,9 @@ import java.util.UUID;
 public class NoteActionToolFacade {
 
     static final int MAX_BATCH_UNPUBLISH_NOTES = 20;
-    static final String ACTION_TYPE_PENDING_OPERATION = "PENDING_OPERATION";
-    static final String OPERATION_TYPE_BATCH_UNPUBLISH_NOTES = "BATCH_UNPUBLISH_NOTES";
-    static final String STATUS_PENDING = "PENDING";
+    public static final String ACTION_TYPE_PENDING_OPERATION = "PENDING_OPERATION";
+    public static final String OPERATION_TYPE_BATCH_UNPUBLISH_NOTES = "BATCH_UNPUBLISH_NOTES";
+    public static final String STATUS_PENDING = "PENDING";
 
     private static final int DEFAULT_OPERATION_TTL_MINUTES = 30;
 

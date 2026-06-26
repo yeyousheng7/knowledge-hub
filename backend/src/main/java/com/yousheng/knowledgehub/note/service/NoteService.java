@@ -30,8 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -381,6 +383,71 @@ public class NoteService {
 
         note.setUpdatedAt(updateNote.getUpdatedAt());
         return toDetailResponse(note);
+    }
+
+    @Transactional
+    public NoteBatchUnpublishResult batchUnpublishMyPublishedNotes(List<Long> noteIds) {
+        Long userId = requireCurrentEnabledUserId();
+        List<Long> normalizedNoteIds = normalizeBatchNoteIds(noteIds);
+
+        List<Note> notes = noteMapper.selectList(Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .in(Note::getId, normalizedNoteIds));
+
+        if (notes.size() != normalizedNoteIds.size()) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记不存在或不属于当前用户");
+        }
+
+        Map<Long, Note> notesById = notes.stream()
+                .collect(Collectors.toMap(Note::getId, note -> note));
+        for (Long noteId : normalizedNoteIds) {
+            Note note = notesById.get(noteId);
+            if (!isBatchUnpublishable(note)) {
+                throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记当前不可操作");
+            }
+        }
+
+        Note updateNote = new Note();
+        int affectedRows = noteMapper.update(updateNote, Wrappers.lambdaUpdate(Note.class)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .in(Note::getId, normalizedNoteIds)
+                .eq(Note::getVisibility, NoteVisibility.PUBLIC.name())
+                .eq(Note::getModerationStatus, NoteModerationStatus.NORMAL.name())
+                .isNotNull(Note::getPublishedAt)
+                .set(Note::getVisibility, NoteVisibility.PRIVATE.name()));
+        if (affectedRows != normalizedNoteIds.size()) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记当前不可操作");
+        }
+
+        List<NoteListItemResponse> affectedItems = normalizedNoteIds.stream()
+                .map(notesById::get)
+                .map(note -> toListItemResponse(note, List.of()))
+                .toList();
+        return new NoteBatchUnpublishResult(affectedRows, affectedItems);
+    }
+
+    private List<Long> normalizeBatchNoteIds(List<Long> noteIds) {
+        if (noteIds == null || noteIds.isEmpty()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "待操作笔记不能为空");
+        }
+
+        Set<Long> distinct = new LinkedHashSet<>();
+        for (Long noteId : noteIds) {
+            if (noteId == null || noteId <= 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST, "笔记 ID 必须为正数");
+            }
+            distinct.add(noteId);
+        }
+        return List.copyOf(distinct);
+    }
+
+    private boolean isBatchUnpublishable(Note note) {
+        return note != null
+                && NoteVisibility.PUBLIC.name().equals(note.getVisibility())
+                && NoteModerationStatus.NORMAL.name().equals(note.getModerationStatus())
+                && note.getPublishedAt() != null;
     }
 
     private NoteListItemResponse toListItemResponse(Note note, List<NoteTagResponse> tags) {

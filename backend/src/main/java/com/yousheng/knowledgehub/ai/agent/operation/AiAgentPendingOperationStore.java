@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 
 public class AiAgentPendingOperationStore {
 
@@ -25,6 +26,20 @@ public class AiAgentPendingOperationStore {
                             ttl);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize AI agent pending operation", e);
+        }
+    }
+
+    public Optional<AiAgentPendingOperation> consume(Long userId, String operationId) {
+        String value = stringRedisTemplate.opsForValue()
+                .getAndDelete(toRedisKey(userId, operationId));
+        if (value == null) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(objectMapper.readValue(value, AiAgentPendingOperation.class));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to deserialize AI agent pending operation", e);
         }
     }
 
