@@ -67,12 +67,13 @@
 |--------|------|------|-------------|
 | GET | /api/v1/ping | Yes | Ping test |
 
-## AI Index / RAG
+## AI Index / RAG / Agent
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | /api/v1/ai/index/rebuild | Yes | 手动重建当前用户笔记向量索引，返回 `userId`、`chunkCount`、`indexedAt` |
 | POST | /api/v1/ai/rag/ask | Yes | 基于当前用户向量索引进行 RAG 问答，返回 `answer` 和 `sources` |
+| POST | /api/v1/ai/agent/chat | Yes | 基于 Spring AI Tool Calling 的只读 Agent 对话，可读取当前用户自己的笔记 |
 
 - 默认关闭；启用条件和环境变量见 [deployment.md](deployment.md)。
 - `POST /api/v1/ai/index/rebuild` 需要 `AI_ENABLED=true`、`SPRING_AI_MODEL_EMBEDDING=openai`、`AI_INDEX_VECTOR_STORE=redis`。
@@ -84,6 +85,48 @@
   "question": "根据我的笔记，xxx 是什么？"
 }
 ```
+
+### Agent
+
+**启用条件**：
+
+- `AI_ENABLED=true`
+- `AI_AGENT_ENABLED=true`
+- `SPRING_AI_MODEL_CHAT=openai`
+- `AI_CHAT_*` 配置有效（provider、base-url、api-key、model）
+- 不需要 `AI_RAG_ENABLED=true`
+- 不需要 `SPRING_AI_MODEL_EMBEDDING=openai`
+- 不需要 `AI_INDEX_VECTOR_STORE=redis`
+
+**请求体**：
+
+```json
+{
+  "message": "帮我找一下 Spring AI tool calling 相关笔记"
+}
+```
+
+- `message` 必填，1-1000 字符。
+
+**响应体**：
+
+```json
+{
+  "code": 0,
+  "msg": "OK",
+  "data": {
+    "answer": "根据搜索结果，你有一篇笔记……"
+  }
+}
+```
+
+**语义**：
+
+- 只读 Agent 当前只开放读取当前用户笔记的工具（`search_my_notes`、`get_my_note_detail`、`list_my_published_notes`）。
+- 不创建、修改、删除、发布、下架笔记。
+- 工具结果不会以 raw JSON 暴露给用户，由模型生成最终 `answer`。
+- 未登录返回 401。
+- Agent 默认关闭（`AI_AGENT_ENABLED=false`），关闭时接口返回 404。
 
 ## Admin
 

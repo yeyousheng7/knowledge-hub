@@ -32,18 +32,24 @@ docker compose up -d
 如果初始化配置合法且系统已存在启用的 ADMIN 用户，不会重复创建。
 
 
-## AI / RAG 配置
+## AI / RAG / Agent 配置
 
-AI 和 RAG 默认关闭：
+AI、RAG 和 Agent 默认关闭：
 
 ```bash
 AI_ENABLED=false
 AI_RAG_ENABLED=false
+AI_AGENT_ENABLED=false
 SPRING_AI_MODEL_EMBEDDING=none
 SPRING_AI_MODEL_CHAT=none
 ```
 
-普通启动和普通测试不需要 AI key、DeepSeek、SiliconFlow，也不需要初始化 Redis VectorStore schema。启用 RAG 时需要 MySQL、Redis Stack 和 backend；当前 Docker Compose 使用 `redis/redis-stack-server`。完整环境变量和联调边界见 [docs/deployment.md](docs/deployment.md)，手动验证流程见 [docs/smoke-test.md](docs/smoke-test.md#10-可选rag-flow-smoke-test)。
+普通启动和普通测试不需要 AI key、DeepSeek、SiliconFlow，也不需要初始化 Redis VectorStore schema。
+
+- **RAG smoke**：需要 embedding + Redis VectorStore + chat model，完整环境变量见 [docs/deployment.md](docs/deployment.md#启用-rag-的最小环境变量)。
+- **Agent smoke**：只需要 chat model，不需要 embedding / RAG / VectorStore，完整环境变量见 [docs/deployment.md](docs/deployment.md#启用-agent-的最小环境变量)。
+
+手动验证流程见 [docs/smoke-test.md](docs/smoke-test.md)（含可选 RAG / Agent smoke）。
 
 
 ## 已完成功能
@@ -57,7 +63,7 @@ SPRING_AI_MODEL_CHAT=none
 | **Note** | 创建/查看/更新/软删除，绑定分类与标签，摘要自动生成，关键字搜索 |
 | **Publish** | 发布/取消发布，公开列表、公开详情、用户公开主页 |
 | **Admin** | 笔记审核（下架/恢复）、用户管理（禁用/启用） |
-| **AI / RAG** | 默认关闭；手动索引重建、generation-based index switch、当前用户向量搜索、Spring AI chat adapter、RAG ask endpoint |
+| **AI / RAG / Agent** | 默认关闭；手动索引重建、generation-based index switch、当前用户向量搜索、Spring AI chat adapter、RAG ask endpoint、read-only Agent Tool Calling、Agent chat endpoint |
 
 
 ## 技术栈
@@ -72,7 +78,7 @@ SPRING_AI_MODEL_CHAT=none
 | ORM | MyBatis-Plus 3.5.x |
 | 数据库迁移 | Flyway |
 | 认证 | Spring Security + JWT (jjwt 0.12.x) |
-| AI / RAG | Spring AI + Redis Stack VectorStore（可选，默认关闭） |
+| AI / RAG / Agent | Spring AI；Redis Stack VectorStore 仅用于 RAG / 向量索引（可选，默认关闭） |
 | API 文档 | Springdoc OpenAPI / Swagger UI |
 | 测试 | H2 内存数据库 + MockMvc + Mockito |
 | 容器化 | Docker & Docker Compose |
@@ -84,7 +90,7 @@ SPRING_AI_MODEL_CHAT=none
 |------|------|------|
 | API 文档 | [docs/api.md](docs/api.md) | 接口列表、请求/响应格式、业务语义 |
 | 部署与配置 | [docs/deployment.md](docs/deployment.md) | Docker Compose、本地运行、AI/RAG 开关与依赖 |
-| 冒烟测试 | [docs/smoke-test.md](docs/smoke-test.md) | 34 步核心联动测试，含可选 RAG flow smoke test |
+| 冒烟测试 | [docs/smoke-test.md](docs/smoke-test.md) | 34 步核心联动测试，含可选 RAG / Agent smoke |
 
 > 冒烟测试最近一次运行：**2026-06-14**，被测代码 Commit `b803270`，Docker Compose 环境，结果 **PASS**（无遗留问题）。
 
@@ -169,6 +175,6 @@ mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
 
 - refresh token
 - Admin 角色管理 / 权限细分
-- AI 自动 CRUD 同步索引 / streaming / chat memory / tool calling / structured output / 管理后台 AI 操作 / 多轮会话
+- AI 自动 CRUD 同步索引 / streaming / chat memory / structured output / 写工具 / operation confirm / 管理后台 AI 操作 / 多轮会话
 - 文件上传 / 图片上传
 - 前端页面
