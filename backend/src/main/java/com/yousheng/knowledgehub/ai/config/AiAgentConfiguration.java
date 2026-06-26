@@ -10,6 +10,7 @@ import com.yousheng.knowledgehub.ai.tool.note.NoteWriteTools;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import com.yousheng.knowledgehub.user.mapper.AppUserMapper;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "app.ai", name = "enabled", havingValue = "true")
@@ -25,6 +27,8 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
 @ConditionalOnExpression("'${app.ai.chat.provider:deepseek}'.equals('deepseek') || '${app.ai.chat.provider:deepseek}'.equals('openai-compatible')")
 public class AiAgentConfiguration {
+
+    static final int AGENT_TOOL_CALL_ADVISOR_ORDER = Ordered.HIGHEST_PRECEDENCE + 300;
 
     @Bean
     @ConditionalOnMissingBean
@@ -57,6 +61,15 @@ public class AiAgentConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(ToolCallAdvisor.class)
+    public ToolCallAdvisor agentToolCallAdvisor() {
+        return ToolCallAdvisor.builder()
+                .advisorOrder(AGENT_TOOL_CALL_ADVISOR_ORDER)
+                .disableMemory()
+                .build();
+    }
+
+    @Bean
     @ConditionalOnMissingBean
     public AiAgentSessionService aiAgentSessionService(
             ObjectProvider<ChatMemory> chatMemoryProvider,
@@ -71,10 +84,11 @@ public class AiAgentConfiguration {
     public AiAgentChatService aiAgentChatService(ChatModel chatModel,
                                                  AiAgentSessionService sessionService,
                                                  ObjectProvider<MessageChatMemoryAdvisor> advisorProvider,
+                                                 ToolCallAdvisor toolCallAdvisor,
                                                  NoteReadTools noteReadTools,
                                                  NoteWriteTools noteWriteTools,
                                                  DemoActionTools demoActionTools) {
-        return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(),
+        return new AiAgentChatService(chatModel, sessionService, advisorProvider.getIfAvailable(), toolCallAdvisor,
                 noteReadTools, noteWriteTools, demoActionTools);
     }
 }

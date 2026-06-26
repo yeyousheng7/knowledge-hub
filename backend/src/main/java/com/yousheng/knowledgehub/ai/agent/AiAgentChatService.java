@@ -9,9 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class AiAgentChatService {
@@ -35,6 +39,13 @@ public class AiAgentChatService {
 
     public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
                               MessageChatMemoryAdvisor memoryAdvisor, Object... tools) {
+        this(chatModel, sessionService, memoryAdvisor, null, tools);
+    }
+
+    public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
+                              MessageChatMemoryAdvisor memoryAdvisor,
+                              ToolCallAdvisor toolCallAdvisor,
+                              Object... tools) {
         this.sessionService = Objects.requireNonNull(sessionService, "sessionService must not be null");
         this.memoryAdvisor = memoryAdvisor;
         ChatClient.Builder builder = ChatClient.builder(chatModel)
@@ -42,8 +53,15 @@ public class AiAgentChatService {
         if (tools.length > 0) {
             builder.defaultTools(tools);
         }
+        List<Advisor> advisors = new ArrayList<>();
         if (memoryAdvisor != null) {
-            builder.defaultAdvisors(memoryAdvisor);
+            advisors.add(memoryAdvisor);
+        }
+        if (toolCallAdvisor != null) {
+            advisors.add(toolCallAdvisor);
+        }
+        if (!advisors.isEmpty()) {
+            builder.defaultAdvisors(advisors);
         }
         this.chatClient = builder.build();
     }

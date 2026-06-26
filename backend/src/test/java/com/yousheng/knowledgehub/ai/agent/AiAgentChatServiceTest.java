@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
@@ -111,6 +112,21 @@ class AiAgentChatServiceTest {
         assertThat(result.actions()).hasSize(1);
         assertThat(result.actions().get(0).type()).isEqualTo("DEMO_ACTION");
         assertThat(result.actions().get(0).payload()).containsEntry("source", "returnDirect-spike");
+    }
+
+    @Test
+    void toolCallAdvisorEnabled_plainContentStillReturnsTextResponse() {
+        ToolCallAdvisor toolCallAdvisor = ToolCallAdvisor.builder()
+                .disableMemory()
+                .build();
+        AiAgentChatService service = new AiAgentChatService(
+                new FakeChatModel("plain advisor response"), sessionService(), null,
+                toolCallAdvisor, new DemoActionTools());
+
+        AiAgentChatResponse result = service.chat("plain question");
+
+        assertThat(result.answer()).isEqualTo("plain advisor response");
+        assertThat(result.actions()).isEmpty();
     }
 
     @Test

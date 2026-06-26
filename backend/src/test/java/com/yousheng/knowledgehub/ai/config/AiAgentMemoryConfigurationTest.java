@@ -58,6 +58,8 @@ class AiAgentMemoryConfigurationTest {
                     assertThat(context).hasSingleBean(ChatMemoryRepository.class);
                     assertThat(context).hasSingleBean(MessageWindowChatMemory.class);
                     assertThat(context).hasSingleBean(MessageChatMemoryAdvisor.class);
+                    assertThat(context.getBean(MessageChatMemoryAdvisor.class).getOrder())
+                            .isEqualTo(AiAgentMemoryConfiguration.AGENT_MEMORY_ADVISOR_ORDER);
                 });
     }
 
