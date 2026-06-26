@@ -4,11 +4,13 @@ import com.yousheng.knowledgehub.ai.tool.model.AiToolPage;
 import com.yousheng.knowledgehub.ai.tool.model.AiToolResult;
 import com.yousheng.knowledgehub.ai.tool.note.dto.NoteToolAuthor;
 import com.yousheng.knowledgehub.ai.tool.note.dto.NoteToolTag;
+import com.yousheng.knowledgehub.ai.tool.note.dto.PublicNoteToolDetail;
 import com.yousheng.knowledgehub.ai.tool.note.dto.PublicNoteToolItem;
 import com.yousheng.knowledgehub.ai.tool.support.AiToolArguments;
 import com.yousheng.knowledgehub.ai.tool.support.AiToolResults;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.note.dto.PublicNoteDetailResponse;
 import com.yousheng.knowledgehub.note.dto.PublicNoteListResponse;
 import com.yousheng.knowledgehub.note.service.PublicNoteService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,9 @@ import java.util.List;
 
 @RequiredArgsConstructor
 public class PublicNoteToolFacade {
+
+    private static final int MAX_CONTENT_LENGTH = 4000;
+    private static final String CONTENT_TRUNCATED_WARNING = "正文已截断至 %d 字符。".formatted(MAX_CONTENT_LENGTH);
 
     private final PublicNoteService publicNoteService;
 
@@ -76,6 +81,61 @@ public class PublicNoteToolFacade {
             return warnings.isEmpty()
                     ? AiToolResults.success(toolPage)
                     : AiToolResults.success(toolPage, warnings);
+        } catch (BizException e) {
+            return AiToolResults.failure(e);
+        }
+    }
+
+    public AiToolResult<PublicNoteToolDetail> getPublicNoteDetail(Long noteId) {
+        AiToolResult<Long> noteIdResult = AiToolArguments.requireNoteId(noteId);
+        if (!noteIdResult.success()) {
+            return AiToolResults.failure(ErrorCode.BAD_REQUEST, noteIdResult.message());
+        }
+
+        try {
+            PublicNoteDetailResponse response = publicNoteService.getPublicNoteDetail(noteIdResult.data());
+            List<String> warnings = new ArrayList<>();
+
+            List<NoteToolTag> tags = response.tags() != null
+                    ? response.tags().stream()
+                    .map(t -> new NoteToolTag(null, t.name()))
+                    .toList()
+                    : List.of();
+
+            NoteToolAuthor author = response.author() != null
+                    ? new NoteToolAuthor(response.author().username(), response.author().nickname())
+                    : null;
+
+            String content = response.contentMd();
+            boolean truncated = false;
+            int contentLength = 0;
+
+            if (content != null) {
+                contentLength = content.codePointCount(0, content.length());
+                if (contentLength > MAX_CONTENT_LENGTH) {
+                    int safeEndIndex = content.offsetByCodePoints(0, MAX_CONTENT_LENGTH);
+                    content = content.substring(0, safeEndIndex);
+                    truncated = true;
+                    warnings.add(CONTENT_TRUNCATED_WARNING);
+                }
+            }
+
+            PublicNoteToolDetail detail = new PublicNoteToolDetail(
+                    response.id(),
+                    response.title(),
+                    response.summary(),
+                    content,
+                    truncated,
+                    contentLength,
+                    tags,
+                    author,
+                    response.publishedAt(),
+                    response.updatedAt()
+            );
+
+            return warnings.isEmpty()
+                    ? AiToolResults.success(detail)
+                    : AiToolResults.success(detail, warnings);
         } catch (BizException e) {
             return AiToolResults.failure(e);
         }

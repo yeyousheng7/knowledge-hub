@@ -2,6 +2,7 @@ package com.yousheng.knowledgehub.ai.tool.note;
 
 import com.yousheng.knowledgehub.ai.tool.model.AiToolPage;
 import com.yousheng.knowledgehub.ai.tool.model.AiToolResult;
+import com.yousheng.knowledgehub.ai.tool.note.dto.PublicNoteToolDetail;
 import com.yousheng.knowledgehub.ai.tool.note.dto.PublicNoteToolItem;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -28,5 +29,17 @@ public class PublicNoteTools {
             @ToolParam(description = "页码，从 1 开始，默认 1", required = false) Integer page,
             @ToolParam(description = "每页条数，默认 5，最大 10", required = false) Integer size) {
         return facade.searchPublicNotes(keyword, page, size);
+    }
+
+    @Tool(description = """
+            获取一篇系统公开笔记的详情。
+            只在已知具体 noteId 时使用，通常来自 search_public_notes 结果。
+            noteId 必须为正数。
+            只能获取公开可访问笔记。
+            不用于获取当前用户私有笔记；私有笔记请使用 get_my_note_detail。
+            contentMd 可能被截断，检查 contentTruncated 和 warnings。""")
+    public AiToolResult<PublicNoteToolDetail> get_public_note_detail(
+            @ToolParam(description = "笔记 ID，必须为正数") Long noteId) {
+        return facade.getPublicNoteDetail(noteId);
     }
 }

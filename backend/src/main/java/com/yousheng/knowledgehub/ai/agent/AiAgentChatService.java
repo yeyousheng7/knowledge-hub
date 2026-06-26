@@ -29,6 +29,7 @@ public class AiAgentChatService {
 
     可以搜索系统公开笔记，但只能访问公开可见内容。
     不要声称可以访问他人的私有笔记。
+    可以通过 search_public_notes 搜索公开笔记，并通过 get_public_note_detail 获取公开笔记详情。
 
     单篇发布/下架可以直接调用对应工具执行。
     批量下架公开笔记不能由你直接执行；必须先调用 prepare_batch_unpublish_published_notes 生成待确认操作，并交由用户在前端确认。

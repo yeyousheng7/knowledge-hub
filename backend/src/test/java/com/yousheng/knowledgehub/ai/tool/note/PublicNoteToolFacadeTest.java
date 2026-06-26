@@ -2,10 +2,12 @@ package com.yousheng.knowledgehub.ai.tool.note;
 
 import com.yousheng.knowledgehub.ai.tool.model.AiToolPage;
 import com.yousheng.knowledgehub.ai.tool.model.AiToolResult;
+import com.yousheng.knowledgehub.ai.tool.note.dto.PublicNoteToolDetail;
 import com.yousheng.knowledgehub.ai.tool.note.dto.PublicNoteToolItem;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.PublicNoteAuthorResponse;
+import com.yousheng.knowledgehub.note.dto.PublicNoteDetailResponse;
 import com.yousheng.knowledgehub.note.dto.PublicNoteListItemResponse;
 import com.yousheng.knowledgehub.note.dto.PublicNoteListResponse;
 import com.yousheng.knowledgehub.note.dto.PublicNoteTagResponse;
@@ -87,6 +89,70 @@ class PublicNoteToolFacadeTest {
         when(publicNoteService.listPublicNotes(1, 5, "test")).thenThrow(bizEx);
 
         AiToolResult<AiToolPage<PublicNoteToolItem>> result = facade.searchPublicNotes("test", 1, 5);
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.code()).isEqualTo(ErrorCode.NOTE_NOT_FOUND.getCode());
+    }
+
+    @Test
+    void getPublicNoteDetail_success_returnsDetail() {
+        PublicNoteTagResponse tag = new PublicNoteTagResponse("spring");
+        PublicNoteAuthorResponse author = new PublicNoteAuthorResponse("alice", "Alice");
+        PublicNoteDetailResponse response = new PublicNoteDetailResponse(
+                1L, "Spring Boot Guide", "full content here", "A guide",
+                List.of(tag), author,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 6, 1, 0, 0));
+        when(publicNoteService.getPublicNoteDetail(1L)).thenReturn(response);
+
+        AiToolResult<PublicNoteToolDetail> result = facade.getPublicNoteDetail(1L);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.data().id()).isEqualTo(1L);
+        assertThat(result.data().title()).isEqualTo("Spring Boot Guide");
+        assertThat(result.data().contentMd()).isEqualTo("full content here");
+        assertThat(result.data().summary()).isEqualTo("A guide");
+        assertThat(result.data().contentTruncated()).isFalse();
+        assertThat(result.data().tags()).hasSize(1);
+        assertThat(result.data().tags().get(0).name()).isEqualTo("spring");
+        assertThat(result.data().author()).isNotNull();
+        assertThat(result.data().author().username()).isEqualTo("alice");
+        assertThat(result.data().author().nickname()).isEqualTo("Alice");
+    }
+
+    @Test
+    void getPublicNoteDetail_contentExceedsLimit_truncatesAndWarns() {
+        String longContent = "a".repeat(5000);
+        PublicNoteDetailResponse response = new PublicNoteDetailResponse(
+                1L, "title", longContent, "summary",
+                List.of(), null,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 6, 1, 0, 0));
+        when(publicNoteService.getPublicNoteDetail(1L)).thenReturn(response);
+
+        AiToolResult<PublicNoteToolDetail> result = facade.getPublicNoteDetail(1L);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.data().contentTruncated()).isTrue();
+        assertThat(result.data().contentLength()).isEqualTo(5000);
+        assertThat(result.data().contentMd()).hasSize(4000);
+        assertThat(result.warnings()).anyMatch(w -> w.contains("4000"));
+    }
+
+    @Test
+    void getPublicNoteDetail_nullNoteId_returnsBadRequest() {
+        AiToolResult<PublicNoteToolDetail> result = facade.getPublicNoteDetail(null);
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.code()).isEqualTo(ErrorCode.BAD_REQUEST.getCode());
+    }
+
+    @Test
+    void getPublicNoteDetail_bizException_convertsToFailure() {
+        BizException bizEx = new BizException(ErrorCode.NOTE_NOT_FOUND);
+        when(publicNoteService.getPublicNoteDetail(999L)).thenThrow(bizEx);
+
+        AiToolResult<PublicNoteToolDetail> result = facade.getPublicNoteDetail(999L);
 
         assertThat(result.success()).isFalse();
         assertThat(result.code()).isEqualTo(ErrorCode.NOTE_NOT_FOUND.getCode());
