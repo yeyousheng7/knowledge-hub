@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "app.ai", name = "enabled", havingValue = "true")
@@ -18,6 +19,8 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
 @ConditionalOnExpression("'${app.ai.chat.provider:deepseek}'.equals('deepseek') || '${app.ai.chat.provider:deepseek}'.equals('openai-compatible')")
 public class AiAgentMemoryConfiguration {
+
+    static final int AGENT_MEMORY_ADVISOR_ORDER = Ordered.HIGHEST_PRECEDENCE + 200;
 
     @Bean
     @ConditionalOnMissingBean(ChatMemoryRepository.class)
@@ -41,6 +44,8 @@ public class AiAgentMemoryConfiguration {
     @Bean
     @ConditionalOnMissingBean(MessageChatMemoryAdvisor.class)
     MessageChatMemoryAdvisor messageChatMemoryAdvisor(ChatMemory chatMemory) {
-        return MessageChatMemoryAdvisor.builder(chatMemory).build();
+        return MessageChatMemoryAdvisor.builder(chatMemory)
+                .order(AGENT_MEMORY_ADVISOR_ORDER)
+                .build();
     }
 }

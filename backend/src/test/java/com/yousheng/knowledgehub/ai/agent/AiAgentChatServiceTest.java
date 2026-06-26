@@ -2,6 +2,7 @@ package com.yousheng.knowledgehub.ai.agent;
 
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
 import com.yousheng.knowledgehub.security.CurrentUserPrincipal;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
@@ -18,6 +20,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -81,9 +84,25 @@ class AiAgentChatServiceTest {
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("Hello from AI!"), sessionService(), null);
 
-        String result = service.chat("Hi there");
+        AiAgentChatResponse result = service.chat("Hi there");
 
-        assertThat(result).isEqualTo("Hello from AI!");
+        assertThat(result.answer()).isEqualTo("Hello from AI!");
+        assertThat(result.actions()).isEmpty();
+    }
+
+    @Test
+    void actionEnvelopeContent_returnsActions() {
+        String envelope = """
+                {"answer":"Action ready.","actions":[{"type":"PENDING_OPERATION","payload":{"operationType":"TEST"}}]}
+                """;
+        AiAgentChatService service = new AiAgentChatService(
+                new FakeChatModel(envelope), sessionService(), null);
+
+        AiAgentChatResponse result = service.chat("prepare action");
+
+        assertThat(result.answer()).isEqualTo("Action ready.");
+        assertThat(result.actions()).hasSize(1);
+        assertThat(result.actions().get(0).type()).isEqualTo("PENDING_OPERATION");
     }
 
     @Test
@@ -137,9 +156,22 @@ class AiAgentChatServiceTest {
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("single turn"), sessionService(), null);
 
-        String result = service.chat("query");
+        AiAgentChatResponse result = service.chat("query");
 
-        assertThat(result).isEqualTo("single turn");
+        assertThat(result.answer()).isEqualTo("single turn");
+        assertThat(result.actions()).isEmpty();
+    }
+
+    @Test
+    void toolCallAdvisorEnabled_plainContentStillReturnsTextResponse() {
+        ToolCallAdvisor toolCallAdvisor = ToolCallAdvisor.builder().build();
+        AiAgentChatService service = new AiAgentChatService(
+                new FakeChatModel("plain advisor response"), sessionService(), null, toolCallAdvisor, new TestTools());
+
+        AiAgentChatResponse result = service.chat("plain question");
+
+        assertThat(result.answer()).isEqualTo("plain advisor response");
+        assertThat(result.actions()).isEmpty();
     }
 
     @Test
@@ -168,9 +200,9 @@ class AiAgentChatServiceTest {
         AiAgentChatService service = new AiAgentChatService(
                 new FakeChatModel("multi turn"), sessionService, advisor);
 
-        String result = service.chat("first question");
+        AiAgentChatResponse result = service.chat("first question");
 
-        assertThat(result).isEqualTo("multi turn");
+        assertThat(result.answer()).isEqualTo("multi turn");
         assertThat(repo.findByConversationId("kh:ai:agent:session:1:current")).isNotEmpty();
     }
 
@@ -204,6 +236,14 @@ class AiAgentChatServiceTest {
 
         boolean called() {
             return called;
+        }
+    }
+
+    private static class TestTools {
+
+        @Tool(description = "Test-only tool callback")
+        public String test_tool() {
+            return "unused";
         }
     }
 

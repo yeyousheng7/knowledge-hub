@@ -1,6 +1,7 @@
 package com.yousheng.knowledgehub.ai.agent.controller;
 
 import com.yousheng.knowledgehub.ai.agent.AiAgentChatService;
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.security.JwtConstants;
@@ -40,7 +41,7 @@ class AiAgentControllerBehaviorTest extends ControllerBehaviorTestSupport {
         AppUser user = createEnabledUser("agentuser", "Agent User", "USER");
         String token = tokenOf(user);
 
-        when(aiAgentChatService.chat("Hello")).thenReturn("Hi there!");
+        when(aiAgentChatService.chat("Hello")).thenReturn(AiAgentChatResponse.text("Hi there!"));
 
         mockMvc.perform(post("/api/v1/ai/agent/chat")
                         .header(JwtConstants.AUTHORIZATION_HEADER, JwtConstants.BEARER_PREFIX + token)
@@ -48,7 +49,8 @@ class AiAgentControllerBehaviorTest extends ControllerBehaviorTestSupport {
                         .content("{\"message\":\"Hello\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.answer").value("Hi there!"));
+                .andExpect(jsonPath("$.data.answer").value("Hi there!"))
+                .andExpect(jsonPath("$.data.actions").isEmpty());
 
         verify(aiAgentChatService).chat("Hello");
     }

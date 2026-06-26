@@ -1,14 +1,19 @@
 package com.yousheng.knowledgehub.ai.agent;
 
+import com.yousheng.knowledgehub.ai.agent.dto.AiAgentChatResponse;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.ToolCallAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class AiAgentChatService {
@@ -26,9 +31,17 @@ public class AiAgentChatService {
     private final ChatClient chatClient;
     private final AiAgentSessionService sessionService;
     private final MessageChatMemoryAdvisor memoryAdvisor;
+    private final AiAgentActionEnvelopeParser actionEnvelopeParser = new AiAgentActionEnvelopeParser();
 
     public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
                               MessageChatMemoryAdvisor memoryAdvisor, Object... tools) {
+        this(chatModel, sessionService, memoryAdvisor, null, tools);
+    }
+
+    public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
+                              MessageChatMemoryAdvisor memoryAdvisor,
+                              ToolCallAdvisor toolCallAdvisor,
+                              Object... tools) {
         this.sessionService = Objects.requireNonNull(sessionService, "sessionService must not be null");
         this.memoryAdvisor = memoryAdvisor;
         ChatClient.Builder builder = ChatClient.builder(chatModel)
@@ -36,13 +49,20 @@ public class AiAgentChatService {
         if (tools.length > 0) {
             builder.defaultTools(tools);
         }
+        List<Advisor> advisors = new ArrayList<>();
         if (memoryAdvisor != null) {
-            builder.defaultAdvisors(memoryAdvisor);
+            advisors.add(memoryAdvisor);
+        }
+        if (toolCallAdvisor != null) {
+            advisors.add(toolCallAdvisor);
+        }
+        if (!advisors.isEmpty()) {
+            builder.defaultAdvisors(advisors);
         }
         this.chatClient = builder.build();
     }
 
-    public String chat(String message) {
+    public AiAgentChatResponse chat(String message) {
         Long userId = sessionService.requireCurrentEnabledUserId();
 
         if (message == null || message.isBlank()) {
@@ -64,7 +84,7 @@ public class AiAgentChatService {
                 throw new BizException(ErrorCode.AI_CHAT_SERVICE_UNAVAILABLE, "AI 助手返回了空回复");
             }
 
-            return content;
+            return actionEnvelopeParser.parse(content);
         } catch (BizException e) {
             throw e;
         } catch (RuntimeException e) {

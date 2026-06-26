@@ -34,8 +34,7 @@ public class AiAgentController {
 
     @PostMapping("/chat")
     public ApiResponse<AiAgentChatResponse> chat(@Valid @RequestBody AiAgentChatRequest request) {
-        String answer = aiAgentChatService.chat(request.message());
-        return ApiResponse.ok(new AiAgentChatResponse(answer));
+        return ApiResponse.ok(aiAgentChatService.chat(request.message()));
     }
 
     @PostMapping("/session/clear")
