@@ -25,9 +25,14 @@ public class NoteActionToolFacade {
     static final int MAX_BATCH_UNPUBLISH_NOTES = 20;
     public static final String ACTION_TYPE_PENDING_OPERATION = "PENDING_OPERATION";
     public static final String OPERATION_TYPE_BATCH_UNPUBLISH_NOTES = "BATCH_UNPUBLISH_NOTES";
+    public static final String OPERATION_TYPE_CREATE_PRIVATE_NOTE = "CREATE_PRIVATE_NOTE";
     public static final String STATUS_PENDING = "PENDING";
 
     private static final int DEFAULT_OPERATION_TTL_MINUTES = 30;
+    private static final int MAX_TITLE_LENGTH = 100;
+    private static final int MAX_CONTENT_MD_LENGTH = 100_000;
+    private static final int MAX_SUMMARY_LENGTH = 300;
+    private static final int MAX_RECOMMENDED_TAGS = 10;
 
     private final NoteService noteService;
     private final AiAgentSessionService sessionService;
@@ -101,6 +106,41 @@ public class NoteActionToolFacade {
                         expiresAt)))));
     }
 
+    public String prepareCreatePrivateNote(String title,
+                                           String contentMd,
+                                           String summary,
+                                           List<String> recommendedTags) {
+        Long userId = sessionService.requireCurrentEnabledUserId();
+        Draft draft = normalizeDraft(title, contentMd, summary, recommendedTags);
+        if (!draft.valid()) {
+            return toJson(new ActionEnvelope(draft.errorMessage(), List.of()));
+        }
+
+        Instant createdAt = clock.instant();
+        Duration ttl = operationTtl();
+        Instant expiresAt = createdAt.plus(ttl);
+        String operationId = UUID.randomUUID().toString();
+        Map<String, Object> draftPayload = draftPayload(draft);
+
+        operationStore.save(new AiAgentPendingOperation(
+                        operationId,
+                        OPERATION_TYPE_CREATE_PRIVATE_NOTE,
+                        userId,
+                        List.of(),
+                        draftPayload,
+                        createdAt,
+                        expiresAt,
+                        STATUS_PENDING),
+                ttl);
+
+        return toJson(new ActionEnvelope(
+                "我已经整理好私有笔记草稿。请确认后再创建笔记。",
+                List.of(new AiAgentAction(ACTION_TYPE_PENDING_OPERATION, createPrivateNoteActionPayload(
+                        operationId,
+                        draftPayload,
+                        expiresAt)))));
+    }
+
     private Duration operationTtl() {
         int ttlMinutes = aiProperties.getAgent().getOperation().getTtlMinutes();
         if (ttlMinutes <= 0) {
@@ -123,6 +163,27 @@ public class NoteActionToolFacade {
         return payload;
     }
 
+    private Map<String, Object> createPrivateNoteActionPayload(String operationId,
+                                                               Map<String, Object> draftPayload,
+                                                               Instant expiresAt) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("operationId", operationId);
+        payload.put("operationType", OPERATION_TYPE_CREATE_PRIVATE_NOTE);
+        payload.put("preview", "准备创建私有笔记：" + draftPayload.get("title"));
+        payload.put("draft", draftPayload);
+        payload.put("expiresAt", expiresAt.toString());
+        return payload;
+    }
+
+    private Map<String, Object> draftPayload(Draft draft) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("title", draft.title());
+        payload.put("summary", draft.summary());
+        payload.put("contentMd", draft.contentMd());
+        payload.put("recommendedTags", draft.recommendedTags());
+        return payload;
+    }
+
     private Map<String, Object> affectedItem(NoteListItemResponse note) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", note.id());
@@ -135,6 +196,72 @@ public class NoteActionToolFacade {
             return objectMapper.writeValueAsString(envelope);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize AI agent action envelope", e);
+        }
+    }
+
+    private Draft normalizeDraft(String title, String contentMd, String summary, List<String> recommendedTags) {
+        String normalizedTitle = trimToNull(title);
+        if (normalizedTitle == null) {
+            return Draft.invalid("笔记标题不能为空，请补充标题后再创建草稿。");
+        }
+        if (normalizedTitle.length() > MAX_TITLE_LENGTH) {
+            return Draft.invalid("笔记标题不能超过 " + MAX_TITLE_LENGTH + " 个字符。");
+        }
+
+        String normalizedContent = trimToNull(contentMd);
+        if (normalizedContent == null) {
+            return Draft.invalid("笔记正文不能为空，请补充正文后再创建草稿。");
+        }
+        if (normalizedContent.length() > MAX_CONTENT_MD_LENGTH) {
+            return Draft.invalid("笔记正文不能超过 " + MAX_CONTENT_MD_LENGTH + " 个字符。");
+        }
+
+        String normalizedSummary = trimToNull(summary);
+        if (normalizedSummary != null && normalizedSummary.length() > MAX_SUMMARY_LENGTH) {
+            return Draft.invalid("笔记摘要不能超过 " + MAX_SUMMARY_LENGTH + " 个字符。");
+        }
+
+        return Draft.valid(
+                normalizedTitle,
+                normalizedContent,
+                normalizedSummary,
+                normalizeRecommendedTags(recommendedTags));
+    }
+
+    private List<String> normalizeRecommendedTags(List<String> recommendedTags) {
+        if (recommendedTags == null || recommendedTags.isEmpty()) {
+            return List.of();
+        }
+        return recommendedTags.stream()
+                .map(this::trimToNull)
+                .filter(tag -> tag != null && tag.length() <= 50)
+                .distinct()
+                .limit(MAX_RECOMMENDED_TAGS)
+                .toList();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private record Draft(
+            boolean valid,
+            String title,
+            String contentMd,
+            String summary,
+            List<String> recommendedTags,
+            String errorMessage
+    ) {
+        static Draft valid(String title, String contentMd, String summary, List<String> recommendedTags) {
+            return new Draft(true, title, contentMd, summary, recommendedTags, null);
+        }
+
+        static Draft invalid(String errorMessage) {
+            return new Draft(false, null, null, null, List.of(), errorMessage);
         }
     }
 }

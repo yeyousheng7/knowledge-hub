@@ -49,6 +49,7 @@ class AiAgentPendingOperationStoreTest {
                 "BATCH_UNPUBLISH_NOTES",
                 7L,
                 List.of(1L, 2L),
+                Map.of("title", "draft"),
                 Instant.parse("2026-06-26T12:00:00Z"),
                 Instant.parse("2026-06-26T12:30:00Z"),
                 "PENDING");
@@ -59,6 +60,7 @@ class AiAgentPendingOperationStoreTest {
 
         assertThat(first).isPresent();
         assertThat(first.get().noteIds()).containsExactly(1L, 2L);
+        assertThat(first.get().payload()).containsEntry("title", "draft");
         assertThat(second).isEmpty();
     }
 }

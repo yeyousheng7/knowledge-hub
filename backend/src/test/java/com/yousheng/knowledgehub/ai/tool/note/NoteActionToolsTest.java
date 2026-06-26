@@ -20,4 +20,20 @@ class NoteActionToolsTest {
         assertThat(tool).isNotNull();
         assertThat(tool.returnDirect()).isTrue();
     }
+
+    @Test
+    void prepareCreatePrivateNote_isReturnDirectTerminalTool() throws Exception {
+        NoteActionTools tools = new NoteActionTools(mock(NoteActionToolFacade.class));
+
+        Method method = tools.getClass().getDeclaredMethod(
+                "prepare_create_private_note",
+                String.class,
+                String.class,
+                String.class,
+                java.util.List.class);
+        Tool tool = method.getAnnotation(Tool.class);
+
+        assertThat(tool).isNotNull();
+        assertThat(tool.returnDirect()).isTrue();
+    }
 }

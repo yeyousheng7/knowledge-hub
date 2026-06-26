@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -140,6 +141,64 @@ class NoteActionToolFacadeTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.USER_DISABLED));
+        verifyNoInteractions(noteService, stringRedisTemplate);
+    }
+
+    @Test
+    void prepareCreatePrivateNote_withValidDraft_returnsPendingOperationActionAndStoresOperation()
+            throws Exception {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        String content = facade.prepareCreatePrivateNote(
+                "  Draft title  ",
+                "  # Draft\ncontent  ",
+                "  draft summary  ",
+                List.of(" java ", "ai", "java"));
+
+        AiAgentChatResponse response = parser.parse(content);
+        assertThat(response.actions()).hasSize(1);
+        assertThat(response.actions().get(0).type()).isEqualTo("PENDING_OPERATION");
+        assertThat(response.actions().get(0).payload())
+                .containsEntry("operationType", "CREATE_PRIVATE_NOTE");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> draft = (Map<String, Object>) response.actions().get(0).payload().get("draft");
+        assertThat(draft)
+                .containsEntry("title", "Draft title")
+                .containsEntry("summary", "draft summary")
+                .containsEntry("contentMd", "# Draft\ncontent");
+        assertThat(draft.get("recommendedTags")).isEqualTo(List.of("java", "ai"));
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Duration> ttlCaptor = ArgumentCaptor.forClass(Duration.class);
+        verify(valueOperations).set(keyCaptor.capture(),
+                valueCaptor.capture(),
+                ttlCaptor.capture());
+
+        assertThat(keyCaptor.getValue()).startsWith("ai:operation:7:");
+        assertThat(ttlCaptor.getValue()).isEqualTo(Duration.ofMinutes(30));
+        JsonNode stored = objectMapper.readTree(valueCaptor.getValue());
+        assertThat(stored.get("operationType").asText()).isEqualTo("CREATE_PRIVATE_NOTE");
+        assertThat(stored.get("userId").asLong()).isEqualTo(7L);
+        assertThat(stored.get("status").asText()).isEqualTo("PENDING");
+        assertThat(stored.get("noteIds")).isEmpty();
+        assertThat(stored.get("payload").get("title").asText()).isEqualTo("Draft title");
+        verifyNoInteractions(noteService);
+    }
+
+    @Test
+    void prepareCreatePrivateNote_withBlankTitle_returnsNoActionAndDoesNotStoreOperation() {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+
+        AiAgentChatResponse response = parser.parse(facade.prepareCreatePrivateNote(
+                " ",
+                "content",
+                null,
+                List.of("ai")));
+
+        assertThat(response.answer()).contains("标题不能为空");
+        assertThat(response.actions()).isEmpty();
         verifyNoInteractions(noteService, stringRedisTemplate);
     }
 

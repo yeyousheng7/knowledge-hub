@@ -6,16 +6,20 @@ import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperationStore
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.NoteBatchUnpublishResult;
+import com.yousheng.knowledgehub.note.dto.NoteCreateRequest;
+import com.yousheng.knowledgehub.note.dto.NoteCreateResponse;
 import com.yousheng.knowledgehub.note.dto.NoteListItemResponse;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,6 +83,66 @@ class AiAgentOperationConfirmServiceTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND));
         verify(noteService).batchUnpublishMyPublishedNotes(List.of(1L, 2L));
+    }
+
+    @Test
+    void confirm_validCreatePrivateNoteOperation_createsPrivateNote() {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+        when(operationStore.consume(7L, "op-create")).thenReturn(Optional.of(createPrivateNoteOperation("op-create")));
+        when(noteService.createNote(org.mockito.ArgumentMatchers.any(NoteCreateRequest.class)))
+                .thenReturn(new NoteCreateResponse(
+                        99L,
+                        "Draft title",
+                        "draft summary",
+                        "PRIVATE",
+                        "NORMAL",
+                        null,
+                        List.of(),
+                        LocalDateTime.of(2026, 6, 26, 20, 0),
+                        LocalDateTime.of(2026, 6, 26, 20, 0)));
+
+        AiAgentOperationConfirmResponse response = service.confirm("op-create");
+
+        assertThat(response.operationId()).isEqualTo("op-create");
+        assertThat(response.operationType()).isEqualTo("CREATE_PRIVATE_NOTE");
+        assertThat(response.status()).isEqualTo("EXECUTED");
+        assertThat(response.affectedCount()).isEqualTo(1);
+        assertThat(response.affectedItems()).extracting("id").containsExactly(99L);
+
+        ArgumentCaptor<NoteCreateRequest> requestCaptor = ArgumentCaptor.forClass(NoteCreateRequest.class);
+        verify(noteService).createNote(requestCaptor.capture());
+        NoteCreateRequest request = requestCaptor.getValue();
+        assertThat(request.title()).isEqualTo("Draft title");
+        assertThat(request.contentMd()).isEqualTo("# Draft\ncontent");
+        assertThat(request.summary()).isEqualTo("draft summary");
+        assertThat(request.categoryId()).isNull();
+        assertThat(request.tagIds()).isEmpty();
+    }
+
+    @Test
+    void confirm_createPrivateNoteSameOperationTwice_secondCallDoesNotCreateAgain() {
+        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
+        when(operationStore.consume(7L, "op-create"))
+                .thenReturn(Optional.of(createPrivateNoteOperation("op-create")))
+                .thenReturn(Optional.empty());
+        when(noteService.createNote(org.mockito.ArgumentMatchers.any(NoteCreateRequest.class)))
+                .thenReturn(new NoteCreateResponse(
+                        99L,
+                        "Draft title",
+                        "draft summary",
+                        "PRIVATE",
+                        "NORMAL",
+                        null,
+                        List.of(),
+                        LocalDateTime.of(2026, 6, 26, 20, 0),
+                        LocalDateTime.of(2026, 6, 26, 20, 0)));
+
+        service.confirm("op-create");
+
+        assertThatThrownBy(() -> service.confirm("op-create"))
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND));
+        verify(noteService).createNote(org.mockito.ArgumentMatchers.any(NoteCreateRequest.class));
     }
 
     @Test
@@ -160,6 +224,22 @@ class AiAgentOperationConfirmServiceTest {
                 NOW,
                 expiresAt,
                 status);
+    }
+
+    private AiAgentPendingOperation createPrivateNoteOperation(String operationId) {
+        return new AiAgentPendingOperation(
+                operationId,
+                "CREATE_PRIVATE_NOTE",
+                7L,
+                List.of(),
+                Map.of(
+                        "title", "Draft title",
+                        "contentMd", "# Draft\ncontent",
+                        "summary", "draft summary",
+                        "recommendedTags", List.of("ai")),
+                NOW,
+                NOW.plusSeconds(60),
+                "PENDING");
     }
 
     private NoteListItemResponse note(Long id, String title) {
