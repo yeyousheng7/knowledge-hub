@@ -73,9 +73,9 @@
 |--------|------|------|-------------|
 | POST | /api/v1/ai/index/rebuild | Yes | 手动重建当前用户笔记向量索引，返回 `userId`、`chunkCount`、`indexedAt` |
 | POST | /api/v1/ai/rag/ask | Yes | 基于当前用户向量索引进行 RAG 问答，返回 `answer` 和 `sources` |
-| POST | /api/v1/ai/agent/chat | Yes | 基于 Spring AI Tool Calling 的 Agent 对话，可读取当前用户笔记，支持单篇发布/下架工具和结构化 action |
+| POST | /api/v1/ai/agent/chat | Yes | Agent 对话，支持私有笔记读工具、公开笔记读工具、可选 RAG 检索工具、单篇发布/下架工具，以及创建笔记/批量下架等待确认 action |
 | POST | /api/v1/ai/agent/session/clear | Yes | 清除当前用户 Agent 会话上下文，返回 `{ "cleared": true }` |
-| POST | /api/v1/ai/operations/{operationId}/confirm | Yes | 确认并执行 Agent 生成的待确认操作；当前支持批量下架公开笔记 |
+| POST | /api/v1/ai/operations/{operationId}/confirm | Yes | 确认并执行 Agent 生成的待确认操作；当前支持创建私有笔记、批量下架公开笔记 |
 
 - 默认关闭；启用条件和环境变量见 [deployment.md](deployment.md)。
 - `POST /api/v1/ai/index/rebuild` 需要 `AI_ENABLED=true`、`SPRING_AI_MODEL_EMBEDDING=openai`、`AI_INDEX_VECTOR_STORE=redis`。
@@ -96,9 +96,11 @@
 - `AI_AGENT_ENABLED=true`
 - `SPRING_AI_MODEL_CHAT=openai`
 - `AI_CHAT_*` 配置有效（provider、base-url、api-key、model）
-- 不需要 `AI_RAG_ENABLED=true`
-- 不需要 `SPRING_AI_MODEL_EMBEDDING=openai`
-- 不需要 `AI_INDEX_VECTOR_STORE=redis`
+- Agent 基础功能（读工具、发布/下架、operation confirm）不强依赖 RAG、embedding、VectorStore
+- `rag_search_my_notes` 工具的暴露与可用性分两层：
+  - 暴露：`AI_RAG_ENABLED=true` 控制该工具是否注册为 Agent 可调用的工具
+  - 可用：工具暴露后，实际检索依赖 embedding、VectorStore 和索引状态；索引服务不可用时调用返回失败（code 50302），不影响 Agent 其他功能
+- RAG disabled 时 Agent 仍可用，但不暴露 `rag_search_my_notes` 工具
 - operation prepare/confirm 使用 Redis 保存短期 pending operation，但不依赖 Redis VectorStore。
 
 **请求体**：
@@ -126,11 +128,21 @@
 
 **语义**：
 
-- Agent 当前开放读取当前用户笔记的工具：`search_my_notes`、`get_my_note_detail`、`list_my_published_notes`。
-- Agent 当前开放单篇发布/下架工具：`publish_my_note`、`unpublish_my_note`。
-- 批量下架公开笔记不会直接执行。Agent 会通过 `prepare_batch_unpublish_published_notes` 生成 `PENDING_OPERATION` action，等待前端调用 confirm endpoint。
-- 普通聊天、read tools 和 single-note tools 返回 `actions: []`。
-- terminal structured action tool 返回 `actions[]`，但不会暴露 raw tool JSON。
+- Agent 当前开放以下读工具：
+  - `search_my_notes` — 搜索当前用户自己的笔记
+  - `get_my_note_detail` — 获取当前用户笔记详情
+  - `list_my_published_notes` — 列出当前用户已发布笔记
+  - `search_public_notes` — 搜索系统公开笔记
+  - `get_public_note_detail` — 获取公开笔记详情
+  - `rag_search_my_notes` — 对当前用户笔记进行语义检索（仅 RAG 启用时暴露）
+- Agent 当前开放以下写工具（直接执行）：
+  - `publish_my_note` — 发布单篇笔记
+  - `unpublish_my_note` — 下架单篇笔记
+- Agent 当前开放以下待确认操作工具（生成 PENDING_OPERATION，需前端 confirm）：
+  - `prepare_batch_unpublish_published_notes` — 准备批量下架公开笔记
+  - `prepare_create_private_note` — 准备创建私有笔记
+- 普通聊天、read tools 和 direct write tools 返回 `actions: []`。
+- pending action tool 返回 `actions[]`，但不会暴露 raw tool JSON。
 - 未登录返回 401。
 - Agent 默认关闭（`AI_AGENT_ENABLED=false`），关闭时接口返回 404。
 
@@ -161,9 +173,14 @@
 }
 ```
 
+`CREATE_PRIVATE_NOTE` 也遵循同一 `PENDING_OPERATION` action 结构，chat 阶段只生成待确认操作，confirm 后才创建私有笔记。
+
 ### AI Operation Confirm
 
-当前只支持确认执行 `BATCH_UNPUBLISH_NOTES` pending operation。
+当前支持确认执行以下两种 pending operation：
+
+- `BATCH_UNPUBLISH_NOTES` — 批量下架公开笔记
+- `CREATE_PRIVATE_NOTE` — 创建私有笔记
 
 **请求**：
 
@@ -172,7 +189,7 @@ curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 ```
 
-**响应体**：
+**响应体（批量下架）**：
 
 ```json
 {
@@ -196,11 +213,10 @@ curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
 
 - confirm 接口不接收 `userId`，只使用当前登录用户。
 - pending operation 使用 Redis 一次性消费，重复 confirm 会失败，不会重复执行。
-- confirm 时重新校验 operation 归属、类型、状态、过期时间和 noteIds。
-- 执行前重新校验笔记仍属于当前用户、未删除、PUBLIC、NORMAL 且已发布。
-- 任一笔记当前不可操作时整体失败，不做部分下架。
+- confirm 时重新校验 operation 归属、类型、状态、过期时间和业务状态。
+- `BATCH_UNPUBLISH_NOTES`：执行前重新校验笔记仍属于当前用户、未删除、PUBLIC、NORMAL 且已发布。任一笔记不可操作时整体失败，不做部分下架。
+- `CREATE_PRIVATE_NOTE`：confirm 后创建 PRIVATE 笔记，不自动发布，不自动创建标签。
 - operation 不存在、已过期或已消费，返回 `NOT_FOUND`。
-- 当前没有 cancel endpoint，也没有 operation list/detail endpoint。
 
 ### Agent Memory（可选）
 

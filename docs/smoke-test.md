@@ -584,149 +584,21 @@ curl -s -X POST "$BASE/auth/login" \
 
 ---
 
-## 10. 可选：RAG flow smoke test
+## 10. 可选：AI smoke test
 
-> 仅在真实联调 RAG 时执行。执行前按 [deployment.md](deployment.md) 启用 AI/RAG，并确认服务包含 MySQL、Redis Stack 和 backend。
->
-> DeepSeek 通过 Spring AI OpenAI-compatible chat 配置接入；不要在文档、命令历史或提交中写入真实 key。
+> 仅在真实联调时执行。AI smoke 需要真实 chat key，RAG smoke 额外需要 embedding / Redis Stack / index 配置。
+> 不要将真实 key 写入文档、命令历史或提交。
 
-### 10.1 启动服务
+### 10.1 前置条件
 
-Docker Compose 环境：
+RAG disabled 时 Agent 仍可用，但不暴露 `rag_search_my_notes`。
 
-```bash
-docker compose up -d mysql redis backend
-```
-
-**预期**: backend 正常启动，Redis 服务使用 `redis/redis-stack-server`。
-
-### 10.2 注册 / 登录，拿 token
-
-如果已经有可用的 `USER_TOKEN`，可复用前文 token。否则重新注册并登录：
-
-```bash
-curl -s -X POST "$BASE/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "raguser",
-    "password": "password123",
-    "nickname": "RAG Tester",
-    "inviteCode": "'"$INVITE_CODE"'"
-  }' | jq .
-
-USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "raguser", "password": "password123"}' | jq -r '.data.accessToken')
-
-echo "USER_TOKEN=$USER_TOKEN"
-```
-
-**预期**: 登录返回 `accessToken`。
-
-### 10.3 创建几条笔记
-
-```bash
-RAG_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "title": "Spring Boot 自动配置",
-    "contentMd": "Spring Boot 的自动配置会根据 classpath 和配置属性创建常用 Bean，减少重复配置。"
-  }' | jq -r '.data.id')
-
-RAG_NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "title": "Redis Stack 向量检索",
-    "contentMd": "Redis Stack 提供 RediSearch 和向量索引能力，RAG 索引需要使用 Redis Stack 而不是普通 Redis。"
-  }' | jq -r '.data.id')
-
-echo "RAG_NOTE1_ID=$RAG_NOTE1_ID"
-echo "RAG_NOTE2_ID=$RAG_NOTE2_ID"
-```
-
-**预期**: 两条笔记均创建成功。
-
-### 10.4 手动重建当前用户索引
-
-```bash
-curl -s -X POST "$BASE/ai/index/rebuild" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq .
-```
-
-**预期**: `code: 0`，`data.chunkCount` 大于 `0`，并返回 `indexedAt`。
-
-### 10.5 发起 RAG 问答
-
-```bash
-curl -s -X POST "$BASE/ai/rag/ask" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "question": "根据我的笔记，Redis Stack 在 RAG 中用于什么？"
-  }' | jq .
-```
-
-**预期**: `code: 0`，`data.answer` 非空，`data.sources` 包含参考来源。
-
-### 10.6 RAG flow 边界确认
-
-当前已完成：
-
-- 手动 index rebuild
-- generation-based index switch
-- current-user vector search
-- Spring AI chat adapter
-- RAG ask endpoint
-
-当前未完成：
-
-- 自动 CRUD 同步索引
-- streaming
-- chat memory
-- tool calling / agent
-- structured output
-- 管理后台 AI 操作
-- 多轮会话
-
----
-
-## 11. 可选：AI Agent Tool Calling smoke test
-
-> 仅在真实联调 Agent Tool Calling 时执行。Agent 只需真实 chat key，不需要 embedding key、RAG、VectorStore。
->
-> Agent 依赖 `app.ai.enabled=true` + `app.ai.agent.enabled=true` + `spring.ai.model.chat=openai` + `app.ai.chat.provider=deepseek`（或 `openai-compatible`）。
-> 不要在文档、命令历史或提交中写入真实 key。
-
-### 11.1 环境变量
-
-与 RAG 不同，Agent smoke 只需要 chat 相关变量：
-
-```bash
-# Agent smoke 只需 chat 配置，不需要 embedding / vector 变量
-AI_ENABLED=true
-AI_AGENT_ENABLED=true
-SPRING_AI_MODEL_CHAT=openai
-AI_CHAT_PROVIDER=deepseek
-AI_CHAT_BASE_URL=https://api.deepseek.com
-AI_CHAT_API_KEY=<your-deepseek-api-key>
-AI_CHAT_MODEL=deepseek-chat
-```
-
-以下变量 Agent smoke **不需要**（与 RAG 的区别）：
-- `AI_RAG_ENABLED` — Agent 不依赖 RAG
-- `SPRING_AI_MODEL_EMBEDDING` — Agent 不依赖 embedding
-- `AI_EMBEDDING_*` 系列 — 无 embedding 调用
-- `AI_INDEX_*` / `AI_VECTORSTORE_*` — 无向量存储
-
-### 11.2 启动服务
-
-Docker Compose 环境：
+**仅 Agent（不需要 RAG）**：
 
 ```bash
 AI_ENABLED=true \
 AI_AGENT_ENABLED=true \
+AI_AGENT_MEMORY_ENABLED=true \
 SPRING_AI_MODEL_CHAT=openai \
 AI_CHAT_PROVIDER=deepseek \
 AI_CHAT_BASE_URL=https://api.deepseek.com \
@@ -735,38 +607,51 @@ AI_CHAT_MODEL=deepseek-chat \
 docker compose up -d mysql redis backend
 ```
 
-**预期**: backend 正常启动，日志中无 Agent 相关报错。
+**Agent + RAG（需要 `rag_search_my_notes` 和 RAG ask）**：
 
-### 11.3 注册 / 登录，拿 token
+```bash
+AI_ENABLED=true \
+AI_AGENT_ENABLED=true \
+AI_AGENT_MEMORY_ENABLED=true \
+AI_RAG_ENABLED=true \
+SPRING_AI_MODEL_CHAT=openai \
+AI_CHAT_PROVIDER=deepseek \
+AI_CHAT_BASE_URL=https://api.deepseek.com \
+AI_CHAT_API_KEY=<your-deepseek-api-key> \
+AI_CHAT_MODEL=deepseek-chat \
+SPRING_AI_MODEL_EMBEDDING=openai \
+AI_EMBEDDING_BASE_URL=<your-embedding-base-url> \
+AI_EMBEDDING_API_KEY=<your-embedding-api-key> \
+AI_EMBEDDING_MODEL=<your-embedding-model> \
+AI_EMBEDDING_DIMENSIONS=1024 \
+AI_INDEX_VECTOR_STORE=redis \
+AI_VECTORSTORE_REDIS_INITIALIZE_SCHEMA=true \
+docker compose up -d mysql redis backend
+```
 
-如果已经有可用的 `USER_TOKEN`，可复用前文 token。否则重新注册并登录：
+### 10.2 准备 token 和测试笔记
+
+AI smoke 使用独立用户，避免与前文基础链路测试用户冲突：
 
 ```bash
 curl -s -X POST "$BASE/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "agentuser",
+    "username": "ai-smokeuser",
     "password": "password123",
-    "nickname": "Agent Tester",
+    "nickname": "AI Smoke Tester",
     "inviteCode": "'"$INVITE_CODE"'"
   }' | jq .
 
 USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username": "agentuser", "password": "password123"}' | jq -r '.data.accessToken')
-
-echo "USER_TOKEN=$USER_TOKEN"
+  -d '{"username": "ai-smokeuser", "password": "password123"}' | jq -r '.data.accessToken')
 ```
 
-**预期**: 登录返回 `accessToken`。
-
-### 11.4 准备测试笔记
-
-Agent 只能操作用户自己的笔记。先创建几条笔记供搜索和详情测试，并发布一条供 list published 测试：
+创建 2-3 篇测试笔记，至少一篇 PRIVATE、一篇 PUBLIC：
 
 ```bash
-# 创建笔记 1
-AGENT_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
+NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
   -d '{
@@ -774,204 +659,176 @@ AGENT_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
     "contentMd": "Spring Boot 应用可以通过 Docker 容器化部署。使用 multi-stage build 可以减小镜像体积。"
   }' | jq -r '.data.id')
 
-# 创建笔记 2
-AGENT_NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
+NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
   -d '{
-    "title": "Java 21 虚拟线程",
-    "contentMd": "Java 21 引入了虚拟线程（Virtual Threads），基于 Project Loom，大幅简化了高并发编程模型。"
+    "title": "Redis Stack 在 RAG 中的作用",
+    "contentMd": "Redis Stack 提供 RediSearch 和向量索引能力，RAG 索引需要使用 Redis Stack 而不是普通 Redis。"
   }' | jq -r '.data.id')
 
-# 发布笔记 2
-curl -s -X POST "$BASE/notes/$AGENT_NOTE2_ID/publish" \
+curl -s -X POST "$BASE/notes/$NOTE2_ID/publish" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 
-echo "AGENT_NOTE1_ID=$AGENT_NOTE1_ID"
-echo "AGENT_NOTE2_ID=$AGENT_NOTE2_ID"
+echo "NOTE1_ID=$NOTE1_ID NOTE2_ID=$NOTE2_ID"
 ```
 
-**预期**: 两条笔记创建成功，笔记 2 发布成功。
+**预期**: 笔记创建成功，笔记 2 发布成功。
 
-### 11.5 Agent Chat：搜索笔记
+如果测 RAG，先重建索引：
+
+```bash
+curl -s -X POST "$BASE/ai/index/rebuild" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: `code: 0`，`data.chunkCount > 0`。
+
+### 10.3 RAG ask
+
+```bash
+curl -s -X POST "$BASE/ai/rag/ask" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"question": "Redis Stack 在 RAG 中用于什么？"}' | jq .
+```
+
+**预期**: `code: 0`，`data.answer` 非空，`data.sources` 非空且包含已建索引的笔记标题或 ID。
+
+### 10.4 Agent read tools 主线
+
+保留 2-3 个 Agent chat 示例验证读工具通路：
+
+**私有笔记搜索**：
 
 ```bash
 curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{"message": "帮我搜索关于 Docker 的笔记"}' | jq .
+  -d '{"message": "帮我搜索我的 Docker 笔记"}' | jq .
 ```
 
-**预期**: `code: 0`，`data.answer` 非空，回答提及 Docker 相关笔记标题或内容。
+**预期**: `code: 0`，回答提及 Docker 相关笔记。
 
-### 11.6 Agent Chat：查看笔记详情
+**公开笔记搜索和详情**：
 
 ```bash
 curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{"message": "帮我查看笔记 '"$AGENT_NOTE1_ID"' 的详细内容"}' | jq .
+  -d '{"message": "帮我搜索公开笔记里关于 Redis 的内容，并展开最相关的一篇"}' | jq .
 ```
 
-**预期**: `code: 0`，`data.answer` 非空，回答包含笔记标题和内容。
+**预期**: `code: 0`，回答包含公开笔记详情。
 
-### 11.7 Agent Chat：列出已发布笔记
+**RAG 语义检索（仅在 RAG 启用时）**：
 
 ```bash
 curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{"message": "我有哪些已发布的笔记？"}' | jq .
+  -d '{"message": "根据我的笔记语义检索一下 Redis Stack 在 RAG 中的作用"}' | jq .
 ```
 
-**预期**: `code: 0`，`data.answer` 非空，回答列出已发布的笔记。
+**预期**: `code: 0`，回答基于 RAG 检索结果。RAG disabled 时不应声称存在 `rag_search_my_notes`。
 
-### 11.8 负向检查：未登录返回 401
+**通用预期**：`actions` 为空数组；不暴露 raw tool JSON；不访问他人私有笔记。
 
-```bash
-curl -s -X POST "$BASE/ai/agent/chat" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "帮我搜索笔记"}' | jq .
-```
+### 10.5 创建私有笔记确认闭环
 
-**预期**: HTTP 401，`code: 40100`。
-
-### 11.9 负向检查：Agent 默认关闭
-
-启动时保持 `AI_AGENT_ENABLED=false`（默认值也是 `false`），则 Agent 接口不可用：
+**Agent chat 请求创建笔记**：
 
 ```bash
-# 显式关闭 Agent，验证 Controller 未注册
-AI_ENABLED=true \
-AI_AGENT_ENABLED=false \
-SPRING_AI_MODEL_CHAT=openai \
-AI_CHAT_PROVIDER=deepseek \
-AI_CHAT_BASE_URL=https://api.deepseek.com \
-AI_CHAT_API_KEY=<your-deepseek-api-key> \
-AI_CHAT_MODEL=deepseek-chat \
-docker compose up -d --force-recreate backend
-
-# Agent 接口应返回 404（controller 未注册）
-curl -s -X POST "$BASE/ai/agent/chat" \
+CREATE_ACTION_RESPONSE=$(curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{"message": "帮我搜索笔记"}' | jq .
+  -d '{"message":"帮我把下面内容整理成一篇私有笔记：Spring AI Tool Calling 可以让模型调用后端工具，但高风险操作需要用户确认。"}')
+
+echo "$CREATE_ACTION_RESPONSE" | jq .
+
+CREATE_OPERATION_ID=$(echo "$CREATE_ACTION_RESPONSE" | jq -r '.data.actions[0].payload.operationId')
+echo "CREATE_OPERATION_ID=$CREATE_OPERATION_ID"
 ```
 
-**预期**: HTTP 404（`AI_AGENT_ENABLED` 默认 `false`，Controller 未注册）。
+**预期**: `data.actions[0].type == "PENDING_OPERATION"`，`operationType == "CREATE_PRIVATE_NOTE"`。此时笔记尚未创建。
 
-### 11.10 Agent Tool Calling 边界确认
-
-当前已完成：
-- `search_my_notes` 工具调用
-- `get_my_note_detail` 工具调用
-- `list_my_published_notes` 工具调用
-- `publish_my_note` / `unpublish_my_note` 单篇发布与下架工具
-- terminal structured action：`prepare_batch_unpublish_published_notes`
-- Agent chat endpoint（`POST /api/v1/ai/agent/chat`）
-- structured action response（`answer` + `actions[]`）
-- operation confirm endpoint（`POST /api/v1/ai/operations/{operationId}/confirm`）
-- 条件装配（`AI_AGENT_ENABLED` 开关）
-
-当前未完成：
-- cancel operation endpoint
-- create note / note draft action
-- streaming
-- Redis 持久化会话 / agent session TTL
-
----
-
-## 12. 可选：Agent Memory 多轮会话 smoke test
-
-> 仅在已启用 Agent Tool Calling 且需要验证多轮上下文时执行。
-> Agent Memory 依赖 `AI_AGENT_MEMORY_ENABLED=true`，默认关闭。
-> 不要在文档、命令历史或提交中写入真实 key。
-
-### 12.1 启动服务
-
-在 Agent smoke 环境变量的基础上增加 `AI_AGENT_MEMORY_ENABLED=true`：
+**confirm**：
 
 ```bash
-AI_ENABLED=true \
-AI_AGENT_ENABLED=true \
-AI_AGENT_MEMORY_ENABLED=true \
-AI_AGENT_MEMORY_MAX_MESSAGES=20 \
-SPRING_AI_MODEL_CHAT=openai \
-AI_CHAT_PROVIDER=deepseek \
-AI_CHAT_BASE_URL=https://api.deepseek.com \
-AI_CHAT_API_KEY=<your-deepseek-api-key> \
-AI_CHAT_MODEL=deepseek-chat \
-docker compose up -d mysql redis backend
+curl -s -X POST "$BASE/ai/operations/$CREATE_OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
 ```
 
-**预期**: backend 正常启动。
+**预期**: `code: 0`，`status == "EXECUTED"`。创建的是 PRIVATE 笔记，不自动发布。
 
-### 12.2 注册 / 登录，拿 token
+**重复 confirm 应失败**：
 
 ```bash
-curl -s -X POST "$BASE/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "memuser",
-    "password": "password123",
-    "nickname": "Memory Tester",
-    "inviteCode": "'"$INVITE_CODE"'"
-  }' | jq .
-
-USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "memuser", "password": "password123"}' | jq -r '.data.accessToken')
-
-echo "USER_TOKEN=$USER_TOKEN"
+curl -s -X POST "$BASE/ai/operations/$CREATE_OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
 ```
 
-**预期**: 登录返回 `accessToken`。
+**预期**: 非 0，不重复创建。
 
-### 12.3 准备测试笔记
+### 10.6 批量下架公开笔记确认闭环
+
+确保当前用户有 1-2 篇 PUBLIC 笔记后进行：
+
+**Agent chat 准备批量下架**：
 
 ```bash
-curl -s -X POST "$BASE/notes" \
+UNPUBLISH_ACTION_RESPONSE=$(curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "title": "Spring Boot 自动配置原理",
-    "contentMd": "Spring Boot 自动配置基于 @EnableAutoConfiguration 注解，通过 spring.factories 机制加载自动配置类。"
-  }' | jq .
+  -d '{"message":"请准备把我所有已发布的公开笔记批量下架。只生成待确认操作，不要直接执行。"}')
 
-curl -s -X POST "$BASE/notes" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "title": "Redis Stack 向量检索入门",
-    "contentMd": "Redis Stack 提供 RediSearch 和向量索引能力，支持 KNN 向量检索。"
-  }' | jq .
+echo "$UNPUBLISH_ACTION_RESPONSE" | jq .
+
+UNPUBLISH_OPERATION_ID=$(echo "$UNPUBLISH_ACTION_RESPONSE" | jq -r '.data.actions[0].payload.operationId')
+echo "UNPUBLISH_OPERATION_ID=$UNPUBLISH_OPERATION_ID"
 ```
 
-**预期**: 两条笔记均创建成功。
+**预期**: `PENDING_OPERATION`，`operationType == "BATCH_UNPUBLISH_NOTES"`。此时笔记仍公开可见。
 
-### 12.4 第一轮：搜索笔记
+**confirm 执行**：
+
+```bash
+curl -s -X POST "$BASE/ai/operations/$UNPUBLISH_OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: `code: 0`，`status == "EXECUTED"`，批量下架成功。
+
+**重复 confirm**：
+
+```bash
+curl -s -X POST "$BASE/ai/operations/$UNPUBLISH_OPERATION_ID/confirm" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**预期**: 非 0，不重复执行。
+
+验证公开列表不再显示已下架笔记。
+
+### 10.7 Agent memory / clear session
+
+**两轮对话验证上下文**：
 
 ```bash
 curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
   -d '{"message": "搜索我关于 Spring Boot 的笔记"}' | jq .
-```
 
-**预期**: `code: 0`，`data.answer` 提到 Spring Boot 自动配置相关笔记。
-
-### 12.5 第二轮：基于上文追问
-
-```bash
 curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
   -d '{"message": "刚才第一条笔记详细展开一下"}' | jq .
 ```
 
-**预期**: `code: 0`，`data.answer` 基于上一轮搜索结果展开 Spring Boot 笔记内容。说明多轮上下文生效。
+**预期**: 第二轮回答基于上一轮搜索结果展开，说明多轮上下文生效。
 
-### 12.6 清除会话
+**清除会话**：
 
 ```bash
 curl -s -X POST "$BASE/ai/agent/session/clear" \
@@ -980,7 +837,7 @@ curl -s -X POST "$BASE/ai/agent/session/clear" \
 
 **预期**: `code: 0`，`data.cleared == true`。
 
-### 12.7 确认上下文已清除
+**验证上下文已清除**：
 
 ```bash
 curl -s -X POST "$BASE/ai/agent/chat" \
@@ -989,197 +846,16 @@ curl -s -X POST "$BASE/ai/agent/chat" \
   -d '{"message": "刚才第一条是什么？"}' | jq .
 ```
 
-**预期**: `code: 0`，回答不再依赖已清除的上下文（模型可能表示不知道或要求提供更具体信息）。
+**预期**: 模型不再依赖已清除的上下文。
 
-### 12.8 Agent Memory 边界确认
+### 10.8 常见问题
 
-当前已完成：
-- Agent 专属 InMemory 多轮会话（MessageWindowChatMemory）
-- 同一用户自动维护 conversationId
-- 不同用户会话隔离
-- 会话清除 endpoint
-- `AI_AGENT_MEMORY_ENABLED` 开关
-
-当前未完成：
-- Redis ChatMemoryRepository 持久化
-- agent session TTL
-- 跨设备会话共享
-
----
-
-## 13. 可选：AI Agent 批量下架 pending action + confirm smoke test
-
-> 仅在真实联调 Agent Tool Calling 和 operation confirm 时执行。
-> 该流程验证：Agent 先生成 `PENDING_OPERATION` action，不直接批量下架；用户确认后调用 confirm endpoint，后端一次性消费 pending operation 并真实下架公开笔记。
-> 不要在文档、命令历史或提交中写入真实 key。
-
-### 13.1 启动服务
-
-启用 Agent，memory 可开可不开。operation confirm 使用 Redis 保存短期 pending operation，Docker Compose 需启动 `redis`：
-
-```bash
-AI_ENABLED=true \
-AI_AGENT_ENABLED=true \
-AI_AGENT_MEMORY_ENABLED=true \
-AI_AGENT_MEMORY_MAX_MESSAGES=20 \
-SPRING_AI_MODEL_CHAT=openai \
-AI_CHAT_PROVIDER=deepseek \
-AI_CHAT_BASE_URL=https://api.deepseek.com \
-AI_CHAT_API_KEY=<your-deepseek-api-key> \
-AI_CHAT_MODEL=deepseek-chat \
-docker compose up -d mysql redis backend
-```
-
-**预期**: backend 正常启动。
-
-### 13.2 注册 / 登录，拿 token
-
-如果已经有可用的 `USER_TOKEN`，可复用前文 token。否则重新注册并登录：
-
-```bash
-curl -s -X POST "$BASE/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "opuser",
-    "password": "password123",
-    "nickname": "Operation Tester",
-    "inviteCode": "'"$INVITE_CODE"'"
-  }' | jq .
-
-USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "opuser", "password": "password123"}' | jq -r '.data.accessToken')
-
-echo "USER_TOKEN=$USER_TOKEN"
-```
-
-**预期**: 登录返回 `accessToken`。
-
-### 13.3 创建并发布两篇公开笔记
-
-```bash
-OP_NOTE1_ID=$(curl -s -X POST "$BASE/notes" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "title": "Agent 批量下架测试 A",
-    "contentMd": "这是用于 Agent pending operation smoke 的公开笔记 A。"
-  }' | jq -r '.data.id')
-
-OP_NOTE2_ID=$(curl -s -X POST "$BASE/notes" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{
-    "title": "Agent 批量下架测试 B",
-    "contentMd": "这是用于 Agent pending operation smoke 的公开笔记 B。"
-  }' | jq -r '.data.id')
-
-curl -s -X POST "$BASE/notes/$OP_NOTE1_ID/publish" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq .
-
-curl -s -X POST "$BASE/notes/$OP_NOTE2_ID/publish" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq .
-
-echo "OP_NOTE1_ID=$OP_NOTE1_ID"
-echo "OP_NOTE2_ID=$OP_NOTE2_ID"
-```
-
-**预期**: 两篇笔记创建并发布成功。
-
-### 13.4 让 Agent 准备批量下架待确认操作
-
-```bash
-AGENT_ACTION_RESPONSE=$(curl -s -X POST "$BASE/ai/agent/chat" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{"message":"请准备把我所有已发布的公开笔记批量下架。只生成待确认操作，不要直接执行。"}')
-
-echo "$AGENT_ACTION_RESPONSE" | jq .
-
-OPERATION_ID=$(echo "$AGENT_ACTION_RESPONSE" | jq -r '.data.actions[0].payload.operationId')
-echo "OPERATION_ID=$OPERATION_ID"
-```
-
-**预期**:
-
-- `code: 0`
-- `data.answer` 非空
-- `data.actions[0].type == "PENDING_OPERATION"`
-- `data.actions[0].payload.operationType == "BATCH_UNPUBLISH_NOTES"`
-- `OPERATION_ID` 非空且不是 `null`
-- 此时只是生成 pending operation，笔记仍应公开可见
-
-验证仍公开：
-
-```bash
-curl -s -X GET "$BASE/public/notes" \
-  | jq '.data.items | map(select(.id == '"$OP_NOTE1_ID"' or .id == '"$OP_NOTE2_ID"'))'
-```
-
-**预期**: 列表中仍包含这两篇笔记。
-
-### 13.5 确认并执行批量下架
-
-```bash
-curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq .
-```
-
-**预期**:
-
-- `code: 0`
-- `data.operationType == "BATCH_UNPUBLISH_NOTES"`
-- `data.status == "EXECUTED"`
-- `data.affectedCount >= 2`
-- `data.affectedItems` 包含刚才发布的笔记
-
-### 13.6 重复 confirm 应失败
-
-```bash
-curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq .
-```
-
-**预期**: 非 0，通常为 `40400`，表示 pending operation 不存在、已过期或已消费；不能重复执行。
-
-### 13.7 公开侧不再可见
-
-```bash
-curl -s -X GET "$BASE/public/notes" \
-  | jq '.data.items | map(select(.id == '"$OP_NOTE1_ID"' or .id == '"$OP_NOTE2_ID"'))'
-```
-
-**预期**: 空数组 `[]`。
-
-私有详情仍可访问，且 visibility 已变为 `PRIVATE`：
-
-```bash
-curl -s -X GET "$BASE/notes/$OP_NOTE1_ID" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq '.data.visibility'
-
-curl -s -X GET "$BASE/notes/$OP_NOTE2_ID" \
-  -H "Authorization: Bearer $USER_TOKEN" | jq '.data.visibility'
-```
-
-**预期**: 两次均输出 `"PRIVATE"`。
-
-### 13.8 Agent Operation Confirm 边界确认
-
-当前已完成：
-
-- `prepare_batch_unpublish_published_notes` 只生成 pending operation，不真实执行
-- pending operation 写入 Redis，默认 TTL 30 分钟
-- confirm 使用当前登录用户消费 `ai:operation:{userId}:{operationId}`
-- confirm 一次性消费，重复 confirm 失败
-- confirm 执行前重新校验 noteIds 当前仍属于当前用户、未删除、PUBLIC、NORMAL、已发布
-- confirm 成功后真实批量下架为 PRIVATE
-
-当前未完成：
-
-- cancel endpoint
-- operation detail/list endpoint
-- create note draft / confirm
-- pending operation 审计历史
+- **RAG disabled**：Agent 不暴露 `rag_search_my_notes`，system prompt 也不声明该工具。
+- **RAG enabled 但未建索引**：可能返回空结果，不等于工具不可用。
+- **LLM 未按预期调用工具**：换更明确提示或重试。
+- **pending operation 过期**：重新发起 Agent 请求。
+- **重复 confirm**：第二次应失败或不重复执行。
+- **真实 key**：不要写入文档、命令历史或提交。
 
 ---
 

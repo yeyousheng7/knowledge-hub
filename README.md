@@ -48,7 +48,7 @@ SPRING_AI_MODEL_CHAT=none
 普通启动和普通测试不需要 AI key、DeepSeek、SiliconFlow，也不需要初始化 Redis VectorStore schema。
 
 - **RAG smoke**：需要 embedding + Redis VectorStore + chat model，完整环境变量见 [docs/deployment.md](docs/deployment.md#启用-rag-的最小环境变量)。
-- **Agent smoke**：只需要 chat model，不需要 embedding / RAG / VectorStore。可选开启 Agent Memory 多轮会话（默认关闭，重启丢失）。完整环境变量见 [docs/deployment.md](docs/deployment.md)。
+- **Agent smoke**：只需要 chat model，不需要 embedding / RAG / VectorStore。可选开启 Agent Memory 多轮会话（默认关闭，重启丢失）。`rag_search_my_notes` 工具需要额外启用 RAG 配置，RAG disabled 时 Agent 仍可用但不暴露该工具。完整环境变量见 [docs/deployment.md](docs/deployment.md)。
 
 手动验证流程见 [docs/smoke-test.md](docs/smoke-test.md)（含可选 RAG / Agent smoke）。
 
@@ -64,7 +64,7 @@ SPRING_AI_MODEL_CHAT=none
 | **Note** | 创建/查看/更新/软删除，绑定分类与标签，摘要自动生成，关键字搜索 |
 | **Publish** | 发布/取消发布，公开列表、公开详情、用户公开主页 |
 | **Admin** | 笔记审核（下架/恢复）、用户管理（禁用/启用） |
-| **AI / RAG / Agent** | 默认关闭；手动索引重建、generation-based index switch、当前用户向量搜索、Spring AI chat adapter、RAG ask endpoint、read-only Agent Tool Calling、Agent chat endpoint、Agent 专属 InMemory 多轮会话、会话清除 |
+| **AI / RAG / Agent** | 默认关闭；RAG 问答与来源引用；手动索引重建、generation-based index switch、当前用户向量搜索；Agent 对话（私有笔记搜索/详情、公开笔记搜索/详情、可选 RAG 语义检索）、单篇发布/下架、待确认操作（创建私有笔记、批量下架公开笔记）、operation confirm 一次性消费、Agent 专属 InMemory 多轮会话、会话清除 |
 
 
 ## 技术栈
@@ -91,9 +91,7 @@ SPRING_AI_MODEL_CHAT=none
 |------|------|------|
 | API 文档 | [docs/api.md](docs/api.md) | 接口列表、请求/响应格式、业务语义 |
 | 部署与配置 | [docs/deployment.md](docs/deployment.md) | Docker Compose、本地运行、AI/RAG 开关与依赖 |
-| 冒烟测试 | [docs/smoke-test.md](docs/smoke-test.md) | 34 步核心联动测试，含可选 RAG / Agent smoke |
-
-> 冒烟测试最近一次运行：**2026-06-14**，被测代码 Commit `b803270`，Docker Compose 环境，结果 **PASS**（无遗留问题）。
+| 冒烟测试 | [docs/smoke-test.md](docs/smoke-test.md) | 基础链路 + 可选 AI smoke（RAG ask / Agent 对话 / create note 与 batch unpublish confirm） |
 
 
 ## 运行测试
@@ -176,6 +174,6 @@ mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
 
 - refresh token
 - Admin 角色管理 / 权限细分
-- AI 自动 CRUD 同步索引 / streaming / Redis 持久化会话 / structured output / 写工具 / operation confirm / 管理后台 AI 操作 / agent session TTL
+- AI 自动 CRUD 同步索引 / streaming / Redis 持久化会话 / agent session TTL / cancel endpoint
 - 文件上传 / 图片上传
 - 前端页面

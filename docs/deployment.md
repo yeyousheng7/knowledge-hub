@@ -67,12 +67,17 @@ AI_CHAT_MODEL=按 DeepSeek 当前官方模型名填写
 ```
 
 Agent 不依赖以下配置（与 RAG 的关键区别）：
-- `AI_RAG_ENABLED` — 不需要
-- `SPRING_AI_MODEL_EMBEDDING` — 不需要
-- `AI_EMBEDDING_*` 系列 — 不需要
-- `AI_INDEX_VECTOR_STORE` — 不需要
-- `AI_VECTORSTORE_REDIS_*` — 不需要
-- Redis Stack — 不需要（普通 Redis 即可满足 token 黑名单需求）
+- `AI_RAG_ENABLED` — Agent 基础功能不需要
+- `SPRING_AI_MODEL_EMBEDDING` — Agent 基础功能不需要
+- `AI_EMBEDDING_*` 系列 — Agent 基础功能不需要
+- `AI_INDEX_VECTOR_STORE` — Agent 基础功能不需要
+- `AI_VECTORSTORE_REDIS_*` — Agent 基础功能不需要
+- Redis Stack — Agent 基础功能不需要（普通 Redis 即可满足 token 黑名单需求）
+
+`rag_search_my_notes` 工具的暴露与可用性分两层：
+- 暴露：`AI_RAG_ENABLED=true` 控制该工具是否注册为 Agent 可调用的工具
+- 可用：工具暴露后，实际检索依赖 embedding、VectorStore 和索引状态；索引服务不可用时调用返回失败，不影响 Agent 其他功能
+- RAG disabled 时 Agent 仍可用，但不暴露该工具
 
 ### 启用 Agent Memory（可选）
 
@@ -115,18 +120,28 @@ docker compose up -d mysql redis backend
 - 手动 index rebuild
 - generation-based index switch
 - current-user vector search
-- Spring AI chat adapter
-- RAG ask endpoint
+- RAG ask endpoint（Spring AI chat adapter）
 
 当前未完成：
 
 - 自动 CRUD 同步索引
 - streaming
-- chat memory
-- 写工具 / operation confirm
-- structured output
-- 管理后台 AI 操作
-- 多轮会话
+
+## 当前 Agent 边界
+
+当前已完成：
+
+- Agent 对话（私有笔记搜索/详情、公开笔记搜索/详情、可选 RAG 语义检索）
+- 单篇发布/下架
+- 待确认操作：创建私有笔记、批量下架公开笔记
+- operation confirm（一次性消费、重复 confirm 不执行）
+- Agent 专属 InMemory 多轮会话、会话清除
+
+当前未完成：
+
+- cancel endpoint
+- Redis 持久化会话 / agent session TTL
+- streaming
 
 ## 联调建议
 
