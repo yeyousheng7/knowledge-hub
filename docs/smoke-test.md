@@ -637,7 +637,7 @@ AI smoke 使用独立用户，避免与前文基础链路测试用户冲突：
 curl -s -X POST "$BASE/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "ai-smokeuser",
+    "username": "ai_smokeuser",
     "password": "password123",
     "nickname": "AI Smoke Tester",
     "inviteCode": "'"$INVITE_CODE"'"
@@ -645,7 +645,7 @@ curl -s -X POST "$BASE/auth/register" \
 
 USER_TOKEN=$(curl -s -X POST "$BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username": "ai-smokeuser", "password": "password123"}' | jq -r '.data.accessToken')
+  -d '{"username": "ai_smokeuser", "password": "password123"}' | jq -r '.data.accessToken')
 ```
 
 创建 2-3 篇测试笔记，至少一篇 PRIVATE、一篇 PUBLIC：
@@ -696,8 +696,6 @@ curl -s -X POST "$BASE/ai/rag/ask" \
 **预期**: `code: 0`，`data.answer` 非空，`data.sources` 非空且包含已建索引的笔记标题或 ID。
 
 ### 10.4 Agent read tools 主线
-
-保留 2-3 个 Agent chat 示例验证读工具通路：
 
 **私有笔记搜索**：
 
