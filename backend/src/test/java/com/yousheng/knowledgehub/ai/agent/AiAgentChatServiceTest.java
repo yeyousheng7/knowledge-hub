@@ -62,7 +62,7 @@ class AiAgentChatServiceTest {
     @Test
     void blankMessage_throwsException() {
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("response"), sessionService(), null);
+                new FakeChatModel("response"), sessionService(), null, false);
 
         assertThatThrownBy(() -> service.chat("   "))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -72,7 +72,7 @@ class AiAgentChatServiceTest {
     @Test
     void nullMessage_throwsException() {
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("response"), sessionService(), null);
+                new FakeChatModel("response"), sessionService(), null, false);
 
         assertThatThrownBy(() -> service.chat(null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -82,7 +82,7 @@ class AiAgentChatServiceTest {
     @Test
     void validMessage_returnsModelContent() {
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("Hello from AI!"), sessionService(), null);
+                new FakeChatModel("Hello from AI!"), sessionService(), null, false);
 
         AiAgentChatResponse result = service.chat("Hi there");
 
@@ -96,7 +96,7 @@ class AiAgentChatServiceTest {
                 {"answer":"Action ready.","actions":[{"type":"PENDING_OPERATION","payload":{"operationType":"TEST"}}]}
                 """;
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel(envelope), sessionService(), null);
+                new FakeChatModel(envelope), sessionService(), null, false);
 
         AiAgentChatResponse result = service.chat("prepare action");
 
@@ -108,7 +108,7 @@ class AiAgentChatServiceTest {
     @Test
     void modelReturnsNullContent_throwsBizException() {
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel(null), sessionService(), null);
+                new FakeChatModel(null), sessionService(), null, false);
 
         assertThatThrownBy(() -> service.chat("Hi"))
                 .isInstanceOf(BizException.class)
@@ -121,7 +121,7 @@ class AiAgentChatServiceTest {
     @Test
     void modelReturnsBlankContent_throwsBizException() {
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("   "), sessionService(), null);
+                new FakeChatModel("   "), sessionService(), null, false);
 
         assertThatThrownBy(() -> service.chat("Hi"))
                 .isInstanceOf(BizException.class)
@@ -140,7 +140,7 @@ class AiAgentChatServiceTest {
                 throw failure;
             }
         };
-        AiAgentChatService service = new AiAgentChatService(throwingModel, sessionService(), null);
+        AiAgentChatService service = new AiAgentChatService(throwingModel, sessionService(), null, false);
 
         assertThatThrownBy(() -> service.chat("Hi"))
                 .isInstanceOf(BizException.class)
@@ -154,7 +154,7 @@ class AiAgentChatServiceTest {
     @Test
     void memoryDisabled_keepsSingleTurnBehavior() {
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("single turn"), sessionService(), null);
+                new FakeChatModel("single turn"), sessionService(), null, false);
 
         AiAgentChatResponse result = service.chat("query");
 
@@ -166,7 +166,7 @@ class AiAgentChatServiceTest {
     void toolCallAdvisorEnabled_plainContentStillReturnsTextResponse() {
         ToolCallAdvisor toolCallAdvisor = ToolCallAdvisor.builder().build();
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("plain advisor response"), sessionService(), null, toolCallAdvisor, new TestTools());
+                new FakeChatModel("plain advisor response"), sessionService(), null, toolCallAdvisor, false, new TestTools());
 
         AiAgentChatResponse result = service.chat("plain question");
 
@@ -178,7 +178,7 @@ class AiAgentChatServiceTest {
     void disabledUser_throwsUserDisabledBeforeCallingModel() {
         when(appUserMapper.selectById(1L)).thenReturn(user(UserStatus.DISABLED.name()));
         TrackingChatModel chatModel = new TrackingChatModel("unused");
-        AiAgentChatService service = new AiAgentChatService(chatModel, sessionService(), null);
+        AiAgentChatService service = new AiAgentChatService(chatModel, sessionService(), null, false);
 
         assertThatThrownBy(() -> service.chat("query"))
                 .isInstanceOf(BizException.class)
@@ -198,7 +198,7 @@ class AiAgentChatServiceTest {
         AiAgentSessionService sessionService = sessionService(chatMemory);
 
         AiAgentChatService service = new AiAgentChatService(
-                new FakeChatModel("multi turn"), sessionService, advisor);
+                new FakeChatModel("multi turn"), sessionService, advisor, false);
 
         AiAgentChatResponse result = service.chat("first question");
 

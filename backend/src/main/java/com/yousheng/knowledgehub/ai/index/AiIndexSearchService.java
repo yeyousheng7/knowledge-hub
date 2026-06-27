@@ -32,6 +32,10 @@ public class AiIndexSearchService {
     private final AppUserMapper appUserMapper;
 
     public AiIndexSearchResult search(String query) {
+        return search(query, aiProperties.getIndex().getTopK());
+    }
+
+    public AiIndexSearchResult search(String query, int topK) {
         Long currentUserId = requireCurrentEnabledUserId();
 
         if (query == null || query.trim().isEmpty()) {
@@ -46,7 +50,6 @@ public class AiIndexSearchService {
         }
 
         Filter.Expression filter = searchFilter(currentUserId, activeGeneration);
-        int topK = aiProperties.getIndex().getTopK();
         SearchRequest searchRequest = SearchRequest.builder()
                 .query(trimmedQuery)
                 .topK(topK)

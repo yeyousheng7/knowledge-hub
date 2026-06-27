@@ -20,29 +20,50 @@ public class AiAgentChatService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAgentChatService.class);
 
-    private static final String AGENT_SYSTEM = """
-    你是 KnowledgeHub 的笔记助手。
-    只能使用工具读取当前用户自己的笔记、搜索系统公开笔记，以及执行已明确支持的笔记操作。
-    不要编造不存在的笔记内容。
-    如果工具返回 success=false，根据 code/message 向用户解释。
-    如果列表结果不足，引导用户提供更具体关键词或翻页。
+    private static final String SYSTEM_BASE = """
+            你是 KnowledgeHub 的笔记助手。
+            只能使用工具读取当前用户自己的笔记、搜索系统公开笔记，以及执行已明确支持的笔记操作。
+            不要编造不存在的笔记内容。
+            如果工具返回 success=false，根据 code/message 向用户解释。
+            如果列表结果不足，引导用户提供更具体关键词或翻页。
+            """;
 
-    可以搜索系统公开笔记，但只能访问公开可见内容。
-    不要声称可以访问他人的私有笔记。
-    可以通过 search_public_notes 搜索公开笔记，并通过 get_public_note_detail 获取公开笔记详情。
+    private static final String SYSTEM_RAG = """
+            可以使用 rag_search_my_notes 对当前用户自己的笔记进行语义检索。
+            如果用户需要基于自己的知识内容回答问题，优先考虑 RAG 搜索或普通笔记搜索。
+            如果 RAG 工具返回不可用，向用户说明该功能未启用或基础服务不可用。
+            """;
 
-    单篇发布/下架可以直接调用对应工具执行。
-    批量下架公开笔记不能由你直接执行；必须先调用 prepare_batch_unpublish_published_notes 生成待确认操作，并交由用户在前端确认。
-    只有用户完成前端确认后，系统才会执行批量下架。
-    在确认完成前，不要声称已经完成批量下架。
+    private static final String SYSTEM_PUBLIC = """
+            可以搜索系统公开笔记，但只能访问公开可见内容。
+            不要声称可以访问他人的私有笔记。
+            可以通过 search_public_notes 搜索公开笔记，并通过 get_public_note_detail 获取公开笔记详情。
+            """;
 
-    当用户要求根据文本、要点或主题创建笔记时，先整理为私有笔记草稿，并调用 prepare_create_private_note 生成待确认操作。
-    只有用户完成前端确认后，系统才会创建私有笔记。
-    在确认完成前，不要声称已经创建笔记。
+    private static final String SYSTEM_OPERATIONS = """
+            单篇发布/下架可以直接调用对应工具执行。
+            批量下架公开笔记不能由你直接执行；必须先调用 prepare_batch_unpublish_published_notes 生成待确认操作，并交由用户在前端确认。
+            只有用户完成前端确认后，系统才会执行批量下架。
+            在确认完成前，不要声称已经完成批量下架。
 
-    不要声称已经修改、删除笔记。
-    不要声称支持批量删除、批量修改、管理员操作，或其他未列出的批量操作。
-        """;
+            当用户要求根据文本、要点或主题创建笔记时，先整理为私有笔记草稿，并调用 prepare_create_private_note 生成待确认操作。
+            只有用户完成前端确认后，系统才会创建私有笔记。
+            在确认完成前，不要声称已经创建笔记。
+
+            不要声称已经修改、删除笔记。
+            不要声称支持批量删除、批量修改、管理员操作，或其他未列出的批量操作。
+            """;
+
+    static String buildSystemPrompt(boolean ragToolAvailable) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(SYSTEM_BASE);
+        if (ragToolAvailable) {
+            sb.append('\n').append(SYSTEM_RAG);
+        }
+        sb.append('\n').append(SYSTEM_PUBLIC);
+        sb.append('\n').append(SYSTEM_OPERATIONS);
+        return sb.toString();
+    }
 
     private final ChatClient chatClient;
     private final AiAgentSessionService sessionService;
@@ -50,18 +71,20 @@ public class AiAgentChatService {
     private final AiAgentActionEnvelopeParser actionEnvelopeParser = new AiAgentActionEnvelopeParser();
 
     public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
-                              MessageChatMemoryAdvisor memoryAdvisor, Object... tools) {
-        this(chatModel, sessionService, memoryAdvisor, null, tools);
+                              MessageChatMemoryAdvisor memoryAdvisor, boolean ragToolAvailable,
+                              Object... tools) {
+        this(chatModel, sessionService, memoryAdvisor, null, ragToolAvailable, tools);
     }
 
     public AiAgentChatService(ChatModel chatModel, AiAgentSessionService sessionService,
                               MessageChatMemoryAdvisor memoryAdvisor,
                               ToolCallAdvisor toolCallAdvisor,
+                              boolean ragToolAvailable,
                               Object... tools) {
         this.sessionService = Objects.requireNonNull(sessionService, "sessionService must not be null");
         this.memoryAdvisor = memoryAdvisor;
         ChatClient.Builder builder = ChatClient.builder(chatModel)
-                .defaultSystem(AGENT_SYSTEM);
+                .defaultSystem(buildSystemPrompt(ragToolAvailable));
         if (tools.length > 0) {
             builder.defaultTools(tools);
         }
