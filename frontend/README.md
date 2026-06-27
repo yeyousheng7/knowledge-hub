@@ -1,6 +1,6 @@
 # KnowledgeHub Frontend
 
-F0 provides the buildable frontend foundation for KnowledgeHub. It intentionally contains only a placeholder screen and does not call the backend yet.
+This application is the React frontend for KnowledgeHub. The current F1 baseline includes the API client, login, session restoration, logout, and the protected `/notes` placeholder route; note features are intentionally deferred to later phases.
 
 ## Prerequisites
 
@@ -14,7 +14,9 @@ npm install
 npm run dev
 ```
 
-The application is served at the URL printed by Vite. Copy `.env.example` to `.env.local` when local API configuration is needed. `VITE_API_BASE_URL` is reserved for the API client introduced in a later phase; F0 does not read it.
+The application is served at the URL printed by Vite. Copy `.env.example` to `.env.local` when local API configuration is needed. `VITE_API_BASE_URL` must include the `/api/v1` prefix.
+
+Authentication is persisted under one browser `localStorage` key so a session can be validated with `/auth/me` after a reload. This is required by the current bearer-token contract and means the token is exposed to JavaScript; do not add duplicate token caches or log it.
 
 ## Verification
 
@@ -22,4 +24,5 @@ The application is served at the URL printed by Vite. Copy `.env.example` to `.e
 npm run build
 npm run typecheck
 npm run lint
+npm run test
 ```
