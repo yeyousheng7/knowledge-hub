@@ -57,12 +57,15 @@ public class AiRagService {
     private String buildPrompt(String question, List<AiIndexSearchHit> hits) {
         StringBuilder sb = new StringBuilder();
         sb.append("你是一个知识库助手。请仅根据下面提供的笔记片段回答用户的问题。\n");
-        sb.append("如果笔记片段中没有足够的信息来回答问题，请明确说明\"笔记中没有足够信息来回答这个问题\"。\n\n");
+        sb.append("如果笔记片段中没有足够的信息来回答这个问题，请明确说明\"笔记中没有足够信息来回答这个问题\"。\n");
+        sb.append("当回答引用了笔记片段时，在相关句子或段落末尾添加来源链接：[《笔记标题》](kh-source://note/{noteId})。\n");
+        sb.append("只能使用下面提供的真实 noteId 和标题，不要编造。\n\n");
         sb.append("笔记片段：\n");
 
         for (int i = 0; i < hits.size(); i++) {
             AiIndexSearchHit hit = hits.get(i);
             sb.append("---\n");
+            sb.append("笔记ID：").append(hit.noteId()).append("\n");
             sb.append("标题：").append(hit.title()).append("\n");
             sb.append("内容：").append(hit.chunkText()).append("\n");
         }

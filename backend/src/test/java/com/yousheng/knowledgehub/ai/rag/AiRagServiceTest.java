@@ -125,6 +125,7 @@ class AiRagServiceTest {
         String prompt = captor.getValue();
 
         assertThat(prompt).contains("what is AI?");
+        assertThat(prompt).contains("笔记ID：10");
         assertThat(prompt).contains("My Note");
         assertThat(prompt).contains("the chunk content");
     }
@@ -146,6 +147,7 @@ class AiRagServiceTest {
 
         assertThat(prompt).contains("仅根据下面提供的笔记片段回答");
         assertThat(prompt).contains("笔记中没有足够信息来回答这个问题");
+        assertThat(prompt).contains("[《笔记标题》](kh-source://note/{noteId})");
     }
 
     // --- 6. trimmed question ---

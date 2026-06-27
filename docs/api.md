@@ -88,6 +88,20 @@
 }
 ```
 
+### AI answer 来源链接约定
+
+`POST /api/v1/ai/rag/ask` 和 `POST /api/v1/ai/agent/chat` 的 `data.answer` 均可能包含来源链接，格式为 Markdown 链接 + 自定义 URI scheme：
+
+- `[《笔记标题》](kh-source://note/{id})` — 当前登录用户自己的笔记
+- `[《笔记标题》](kh-source://public-note/{id})` — 公开笔记
+
+客户端处理规则：
+
+- 前端应将 `kh-source://...` 解析为内部跳转协议，不应当成外部 URL 打开
+- `kh-source://note/{id}` 可跳转到当前用户笔记详情页
+- `kh-source://public-note/{id}` 可跳转到公开笔记详情页
+- 后端详情接口仍负责权限校验，客户端不应仅凭该链接绕过权限校验
+
 ### Agent
 
 **启用条件**：

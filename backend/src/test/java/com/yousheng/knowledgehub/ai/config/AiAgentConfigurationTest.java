@@ -221,6 +221,10 @@ class AiAgentConfigurationTest {
 
                         String systemText = prompt.getSystemMessage().getText();
                         assertThat(systemText).contains("rag_search_my_notes");
+                        assertThat(systemText).contains("kh-source://note/{id}");
+                        assertThat(systemText).contains("kh-source://public-note/{id}");
+                        assertThat(systemText).contains("kh-source://note/{noteId}");
+                        assertThat(systemText).contains("使用 id 字段");
                     } finally {
                         SecurityContextHolder.clearContext();
                     }

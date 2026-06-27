@@ -40,6 +40,18 @@ public class AiAgentChatService {
             可以通过 search_public_notes 搜索公开笔记，并通过 get_public_note_detail 获取公开笔记详情。
             """;
 
+    private static final String SYSTEM_SOURCE_LINKS = """
+            当回答内容引用了工具返回的笔记信息时，在相关句子或段落末尾添加来源链接。
+            不同工具结果的 ID 字段不同，注意使用正确的字段：
+            - 普通私有笔记工具（search_my_notes / get_my_note_detail / list_my_published_notes）结果使用 id 字段：[《title》](kh-source://note/{id})
+            - 公开笔记工具（search_public_notes / get_public_note_detail）结果使用 id 字段：[《title》](kh-source://public-note/{id})
+            - RAG 语义检索 hit 结果使用 noteId 字段：[《title》](kh-source://note/{noteId})
+            只能使用工具返回结果中真实存在的 id / noteId 和 title，不要编造。
+            如果没有可靠的笔记来源，不要添加 kh-source 链接。
+            不要把普通网页链接写成 kh-source 链接。
+            不要输出裸 ID、[note:123] 或 [[note:123]] 等旧式标记。
+            """;
+
     private static final String SYSTEM_OPERATIONS = """
             单篇发布/下架可以直接调用对应工具执行。
             批量下架公开笔记不能由你直接执行；必须先调用 prepare_batch_unpublish_published_notes 生成待确认操作，并交由用户在前端确认。
@@ -62,6 +74,7 @@ public class AiAgentChatService {
         }
         sb.append('\n').append(SYSTEM_PUBLIC);
         sb.append('\n').append(SYSTEM_OPERATIONS);
+        sb.append('\n').append(SYSTEM_SOURCE_LINKS);
         return sb.toString();
     }
 
