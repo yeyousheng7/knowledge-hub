@@ -6,7 +6,7 @@ import {
 
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { LoginPage } from "@/pages/login/LoginPage";
-import { NotesPlaceholderPage } from "@/pages/notes/NotesPlaceholderPage";
+import { NotesWorkspaceRoute } from "@/pages/notes/NotesWorkspaceRoute";
 import { PlaceholderPage } from "@/pages/placeholders/PlaceholderPage";
 import { ApplicationShell } from "@/shared/layout/ApplicationShell";
 
@@ -23,7 +23,11 @@ export const applicationRoutes: RouteObject[] = [
         children: [
           {
             path: "/notes",
-            element: <NotesPlaceholderPage />,
+            element: <NotesWorkspaceRoute />,
+          },
+          {
+            path: "/notes/:noteId",
+            element: <NotesWorkspaceRoute />,
           },
           {
             path: "/ai",

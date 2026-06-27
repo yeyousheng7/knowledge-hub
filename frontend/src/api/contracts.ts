@@ -27,11 +27,14 @@ export interface LoginResponse {
 
 export type DataParser<T> = (data: unknown) => T;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readString(record: Record<string, unknown>, key: string): string {
+export function readString(
+  record: Record<string, unknown>,
+  key: string,
+): string {
   const value = record[key];
 
   if (typeof value !== "string") {
@@ -41,11 +44,54 @@ function readString(record: Record<string, unknown>, key: string): string {
   return value;
 }
 
-function readFiniteNumber(record: Record<string, unknown>, key: string): number {
+export function readFiniteNumber(
+  record: Record<string, unknown>,
+  key: string,
+): number {
   const value = record[key];
 
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new TypeError(`Expected ${key} to be a finite number`);
+  }
+
+  return value;
+}
+
+export function readSafeInteger(
+  record: Record<string, unknown>,
+  key: string,
+): number {
+  const value = readFiniteNumber(record, key);
+
+  if (!Number.isSafeInteger(value)) {
+    throw new TypeError(`Expected ${key} to be a safe integer`);
+  }
+
+  return value;
+}
+
+export function readNullableString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
+  return record[key] === null ? null : readString(record, key);
+}
+
+export function readNullableSafeInteger(
+  record: Record<string, unknown>,
+  key: string,
+): number | null {
+  return record[key] === null ? null : readSafeInteger(record, key);
+}
+
+export function readArray(
+  record: Record<string, unknown>,
+  key: string,
+): unknown[] {
+  const value = record[key];
+
+  if (!Array.isArray(value)) {
+    throw new TypeError(`Expected ${key} to be an array`);
   }
 
   return value;
@@ -57,7 +103,7 @@ export function parseApiResponse(value: unknown): ApiResponse<unknown> {
   }
 
   return {
-    code: readFiniteNumber(value, "code"),
+    code: readSafeInteger(value, "code"),
     msg: readString(value, "msg"),
     data: value.data,
   };
@@ -75,7 +121,7 @@ export function parseLoginUserResponse(value: unknown): LoginUserResponse {
   }
 
   return {
-    id: readFiniteNumber(value, "id"),
+    id: readSafeInteger(value, "id"),
     username: readString(value, "username"),
     nickname: readString(value, "nickname"),
     role,
@@ -88,7 +134,7 @@ export function parseLoginResponse(value: unknown): LoginResponse {
   }
 
   const accessToken = readString(value, "accessToken");
-  const expiresIn = readFiniteNumber(value, "expiresIn");
+  const expiresIn = readSafeInteger(value, "expiresIn");
 
   if (accessToken.trim() === "" || expiresIn <= 0) {
     throw new TypeError("Expected a usable access token");

@@ -101,11 +101,8 @@ describe("ApplicationShell", () => {
     renderRoute("/notes");
 
     expect(
-      await screen.findByRole("heading", { name: "笔记工作区" }),
-    ).toBeVisible();
-    expect(screen.getByRole("img", { name: "小明 的头像" })).toHaveTextContent(
-      "小",
-    );
+      await screen.findByRole("img", { name: "小明 的头像" }),
+    ).toHaveTextContent("小");
     expect(screen.getByRole("link", { name: "笔记" })).toHaveAttribute(
       "aria-current",
       "page",

@@ -43,7 +43,7 @@ export function ApplicationShell() {
   }
 
   return (
-    <div className="flex h-svh min-h-[640px] min-w-[960px] overflow-hidden bg-slate-50 text-foreground">
+    <div className="flex h-svh min-h-[640px] min-w-[1180px] overflow-hidden bg-slate-50 text-foreground">
       <aside className="flex w-[232px] shrink-0 flex-col border-r border-slate-200/80 bg-white px-4 py-5">
         <div className="flex h-12 items-center gap-3 px-3">
           <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm shadow-blue-200">
