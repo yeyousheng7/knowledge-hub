@@ -41,6 +41,66 @@
 }
 
 @layer components {
+  .auth-page {
+    background:
+      radial-gradient(circle at 50% 0%, rgb(255 255 255 / 0.96), transparent 42%),
+      linear-gradient(145deg, #f8faff 0%, #f3f6ff 48%, #edf3ff 100%);
+  }
+
+  .auth-orbit,
+  .auth-wave,
+  .auth-dot-grid {
+    @apply pointer-events-none absolute;
+  }
+
+  .auth-orbit {
+    border: 1px solid rgb(96 132 255 / 0.11);
+    border-radius: 9999px;
+  }
+
+  .auth-orbit-one {
+    right: -34rem;
+    top: 6rem;
+    height: 62rem;
+    width: 62rem;
+  }
+
+  .auth-orbit-two {
+    right: -26rem;
+    top: 13rem;
+    height: 48rem;
+    width: 48rem;
+  }
+
+  .auth-wave {
+    border-radius: 50%;
+    transform: rotate(18deg);
+  }
+
+  .auth-wave-one {
+    bottom: -31rem;
+    left: -18rem;
+    height: 43rem;
+    width: 68rem;
+    background: rgb(213 225 255 / 0.34);
+  }
+
+  .auth-wave-two {
+    bottom: -34rem;
+    left: -12rem;
+    height: 43rem;
+    width: 72rem;
+    border: 1px solid rgb(96 132 255 / 0.12);
+    background: rgb(242 246 255 / 0.65);
+  }
+
+  .auth-dot-grid {
+    height: 3.25rem;
+    width: 3.25rem;
+    background-image: radial-gradient(circle, rgb(74 115 255 / 0.2) 1.4px, transparent 1.6px);
+    background-size: 0.75rem 0.75rem;
+  }
+
   .markdown-body {
     @apply text-[15px] leading-7 text-slate-700;
   }

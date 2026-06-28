@@ -8,12 +8,17 @@ import { RequireAuth } from "@/features/auth/RequireAuth";
 import { LoginPage } from "@/pages/login/LoginPage";
 import { NotesWorkspaceRoute } from "@/pages/notes/NotesWorkspaceRoute";
 import { PlaceholderPage } from "@/pages/placeholders/PlaceholderPage";
+import { RegisterPage } from "@/pages/register/RegisterPage";
 import { ApplicationShell } from "@/shared/layout/ApplicationShell";
 
 export const applicationRoutes: RouteObject[] = [
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/register",
+    element: <RegisterPage />,
   },
   {
     element: <ApplicationShell />,

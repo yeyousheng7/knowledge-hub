@@ -1,4 +1,4 @@
-import { ArrowRight, LoaderCircle, UserRound } from "lucide-react";
+import { ArrowRight, KeyRound, LoaderCircle, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -6,52 +6,33 @@ import { ApiError } from "@/api/errors";
 import { AuthFormField, PasswordField } from "@/features/auth/AuthFormField";
 import { AuthPageLayout } from "@/features/auth/AuthPageLayout";
 import { AuthStatusPanel } from "@/features/auth/AuthStatusPanel";
+import { register } from "@/features/auth/auth-api";
 import { useAuth } from "@/features/auth/auth-context";
 
 const USERNAME_PATTERN = /^[0-9A-Za-z_]{3,30}$/;
 
-interface LoginLocationState {
+interface RegisterLocationState {
   from?: unknown;
-  registeredUsername?: unknown;
 }
 
-function redirectTarget(state: unknown): string {
-  const from = (state as LoginLocationState | null)?.from;
-
-  if (
-    typeof from !== "string" ||
-    !from.startsWith("/") ||
-    from.startsWith("//") ||
-    from.startsWith("/login") ||
-    from.startsWith("/register")
-  ) {
-    return "/notes";
-  }
-
-  return from;
-}
-
-function registeredUsername(state: unknown): string {
-  const value = (state as LoginLocationState | null)?.registeredUsername;
-  return typeof value === "string" ? value : "";
-}
-
-function loginErrorMessage(error: unknown): string {
+function registerErrorMessage(error: unknown): string {
   if (error instanceof ApiError || error instanceof Error) {
     return error.message;
   }
 
-  return "登录失败，请稍后重试";
+  return "注册失败，请稍后重试";
 }
 
-export function LoginPage() {
+export function RegisterPage() {
   const auth = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const destination = redirectTarget(location.state);
-  const initialUsername = registeredUsername(location.state);
-  const [username, setUsername] = useState(initialUsername);
+  const from = (location.state as RegisterLocationState | null)?.from;
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,12 +52,14 @@ export function LoginPage() {
   }
 
   if (auth.status === "authenticated") {
-    return <Navigate replace to={destination} />;
+    return <Navigate replace to="/notes" />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedUsername = username.trim();
+    const normalizedNickname = nickname.trim();
+    const normalizedInviteCode = inviteCode.trim();
 
     if (!USERNAME_PATTERN.test(normalizedUsername)) {
       setFormError("用户名需为 3–30 位字母、数字或下划线");
@@ -88,14 +71,43 @@ export function LoginPage() {
       return;
     }
 
+    if (password !== confirmPassword) {
+      setFormError("两次输入的密码不一致");
+      return;
+    }
+
+    if (
+      normalizedNickname &&
+      (normalizedNickname.length < 3 || normalizedNickname.length > 30)
+    ) {
+      setFormError("昵称需为 3–30 个字符，或留空使用用户名");
+      return;
+    }
+
+    if (!normalizedInviteCode) {
+      setFormError("请输入注册邀请码");
+      return;
+    }
+
     setFormError(null);
     setIsSubmitting(true);
 
     try {
-      await auth.login({ username: normalizedUsername, password });
-      navigate(destination, { replace: true });
+      const response = await register({
+        username: normalizedUsername,
+        password,
+        ...(normalizedNickname ? { nickname: normalizedNickname } : {}),
+        inviteCode: normalizedInviteCode,
+      });
+      navigate("/login", {
+        replace: true,
+        state: {
+          ...(typeof from === "string" ? { from } : {}),
+          registeredUsername: response.username,
+        },
+      });
     } catch (error) {
-      setFormError(loginErrorMessage(error));
+      setFormError(registerErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -103,18 +115,11 @@ export function LoginPage() {
 
   return (
     <AuthPageLayout>
-      <h2 className="sr-only">登录知识库</h2>
+      <h2 className="mt-5 text-center text-sm font-medium text-slate-700">
+        创建你的账号
+      </h2>
 
-      {initialUsername ? (
-        <p
-          className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-700"
-          role="status"
-        >
-          注册成功，请登录新账号
-        </p>
-      ) : null}
-
-      <form className="mt-6 space-y-3" noValidate onSubmit={handleSubmit}>
+      <form className="mt-4 space-y-3" noValidate onSubmit={handleSubmit}>
         <AuthFormField
           autoComplete="username"
           icon={UserRound}
@@ -126,14 +131,42 @@ export function LoginPage() {
           value={username}
         />
         <PasswordField
-          autoComplete="current-password"
+          autoComplete="new-password"
           label="密码"
           maxLength={72}
           minLength={8}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="密码"
+          placeholder="密码（8–72 个字符）"
           required
           value={password}
+        />
+        <PasswordField
+          autoComplete="new-password"
+          label="确认密码"
+          maxLength={72}
+          minLength={8}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          placeholder="确认密码"
+          required
+          value={confirmPassword}
+        />
+        <AuthFormField
+          autoComplete="nickname"
+          icon={UserRound}
+          label="昵称"
+          maxLength={30}
+          onChange={(event) => setNickname(event.target.value)}
+          placeholder="昵称（可选）"
+          value={nickname}
+        />
+        <AuthFormField
+          autoComplete="off"
+          icon={KeyRound}
+          label="邀请码"
+          onChange={(event) => setInviteCode(event.target.value)}
+          placeholder="注册邀请码"
+          required
+          value={inviteCode}
         />
 
         {formError ? (
@@ -150,7 +183,7 @@ export function LoginPage() {
           {isSubmitting ? (
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
           ) : null}
-          {isSubmitting ? "正在登录" : "登录"}
+          {isSubmitting ? "正在注册" : "注册"}
           {isSubmitting ? null : <ArrowRight aria-hidden="true" className="size-4" />}
         </button>
       </form>
@@ -162,12 +195,11 @@ export function LoginPage() {
       </div>
 
       <Link
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-blue-600 transition hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-        state={{ from: destination }}
-        to="/register"
+        className="flex h-11 w-full items-center justify-center rounded-lg border border-blue-200 bg-white text-sm font-medium text-blue-600 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+        state={typeof from === "string" ? { from } : undefined}
+        to="/login"
       >
-        注册账号
-        <ArrowRight aria-hidden="true" className="size-4" />
+        已有账号？去登录
       </Link>
     </AuthPageLayout>
   );

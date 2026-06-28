@@ -9,6 +9,19 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  nickname?: string;
+  inviteCode: string;
+}
+
+export interface RegisterResponse {
+  id: number;
+  username: string;
+  nickname: string;
+}
+
 export type UserRole = "USER" | "ADMIN";
 
 export interface LoginUserResponse {
@@ -145,5 +158,17 @@ export function parseLoginResponse(value: unknown): LoginResponse {
     tokenType: readString(value, "tokenType"),
     expiresIn,
     user: parseLoginUserResponse(value.user),
+  };
+}
+
+export function parseRegisterResponse(value: unknown): RegisterResponse {
+  if (!isRecord(value)) {
+    throw new TypeError("Expected register response data");
+  }
+
+  return {
+    id: readSafeInteger(value, "id"),
+    username: readString(value, "username"),
+    nickname: readString(value, "nickname"),
   };
 }
