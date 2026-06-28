@@ -84,7 +84,7 @@ describe("notes API", () => {
       categoryId: null,
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:8080/api/v1/notes?page=1&size=20",
+      "/api/v1/notes?page=1&size=20",
       expect.objectContaining({ method: "GET" }),
     );
   });

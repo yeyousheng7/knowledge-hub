@@ -22,6 +22,24 @@ describe("ApiClient", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses the same-origin API path by default", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ code: 0, msg: "OK", data: { value: 42 } }),
+    );
+    const client = new ApiClient();
+
+    await client.request("/example", {
+      method: "GET",
+      auth: false,
+      parseData: (data) => data,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/example",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("adds the bearer token and unwraps a successful envelope", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ code: 0, msg: "OK", data: { value: 42 } }),

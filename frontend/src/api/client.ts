@@ -4,7 +4,7 @@ import {
 } from "@/api/contracts";
 import { ApiError, invalidatesAuthentication } from "@/api/errors";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8080/api/v1";
+const DEFAULT_API_BASE_URL = "/api/v1";
 
 interface AuthHooks {
   getAccessToken: () => string | null;

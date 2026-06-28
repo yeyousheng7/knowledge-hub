@@ -125,7 +125,7 @@ describe("NotesWorkspacePage", () => {
     const requests: string[] = [];
     const taxonomy = taxonomyResponse();
     fetchMock.mockImplementation(async (input) => {
-      const url = new URL(String(input));
+      const url = new URL(String(input), "http://localhost");
       requests.push(url.toString());
 
       if (url.pathname.endsWith("/categories")) {
@@ -197,7 +197,7 @@ describe("NotesWorkspacePage", () => {
     const taxonomy = taxonomyResponse();
     const requestedPaths: string[] = [];
     fetchMock.mockImplementation((input) => {
-      const url = new URL(String(input));
+      const url = new URL(String(input), "http://localhost");
       requestedPaths.push(url.pathname);
 
       if (url.pathname.endsWith("/categories")) {
@@ -235,7 +235,7 @@ describe("NotesWorkspacePage", () => {
   it("shows explicit empty states", async () => {
     const taxonomy = taxonomyResponse();
     fetchMock.mockImplementation(async (input) => {
-      const url = new URL(String(input));
+      const url = new URL(String(input), "http://localhost");
 
       if (url.pathname.endsWith("/categories")) {
         return jsonResponse(taxonomy.categories);
@@ -257,7 +257,7 @@ describe("NotesWorkspacePage", () => {
     const taxonomy = taxonomyResponse();
     const requestedPaths: string[] = [];
     fetchMock.mockImplementation(async (input) => {
-      const url = new URL(String(input));
+      const url = new URL(String(input), "http://localhost");
       requestedPaths.push(url.pathname);
 
       if (url.pathname.endsWith("/categories")) {
@@ -283,7 +283,7 @@ describe("NotesWorkspacePage", () => {
   it("shows a terminal not-found state for an unavailable detail", async () => {
     const taxonomy = taxonomyResponse();
     fetchMock.mockImplementation(async (input) => {
-      const url = new URL(String(input));
+      const url = new URL(String(input), "http://localhost");
 
       if (url.pathname.endsWith("/categories")) {
         return jsonResponse(taxonomy.categories);
