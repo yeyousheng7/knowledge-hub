@@ -101,6 +101,25 @@
     background-size: 0.75rem 0.75rem;
   }
 
+  .note-vditor.vditor {
+    border: 0;
+    border-radius: 0.75rem;
+  }
+
+  .note-vditor .vditor-toolbar {
+    border-color: rgb(226 232 240);
+    background: rgb(248 250 252);
+  }
+
+  .note-vditor .vditor-ir {
+    background: white;
+  }
+
+  .note-vditor .vditor-reset {
+    color: rgb(51 65 85);
+    font-family: inherit;
+  }
+
   .markdown-body {
     @apply text-[15px] leading-7 text-slate-700;
   }

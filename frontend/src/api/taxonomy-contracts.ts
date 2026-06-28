@@ -31,6 +31,16 @@ function parseTaxonomyItem(
   };
 }
 
+export function parseCategoryResponse(
+  value: unknown,
+): CategoryListItemResponse {
+  return parseTaxonomyItem(value, "category");
+}
+
+export function parseTagResponse(value: unknown): TagListItemResponse {
+  return parseTaxonomyItem(value, "tag");
+}
+
 export function parseCategoryListResponse(
   value: unknown,
 ): CategoryListItemResponse[] {

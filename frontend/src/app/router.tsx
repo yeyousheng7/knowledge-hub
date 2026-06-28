@@ -31,7 +31,15 @@ export const applicationRoutes: RouteObject[] = [
             element: <NotesWorkspaceRoute />,
           },
           {
+            path: "/notes/new",
+            element: <NotesWorkspaceRoute />,
+          },
+          {
             path: "/notes/:noteId",
+            element: <NotesWorkspaceRoute />,
+          },
+          {
+            path: "/notes/:noteId/edit",
             element: <NotesWorkspaceRoute />,
           },
           {

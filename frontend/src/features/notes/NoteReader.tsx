@@ -1,4 +1,14 @@
-import { AlertTriangle, Clock3, Folder, Tag } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock3,
+  Folder,
+  Globe2,
+  LoaderCircle,
+  LockKeyhole,
+  Pencil,
+  Tag,
+  Trash2,
+} from "lucide-react";
 
 import type { NoteDetailResponse } from "@/api/note-contracts";
 import {
@@ -18,6 +28,11 @@ interface NoteReaderProps {
   invalidSelection: boolean;
   categoryName: string;
   onRetry: () => void;
+  onEdit: () => void;
+  onTogglePublish: () => void;
+  onDelete: () => void;
+  isMutating: boolean;
+  actionError: string | null;
 }
 
 export function NoteReader({
@@ -29,6 +44,11 @@ export function NoteReader({
   invalidSelection,
   categoryName,
   onRetry,
+  onEdit,
+  onTogglePublish,
+  onDelete,
+  isMutating,
+  actionError,
 }: NoteReaderProps) {
   if (invalidSelection) {
     return (
@@ -78,17 +98,52 @@ export function NoteReader({
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-white">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-7">
-        <div>
-          <p className="text-xs font-medium text-slate-400">我的笔记 / 阅读</p>
+      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-7 py-2">
+        <p className="text-xs font-medium text-slate-400">我的笔记 / 阅读</p>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+            disabled={isMutating}
+            onClick={onEdit}
+            type="button"
+          >
+            <Pencil aria-hidden="true" className="size-3.5" />
+            编辑
+          </button>
+          <button
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+            disabled={isMutating}
+            onClick={onTogglePublish}
+            type="button"
+          >
+            {isMutating ? (
+              <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
+            ) : note.visibility === "PUBLIC" ? (
+              <LockKeyhole aria-hidden="true" className="size-3.5" />
+            ) : (
+              <Globe2 aria-hidden="true" className="size-3.5" />
+            )}
+            {note.visibility === "PUBLIC" ? "取消发布" : "发布"}
+          </button>
+          <button
+            aria-label="删除笔记"
+            className="grid size-9 place-items-center rounded-lg border border-red-100 text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+            disabled={isMutating}
+            onClick={onDelete}
+            type="button"
+          >
+            <Trash2 aria-hidden="true" className="size-3.5" />
+          </button>
         </div>
-        <time className="text-xs text-slate-400" dateTime={note.updatedAt}>
-          更新于 {formatNoteDate(note.updatedAt)}
-        </time>
       </header>
 
       <article className="min-h-0 flex-1 overflow-y-auto px-8 pb-16 pt-9 xl:px-12">
         <div className="mx-auto max-w-4xl">
+          {actionError ? (
+            <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+              {actionError}
+            </div>
+          ) : null}
           {note.moderationStatus === "TAKEN_DOWN" ? (
             <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
               <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />

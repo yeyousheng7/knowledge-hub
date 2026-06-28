@@ -5,6 +5,7 @@ import {
   FolderOpen,
   FolderMinus,
   LoaderCircle,
+  Plus,
   Search,
 } from "lucide-react";
 import type { FormEvent } from "react";
@@ -39,6 +40,7 @@ interface NotesSidebarProps {
   searchError: string | null;
   onSearchTextChange: (value: string) => void;
   onSearch: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateNote: () => void;
   onSelectNote: (noteId: number) => void;
   onSelectCategory: (categoryId?: number) => void;
   onSelectTag: (tagId?: number) => void;
@@ -114,6 +116,7 @@ export function NotesSidebar(props: NotesSidebarProps) {
     searchError,
     onSearchTextChange,
     onSearch,
+    onCreateNote,
     onSelectNote,
     onSelectCategory,
     onSelectTag,
@@ -241,9 +244,19 @@ export function NotesSidebar(props: NotesSidebarProps) {
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-3 pt-4">
         <div className="flex items-center justify-between px-2">
           <h2 className="text-xs font-medium tracking-wide text-slate-500">我的笔记</h2>
-          <span className="text-xs text-slate-400">
-            {list ? `共 ${list.total} 篇` : ""}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">
+              {list ? `共 ${list.total} 篇` : ""}
+            </span>
+            <button
+              aria-label="新建笔记"
+              className="grid size-7 place-items-center rounded-lg border border-blue-100 bg-blue-50 text-blue-600 transition hover:bg-blue-100"
+              onClick={onCreateNote}
+              type="button"
+            >
+              <Plus aria-hidden="true" className="size-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="relative mt-2 min-h-0 flex-1 overflow-y-auto">

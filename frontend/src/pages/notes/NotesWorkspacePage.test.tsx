@@ -6,6 +6,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "@/api/client";
 import { NotesWorkspacePage } from "@/pages/notes/NotesWorkspacePage";
 
+vi.mock("@/features/notes/editor/VditorMarkdownEditor", () => ({
+  VditorMarkdownEditor: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
+    <textarea
+      aria-label="Markdown 正文"
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    />
+  ),
+}));
+
 interface DeferredResponse {
   promise: Promise<Response>;
   resolve: (response: Response) => void;
@@ -96,7 +112,9 @@ function renderWorkspace(initialEntry = "/notes") {
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route element={<NotesWorkspacePage />} path="/notes" />
+        <Route element={<NotesWorkspacePage />} path="/notes/new" />
         <Route element={<NotesWorkspacePage />} path="/notes/:noteId" />
+        <Route element={<NotesWorkspacePage />} path="/notes/:noteId/edit" />
       </Routes>
     </MemoryRouter>,
   );
@@ -357,5 +375,197 @@ describe("NotesWorkspacePage", () => {
 
     expect(await screen.findByText("笔记不存在")).toBeVisible();
     expect(screen.queryByRole("button", { name: "重试" })).not.toBeInTheDocument();
+  });
+
+  it("creates taxonomy first, then creates a private note and opens its editor", async () => {
+    const taxonomy = taxonomyResponse();
+    let createdRequest: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://localhost");
+
+      if (url.pathname.endsWith("/categories") && init?.method === "POST") {
+        return jsonResponse(
+          envelope({
+            id: 11,
+            name: "Architecture",
+            createdAt: "2026-06-03T10:00:00Z",
+            updatedAt: "2026-06-03T10:00:00Z",
+          }),
+        );
+      }
+      if (url.pathname.endsWith("/tags") && init?.method === "POST") {
+        return jsonResponse(
+          envelope({
+            id: 21,
+            name: "limits",
+            createdAt: "2026-06-03T10:00:00Z",
+            updatedAt: "2026-06-03T10:00:00Z",
+          }),
+        );
+      }
+      if (url.pathname.endsWith("/categories")) {
+        return jsonResponse(taxonomy.categories);
+      }
+      if (url.pathname.endsWith("/tags")) {
+        return jsonResponse(taxonomy.tags);
+      }
+      if (url.pathname.endsWith("/notes/31")) {
+        return jsonResponse(
+          envelope({
+            ...noteDetail(31, { categoryId: 11 }),
+            title: "Distributed limiter",
+            summary: "Design notes",
+            contentMd: "# Limiter\n\nRaw Markdown",
+            tags: [{ id: 21, name: "limits" }],
+          }),
+        );
+      }
+      if (url.pathname.endsWith("/notes") && init?.method === "POST") {
+        createdRequest = JSON.parse(String(init.body)) as Record<string, unknown>;
+        return jsonResponse(
+          envelope({
+            id: 31,
+            title: "Distributed limiter",
+            summary: "Design notes",
+            categoryId: 11,
+            tags: [{ id: 21, name: "limits" }],
+            visibility: "PRIVATE",
+            moderationStatus: "NORMAL",
+            createdAt: "2026-06-03T10:00:00Z",
+            updatedAt: "2026-06-03T10:00:00Z",
+          }),
+        );
+      }
+
+      return jsonResponse(listResponse([]));
+    });
+    const user = userEvent.setup();
+    renderWorkspace("/notes/new");
+
+    expect(
+      await screen.findByRole("heading", { name: "新建笔记" }),
+    ).toBeVisible();
+    await user.type(screen.getByPlaceholderText("请输入笔记标题"), "Distributed limiter");
+    await user.type(screen.getByPlaceholderText(/简要描述/), "Design notes");
+    await user.type(screen.getByLabelText("Markdown 正文"), "# Limiter\n\nRaw Markdown");
+    await user.type(screen.getByLabelText("新分类名称"), "Architecture");
+    await user.click(screen.getByRole("button", { name: "新建" }));
+    await user.type(screen.getByLabelText("新标签名称"), "limits");
+    await user.click(screen.getByRole("button", { name: "添加" }));
+    await user.click(screen.getByRole("button", { name: "创建并继续编辑" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "编辑笔记" }),
+    ).toBeVisible();
+    expect(createdRequest).toEqual({
+      title: "Distributed limiter",
+      contentMd: "# Limiter\n\nRaw Markdown",
+      summary: "Design notes",
+      categoryId: 11,
+      tagIds: [21],
+    });
+  });
+
+  it("edits raw Markdown and returns to the synchronized reader", async () => {
+    const taxonomy = taxonomyResponse();
+    let updatedRequest: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://localhost");
+
+      if (url.pathname.endsWith("/categories")) {
+        return jsonResponse(taxonomy.categories);
+      }
+      if (url.pathname.endsWith("/tags")) {
+        return jsonResponse(taxonomy.tags);
+      }
+      if (url.pathname.endsWith("/notes/1") && init?.method === "PUT") {
+        updatedRequest = JSON.parse(String(init.body)) as Record<string, unknown>;
+        return jsonResponse(
+          envelope({
+            ...noteDetail(1),
+            title: "Updated note",
+            contentMd: "## Updated\n\nMarkdown only",
+          }),
+        );
+      }
+      if (url.pathname.endsWith("/notes/1")) {
+        return jsonResponse(envelope(noteDetail(1)));
+      }
+
+      return jsonResponse(listResponse([noteItem(1)]));
+    });
+    const user = userEvent.setup();
+    renderWorkspace("/notes/1/edit");
+
+    const title = await screen.findByPlaceholderText("请输入笔记标题");
+    await user.clear(title);
+    await user.type(title, "Updated note");
+    const markdown = screen.getByLabelText("Markdown 正文");
+    await user.clear(markdown);
+    await user.type(markdown, "## Updated\n\nMarkdown only");
+    await user.click(screen.getByRole("button", { name: "保存更改" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Updated note" }),
+    ).toBeVisible();
+    expect(updatedRequest).toMatchObject({
+      title: "Updated note",
+      contentMd: "## Updated\n\nMarkdown only",
+      categoryId: 10,
+      tagIds: [20],
+    });
+  });
+
+  it("publishes, unpublishes, and deletes only after confirmation", async () => {
+    const taxonomy = taxonomyResponse();
+    let deleted = false;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://localhost");
+
+      if (url.pathname.endsWith("/categories")) {
+        return jsonResponse(taxonomy.categories);
+      }
+      if (url.pathname.endsWith("/tags")) {
+        return jsonResponse(taxonomy.tags);
+      }
+      if (url.pathname.endsWith("/notes/1/publish")) {
+        return jsonResponse(
+          envelope(
+            noteDetail(1, { visibility: "PUBLIC" }),
+          ),
+        );
+      }
+      if (url.pathname.endsWith("/notes/1/unpublish")) {
+        return jsonResponse(envelope(noteDetail(1)));
+      }
+      if (url.pathname.endsWith("/notes/1") && init?.method === "DELETE") {
+        deleted = true;
+        return jsonResponse(envelope(null));
+      }
+      if (url.pathname.endsWith("/notes/1")) {
+        return jsonResponse(envelope(noteDetail(1)));
+      }
+
+      return jsonResponse(listResponse(deleted ? [] : [noteItem(1)]));
+    });
+    const user = userEvent.setup();
+    renderWorkspace("/notes/1");
+
+    await screen.findByRole("heading", { level: 1, name: "Note 1" });
+    await user.click(screen.getByRole("button", { name: "发布" }));
+    expect(await screen.findByRole("button", { name: "取消发布" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "取消发布" }));
+    expect(await screen.findByRole("button", { name: "发布" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "删除笔记" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(deleted).toBe(false);
+    await user.click(screen.getByRole("button", { name: "删除笔记" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    expect(await screen.findByText("还没有笔记")).toBeVisible();
+    expect(screen.getByText("选择一篇笔记")).toBeVisible();
+    expect(deleted).toBe(true);
   });
 });

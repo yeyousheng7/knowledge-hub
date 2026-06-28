@@ -39,6 +39,16 @@ export interface NoteDetailResponse extends NoteListItemResponse {
   contentMd: string;
 }
 
+export interface NoteWriteRequest {
+  title: string;
+  contentMd: string;
+  summary: string | null;
+  categoryId: number | null;
+  tagIds: number[];
+}
+
+export type NoteCreateResponse = Omit<NoteListItemResponse, "publishedAt">;
+
 function parseVisibility(value: unknown): NoteVisibility {
   if (value !== "PRIVATE" && value !== "PUBLIC") {
     throw new TypeError("Expected a supported note visibility");
@@ -114,5 +124,23 @@ export function parseNoteDetailResponse(value: unknown): NoteDetailResponse {
   return {
     ...parseNoteListItemResponse(value),
     contentMd: readString(value, "contentMd"),
+  };
+}
+
+export function parseNoteCreateResponse(value: unknown): NoteCreateResponse {
+  if (!isRecord(value)) {
+    throw new TypeError("Expected created note data");
+  }
+
+  return {
+    id: readSafeInteger(value, "id"),
+    title: readString(value, "title"),
+    summary: readNullableString(value, "summary"),
+    categoryId: readNullableSafeInteger(value, "categoryId"),
+    tags: readArray(value, "tags").map(parseNoteTagResponse),
+    visibility: parseVisibility(value.visibility),
+    moderationStatus: parseModerationStatus(value.moderationStatus),
+    createdAt: readString(value, "createdAt"),
+    updatedAt: readString(value, "updatedAt"),
   };
 }

@@ -168,6 +168,37 @@ export function useNotesWorkspace(selectedNoteId: number | null) {
     [],
   );
 
+  const replaceDetail = useCallback((note: NoteDetailResponse) => {
+    setDetailResult({
+      noteId: note.id,
+      data: note,
+      error: null,
+      rawError: null,
+    });
+  }, []);
+
+  const addCategory = useCallback((category: CategoryListItemResponse) => {
+    setCategories((current) => ({
+      data: current.data
+        ? [...current.data.filter((item) => item.id !== category.id), category]
+        : [category],
+      isLoading: false,
+      error: null,
+      rawError: null,
+    }));
+  }, []);
+
+  const addTag = useCallback((tag: TagListItemResponse) => {
+    setTags((current) => ({
+      data: current.data
+        ? [...current.data.filter((item) => item.id !== tag.id), tag]
+        : [tag],
+      isLoading: false,
+      error: null,
+      rawError: null,
+    }));
+  }, []);
+
   const detail: ResourceState<NoteDetailResponse> =
     selectedNoteId === null
       ? { data: null, isLoading: false, error: null, rawError: null }
@@ -182,6 +213,9 @@ export function useNotesWorkspace(selectedNoteId: number | null) {
     categories,
     tags,
     updateQuery,
+    replaceDetail,
+    addCategory,
+    addTag,
     retryList: () => {
       setList(initialResourceState());
       setListRetry((value) => value + 1);
