@@ -133,7 +133,6 @@ export function RegisterPage() {
         <PasswordField
           autoComplete="new-password"
           label="密码"
-          maxLength={72}
           minLength={8}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="密码（8–72 个字符）"
@@ -143,7 +142,6 @@ export function RegisterPage() {
         <PasswordField
           autoComplete="new-password"
           label="确认密码"
-          maxLength={72}
           minLength={8}
           onChange={(event) => setConfirmPassword(event.target.value)}
           placeholder="确认密码"

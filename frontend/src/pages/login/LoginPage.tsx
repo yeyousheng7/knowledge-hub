@@ -128,7 +128,6 @@ export function LoginPage() {
         <PasswordField
           autoComplete="current-password"
           label="密码"
-          maxLength={72}
           minLength={8}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="密码"
