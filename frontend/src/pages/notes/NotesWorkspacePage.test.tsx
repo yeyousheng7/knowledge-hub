@@ -192,6 +192,58 @@ describe("NotesWorkspacePage", () => {
     );
   });
 
+  it("loads the next page and updates pagination controls", async () => {
+    const taxonomy = taxonomyResponse();
+    const requestedPages: string[] = [];
+    fetchMock.mockImplementation(async (input) => {
+      const url = new URL(String(input), "http://localhost");
+
+      if (url.pathname.endsWith("/categories")) {
+        return jsonResponse(taxonomy.categories);
+      }
+      if (url.pathname.endsWith("/tags")) {
+        return jsonResponse(taxonomy.tags);
+      }
+      if (url.pathname.endsWith("/notes/1")) {
+        return jsonResponse(envelope(noteDetail(1)));
+      }
+      if (url.pathname.endsWith("/notes/21")) {
+        return jsonResponse(envelope(noteDetail(21)));
+      }
+
+      const page = Number(url.searchParams.get("page") ?? "1");
+      requestedPages.push(url.search);
+
+      return jsonResponse(
+        envelope({
+          items: [noteItem(page === 1 ? 1 : 21)],
+          total: 21,
+          page,
+          size: 20,
+        }),
+      );
+    });
+    const user = userEvent.setup();
+
+    renderWorkspace();
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Note 1" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "下一页" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Note 21" }),
+    ).toBeVisible();
+    expect(requestedPages.some((query) => query.includes("page=2"))).toBe(true);
+    expect(screen.getByText("2 / 2")).toBeVisible();
+    expect(screen.getByRole("button", { name: "上一页" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
+  });
+
   it("keeps the latest detail when users switch notes quickly", async () => {
     const firstDetail = deferredResponse();
     const taxonomy = taxonomyResponse();
