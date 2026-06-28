@@ -6,10 +6,13 @@ import "vditor/dist/js/icons/ant.js";
 import lutePath from "vditor/dist/js/lute/lute.min.js?url";
 import { useEffect, useRef } from "react";
 
+import { cn } from "@/shared/lib/utils";
+
 interface VditorMarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   onSaveShortcut?: () => void;
+  hideToolbar?: boolean;
 }
 
 const TOOLBAR = [
@@ -55,10 +58,12 @@ export function VditorMarkdownEditor({
   value,
   onChange,
   onSaveShortcut,
+  hideToolbar = false,
 }: VditorMarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Vditor | null>(null);
   const valueRef = useRef(value);
+  const hideToolbarRef = useRef(hideToolbar);
   const onChangeRef = useRef(onChange);
   const onSaveShortcutRef = useRef(onSaveShortcut);
 
@@ -108,10 +113,17 @@ export function VditorMarkdownEditor({
         height: "100%",
         minHeight: 360,
         placeholder: "使用 Markdown 记录正文内容…",
-        toolbar: TOOLBAR,
-        toolbarConfig: { pin: true },
+        toolbar: hideToolbarRef.current ? [] : TOOLBAR,
+        toolbarConfig: {
+          hide: hideToolbarRef.current,
+          pin: !hideToolbarRef.current,
+        },
         cache: { enable: false },
-        counter: { enable: true, max: 100_000, type: "markdown" },
+        counter: {
+          enable: !hideToolbarRef.current,
+          max: 100_000,
+          type: "markdown",
+        },
         preview: {
           hljs: { enable: false },
           markdown: { codeBlockPreview: false, mathBlockPreview: false },
@@ -156,7 +168,10 @@ export function VditorMarkdownEditor({
   return (
     <div
       aria-label="Markdown 正文"
-      className="note-vditor min-h-[360px] overflow-hidden rounded-xl border border-slate-200 bg-white"
+      className={cn(
+        "note-vditor min-h-[360px] overflow-hidden rounded-xl border border-slate-200 bg-white",
+        hideToolbar && "note-vditor--plain",
+      )}
       ref={containerRef}
     />
   );

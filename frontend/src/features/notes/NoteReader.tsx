@@ -6,6 +6,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   Pencil,
+  Settings2,
   Tag,
   Trash2,
 } from "lucide-react";
@@ -29,9 +30,11 @@ interface NoteReaderProps {
   categoryName: string;
   onRetry: () => void;
   onEdit: () => void;
+  onSettings: () => void;
   onTogglePublish: () => void;
   onDelete: () => void;
   isMutating: boolean;
+  isSettingsDisabled: boolean;
   actionError: string | null;
 }
 
@@ -45,9 +48,11 @@ export function NoteReader({
   categoryName,
   onRetry,
   onEdit,
+  onSettings,
   onTogglePublish,
   onDelete,
   isMutating,
+  isSettingsDisabled,
   actionError,
 }: NoteReaderProps) {
   if (invalidSelection) {
@@ -109,6 +114,15 @@ export function NoteReader({
           >
             <Pencil aria-hidden="true" className="size-3.5" />
             编辑
+          </button>
+          <button
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+            disabled={isMutating || isSettingsDisabled}
+            onClick={onSettings}
+            type="button"
+          >
+            <Settings2 aria-hidden="true" className="size-3.5" />
+            笔记设置
           </button>
           <button
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"

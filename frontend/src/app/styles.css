@@ -120,6 +120,14 @@
     font-family: inherit;
   }
 
+  .note-vditor--plain .vditor-toolbar {
+    display: none;
+  }
+
+  .note-vditor--plain .vditor-content {
+    border-top: 0;
+  }
+
   .markdown-body {
     @apply text-[15px] leading-7 text-slate-700;
   }

@@ -12,6 +12,7 @@ const vditorMock = vi.hoisted(() => ({
     cdn?: string;
     icon?: string;
     i18n?: unknown;
+    counter?: { enable?: boolean };
     preview?: {
       hljs?: { enable?: boolean };
       markdown?: {
@@ -19,6 +20,8 @@ const vditorMock = vi.hoisted(() => ({
         mathBlockPreview?: boolean;
       };
     };
+    toolbar?: unknown[];
+    toolbarConfig?: { hide?: boolean; pin?: boolean };
     value?: string;
     input?: (value: string) => void;
   },
@@ -36,6 +39,7 @@ vi.mock("vditor", () => ({
         cdn?: string;
         icon?: string;
         i18n?: unknown;
+        counter?: { enable?: boolean };
         preview?: {
           hljs?: { enable?: boolean };
           markdown?: {
@@ -43,6 +47,8 @@ vi.mock("vditor", () => ({
             mathBlockPreview?: boolean;
           };
         };
+        toolbar?: unknown[];
+        toolbarConfig?: { hide?: boolean; pin?: boolean };
         value?: string;
         input?: (value: string) => void;
       },
@@ -98,6 +104,9 @@ describe("VditorMarkdownEditor", () => {
       hljs: { enable: false },
       markdown: { codeBlockPreview: false, mathBlockPreview: false },
     });
+    expect(vditorMock.options?.toolbar).not.toEqual([]);
+    expect(vditorMock.options?.toolbarConfig).toEqual({ hide: false, pin: true });
+    expect(vditorMock.options?.counter).toMatchObject({ enable: true });
     expect(document.getElementById("vditorIconScript")).toHaveAttribute(
       "data-source",
       "bundled",
@@ -116,6 +125,18 @@ describe("VditorMarkdownEditor", () => {
 
     unmount();
     expect(vditorMock.destroy).toHaveBeenCalledOnce();
+  });
+
+  it("provides a toolbar-free mode for inline editing", async () => {
+    const { getByLabelText } = render(
+      <VditorMarkdownEditor hideToolbar onChange={vi.fn()} value="" />,
+    );
+
+    await waitFor(() => expect(vditorMock.construct).toHaveBeenCalledOnce());
+    expect(vditorMock.options?.toolbar).toEqual([]);
+    expect(vditorMock.options?.toolbarConfig).toEqual({ hide: true, pin: false });
+    expect(vditorMock.options?.counter).toMatchObject({ enable: false });
+    expect(getByLabelText("Markdown 正文")).toHaveClass("note-vditor--plain");
   });
 
   it("cancels initialization when the component unmounts immediately", async () => {

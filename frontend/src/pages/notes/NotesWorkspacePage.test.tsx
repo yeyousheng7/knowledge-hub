@@ -8,14 +8,17 @@ import { NotesWorkspacePage } from "@/pages/notes/NotesWorkspacePage";
 
 vi.mock("@/features/notes/editor/VditorMarkdownEditor", () => ({
   VditorMarkdownEditor: ({
+    hideToolbar,
     value,
     onChange,
   }: {
+    hideToolbar?: boolean;
     value: string;
     onChange: (value: string) => void;
   }) => (
     <textarea
       aria-label="Markdown 正文"
+      data-hide-toolbar={hideToolbar ? "true" : "false"}
       onChange={(event) => onChange(event.target.value)}
       value={value}
     />
@@ -377,7 +380,7 @@ describe("NotesWorkspacePage", () => {
     expect(screen.queryByRole("button", { name: "重试" })).not.toBeInTheDocument();
   });
 
-  it("creates taxonomy first, then creates a private note and opens its editor", async () => {
+  it("creates taxonomy first, then creates a private note and opens its reader", async () => {
     const taxonomy = taxonomyResponse();
     let createdRequest: Record<string, unknown> | null = null;
     fetchMock.mockImplementation(async (input, init) => {
@@ -452,11 +455,16 @@ describe("NotesWorkspacePage", () => {
     await user.click(screen.getByRole("button", { name: "新建" }));
     await user.type(screen.getByLabelText("新标签名称"), "limits");
     await user.click(screen.getByRole("button", { name: "添加" }));
-    await user.click(screen.getByRole("button", { name: "创建并继续编辑" }));
+    await user.click(screen.getByRole("button", { name: "创建笔记" }));
 
     expect(
-      await screen.findByRole("heading", { name: "编辑笔记" }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Distributed limiter",
+      }),
     ).toBeVisible();
+    expect(screen.getByRole("button", { name: "编辑" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "编辑笔记" })).not.toBeInTheDocument();
     expect(createdRequest).toEqual({
       title: "Distributed limiter",
       contentMd: "# Limiter\n\nRaw Markdown",
@@ -483,7 +491,6 @@ describe("NotesWorkspacePage", () => {
         return jsonResponse(
           envelope({
             ...noteDetail(1),
-            title: "Updated note",
             contentMd: "## Updated\n\nMarkdown only",
           }),
         );
@@ -497,23 +504,122 @@ describe("NotesWorkspacePage", () => {
     const user = userEvent.setup();
     renderWorkspace("/notes/1/edit");
 
-    const title = await screen.findByPlaceholderText("请输入笔记标题");
-    await user.clear(title);
-    await user.type(title, "Updated note");
-    const markdown = screen.getByLabelText("Markdown 正文");
+    const markdown = await screen.findByLabelText("Markdown 正文");
+    expect(screen.getByRole("button", { name: "笔记设置" })).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "笔记标题" })).not.toBeInTheDocument();
+    expect(screen.queryByText("摘要（可选）")).not.toBeInTheDocument();
+    expect(markdown).toHaveAttribute("data-hide-toolbar", "true");
     await user.clear(markdown);
     await user.type(markdown, "## Updated\n\nMarkdown only");
-    await user.click(screen.getByRole("button", { name: "保存更改" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Updated note" }),
+      await screen.findByRole("heading", { level: 1, name: "Note 1" }),
     ).toBeVisible();
     expect(updatedRequest).toMatchObject({
-      title: "Updated note",
+      title: "Note 1",
       contentMd: "## Updated\n\nMarkdown only",
       categoryId: 10,
       tagIds: [20],
     });
+  });
+
+  it("updates note settings independently without replacing title or Markdown", async () => {
+    const taxonomy = taxonomyResponse();
+    let updatedRequest: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://localhost");
+
+      if (url.pathname.endsWith("/categories")) {
+        return jsonResponse(taxonomy.categories);
+      }
+      if (url.pathname.endsWith("/tags")) {
+        return jsonResponse(taxonomy.tags);
+      }
+      if (url.pathname.endsWith("/notes/1") && init?.method === "PUT") {
+        updatedRequest = JSON.parse(String(init.body)) as Record<string, unknown>;
+        return jsonResponse(
+          envelope({
+            ...noteDetail(1, { categoryId: null }),
+            summary: "Updated summary",
+            tags: [],
+          }),
+        );
+      }
+      if (url.pathname.endsWith("/notes/1")) {
+        return jsonResponse(envelope(noteDetail(1)));
+      }
+
+      return jsonResponse(listResponse([noteItem(1)]));
+    });
+    const user = userEvent.setup();
+    renderWorkspace("/notes/1");
+
+    await screen.findByRole("heading", { level: 1, name: "Note 1" });
+    await user.click(screen.getByRole("button", { name: "笔记设置" }));
+    expect(screen.getByRole("dialog", { name: "笔记设置" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "文件名" })).toHaveValue("Note 1");
+
+    const summary = screen.getByPlaceholderText(/简要描述/);
+    await user.clear(summary);
+    await user.type(summary, "Updated summary");
+    await user.selectOptions(screen.getByRole("combobox", { name: "分类" }), "");
+    await user.click(screen.getByRole("button", { name: "React" }));
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "笔记设置" })).not.toBeInTheDocument(),
+    );
+    expect(updatedRequest).toEqual({
+      title: "Note 1",
+      contentMd: "# Detail 1\n\nMarkdown content 1",
+      summary: "Updated summary",
+      categoryId: null,
+      tagIds: [],
+    });
+    expect(screen.getByText("未分类")).toBeVisible();
+  });
+
+  it("asks before switching notes with unsaved inline edits", async () => {
+    const taxonomy = taxonomyResponse();
+    fetchMock.mockImplementation(async (input) => {
+      const url = new URL(String(input), "http://localhost");
+
+      if (url.pathname.endsWith("/categories")) {
+        return jsonResponse(taxonomy.categories);
+      }
+      if (url.pathname.endsWith("/tags")) {
+        return jsonResponse(taxonomy.tags);
+      }
+      if (url.pathname.endsWith("/notes/1")) {
+        return jsonResponse(envelope(noteDetail(1)));
+      }
+      if (url.pathname.endsWith("/notes/2")) {
+        return jsonResponse(envelope(noteDetail(2)));
+      }
+
+      return jsonResponse(listResponse([noteItem(1), noteItem(2)]));
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    renderWorkspace("/notes/1/edit");
+
+    const markdown = await screen.findByLabelText("Markdown 正文");
+    await user.type(markdown, " changed");
+    await user.click(screen.getByRole("button", { name: /Note 2/ }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      "当前修改尚未保存，确定放弃并离开编辑态吗？",
+    );
+    expect(screen.getByLabelText("Markdown 正文")).toHaveValue(
+      "# Detail 1\n\nMarkdown content 1 changed",
+    );
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: /Note 2/ }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Note 2" }),
+    ).toBeVisible();
   });
 
   it("publishes, unpublishes, and deletes only after confirmation", async () => {
