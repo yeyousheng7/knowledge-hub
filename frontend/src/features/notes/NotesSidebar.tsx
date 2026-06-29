@@ -2,7 +2,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Folder,
-  FolderOpen,
   FolderMinus,
   LoaderCircle,
   Plus,
@@ -35,6 +34,7 @@ interface NotesSidebarProps {
   tagsError: string | null;
   selectedNoteId: number | null;
   selectedCategoryId?: number;
+  isUncategorizedSelected: boolean;
   selectedTagId?: number;
   searchText: string;
   searchError: string | null;
@@ -43,6 +43,7 @@ interface NotesSidebarProps {
   onCreateNote: () => void;
   onSelectNote: (noteId: number) => void;
   onSelectCategory: (categoryId?: number) => void;
+  onSelectUncategorized: () => void;
   onSelectTag: (tagId?: number) => void;
   onPageChange: (page: number) => void;
   onRetryList: () => void;
@@ -59,6 +60,9 @@ function NoteListItem({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const visibleTags = note.tags.slice(0, 3);
+  const hiddenTagCount = note.tags.length - visibleTags.length;
+
   return (
     <button
       className={cn(
@@ -82,6 +86,26 @@ function NoteListItem({
           <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-slate-500">
             {note.summary?.trim() || "暂无摘要"}
           </p>
+          {visibleTags.length > 0 ? (
+            <div
+              aria-label={`标签：${note.tags.map((tag) => tag.name).join("、")}`}
+              className="mt-2 flex flex-wrap gap-1"
+            >
+              {visibleTags.map((tag) => (
+                <span
+                  className="max-w-24 truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] leading-4 text-slate-500"
+                  key={tag.id}
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {hiddenTagCount > 0 ? (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] leading-4 text-slate-500">
+                  +{hiddenTagCount}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-2 flex items-center justify-between gap-2">
             <time className="text-[11px] text-slate-400" dateTime={note.updatedAt}>
               {formatNoteDate(note.updatedAt)}
@@ -111,6 +135,7 @@ export function NotesSidebar(props: NotesSidebarProps) {
     tagsError,
     selectedNoteId,
     selectedCategoryId,
+    isUncategorizedSelected,
     selectedTagId,
     searchText,
     searchError,
@@ -119,6 +144,7 @@ export function NotesSidebar(props: NotesSidebarProps) {
     onCreateNote,
     onSelectNote,
     onSelectCategory,
+    onSelectUncategorized,
     onSelectTag,
     onPageChange,
     onRetryList,
@@ -126,8 +152,6 @@ export function NotesSidebar(props: NotesSidebarProps) {
     onRetryTags,
   } = props;
   const totalPages = list ? Math.max(1, Math.ceil(list.total / list.size)) : 1;
-  const hasUncategorized =
-    list?.items.some((note) => note.categoryId === null) ?? false;
 
   return (
     <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -161,43 +185,45 @@ export function NotesSidebar(props: NotesSidebarProps) {
             <LoaderCircle aria-label="正在加载分类" className="size-3.5 animate-spin text-slate-400" />
           ) : null}
         </div>
-        <div className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
-          <button
-            className={cn(
-              "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50",
-              selectedCategoryId === undefined && "bg-blue-50 text-primary",
-            )}
-            onClick={() => onSelectCategory(undefined)}
-            type="button"
-          >
-            <FolderOpen aria-hidden="true" className="size-4" strokeWidth={1.8} />
-            全部
-          </button>
+        <div className="mt-2 max-h-32 space-y-1 overflow-y-auto pr-1">
           {categories?.map((category) => (
             <button
+              aria-pressed={selectedCategoryId === category.id}
               className={cn(
                 "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50",
                 selectedCategoryId === category.id && "bg-blue-50 text-primary",
               )}
               key={category.id}
-              onClick={() => onSelectCategory(category.id)}
+              onClick={() =>
+                onSelectCategory(
+                  selectedCategoryId === category.id ? undefined : category.id,
+                )
+              }
+              title={
+                selectedCategoryId === category.id
+                  ? "再次点击取消分类筛选"
+                  : undefined
+              }
               type="button"
             >
               <Folder aria-hidden="true" className="size-4" strokeWidth={1.8} />
               <span className="truncate">{category.name}</span>
             </button>
           ))}
-          {hasUncategorized ? (
-            <div
-              aria-disabled="true"
-              className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-slate-400"
-              title="当前 API 不支持全量未分类筛选"
-            >
-              <FolderMinus aria-hidden="true" className="size-4" strokeWidth={1.8} />
-              未分类（仅标识）
-            </div>
-          ) : null}
         </div>
+        <button
+          aria-pressed={isUncategorizedSelected}
+          className={cn(
+            "mt-1 flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50",
+            isUncategorizedSelected && "bg-blue-50 text-primary",
+          )}
+          onClick={onSelectUncategorized}
+          title={isUncategorizedSelected ? "再次点击取消未分类筛选" : undefined}
+          type="button"
+        >
+          <FolderMinus aria-hidden="true" className="size-4" strokeWidth={1.8} />
+          未分类
+        </button>
         {categoriesError ? (
           <button
             className="mt-2 text-xs text-red-600 underline-offset-2 hover:underline"

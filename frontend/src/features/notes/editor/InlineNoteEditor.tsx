@@ -90,11 +90,11 @@ export function InlineNoteEditor({
     const normalizedTitle = title.trim();
 
     if (!normalizedTitle) {
-      setError("请输入笔记标题");
+      setError("请输入文件名");
       return;
     }
     if (normalizedTitle.length > 100) {
-      setError("标题不能超过 100 个字符");
+      setError("文件名不能超过 100 个字符");
       return;
     }
     if ((summary?.length ?? 0) > 300) {
@@ -188,10 +188,10 @@ export function InlineNoteEditor({
           </div>
         </header>
 
-        <article className="min-h-0 flex-1 overflow-y-auto px-8 pb-16 pt-6 xl:px-12">
-          <div className="mx-auto max-w-4xl">
+        <article className="min-h-0 flex-1 overflow-y-auto bg-white">
+          <div className="note-document-surface">
             {note.moderationStatus === "TAKEN_DOWN" ? (
-              <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+              <div className="mx-8 mt-8 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 xl:mx-12" role="alert">
                 <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                 该笔记已被下架。修改后仍需管理员恢复，才会重新出现在公开页面。
               </div>
@@ -205,14 +205,10 @@ export function InlineNoteEditor({
             />
 
             {error ? (
-              <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              <p className="mx-8 mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 xl:mx-12" role="alert">
                 {error}
               </p>
             ) : null}
-
-            <p className="mt-4 text-xs text-slate-400">
-              手动保存后返回阅读态。Ctrl / ⌘ + Enter 可快速保存。
-            </p>
           </div>
         </article>
       </form>

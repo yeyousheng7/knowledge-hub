@@ -169,8 +169,10 @@ export function VditorMarkdownEditor({
     <div
       aria-label="Markdown 正文"
       className={cn(
-        "note-vditor min-h-[360px] overflow-hidden rounded-xl border border-slate-200 bg-white",
-        hideToolbar && "note-vditor--plain",
+        "note-vditor min-h-[360px] overflow-hidden",
+        hideToolbar
+          ? "note-vditor--plain min-h-full w-full bg-transparent"
+          : "rounded-xl border border-slate-200 bg-white",
       )}
       ref={containerRef}
     />

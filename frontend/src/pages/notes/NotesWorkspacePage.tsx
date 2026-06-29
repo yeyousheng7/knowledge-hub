@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
   type FormEvent,
   type ReactNode,
@@ -58,23 +57,6 @@ export function NotesWorkspacePage() {
       void navigate(`/notes/${workspace.list.data.items[0].id}`, { replace: true });
     }
   }, [isReadMode, navigate, noteIdParameter, workspace.list.data, workspace.list.isLoading]);
-
-  const categoryName = useMemo(() => {
-    const categoryId = workspace.detail.data?.categoryId;
-
-    if (categoryId === null) {
-      return "未分类";
-    }
-
-    if (categoryId === undefined) {
-      return "";
-    }
-
-    return (
-      workspace.categories.data?.find((category) => category.id === categoryId)?.name ??
-      "分类信息不可用"
-    );
-  }, [workspace.categories.data, workspace.detail.data?.categoryId]);
 
   function updateQuery(
     updater: (current: NoteListQuery) => NoteListQuery,
@@ -301,7 +283,6 @@ export function NotesWorkspacePage() {
     mainContent = (
       <NoteReader
         actionError={actionError}
-        categoryName={categoryName}
         error={workspace.detail.error}
         hasSelection={selectedNoteId !== null}
         invalidSelection={invalidSelection}
@@ -333,6 +314,7 @@ export function NotesWorkspacePage() {
         list={workspace.list.data}
         listError={workspace.list.error}
         listLoading={workspace.list.isLoading}
+        isUncategorizedSelected={workspace.query.uncategorized === true}
         onCreateNote={() => {
           navigateFromWorkspace("/notes/new");
         }}
@@ -345,13 +327,26 @@ export function NotesWorkspacePage() {
         onSearch={handleSearch}
         onSearchTextChange={setSearchText}
         onSelectCategory={(categoryId) =>
-          updateQuery((current) => ({ ...current, page: 1, categoryId }))
+          updateQuery((current) => ({
+            ...current,
+            page: 1,
+            categoryId,
+            uncategorized: undefined,
+          }))
         }
         onSelectNote={(noteId) => {
           navigateFromWorkspace(`/notes/${noteId}`);
         }}
         onSelectTag={(tagId) =>
           updateQuery((current) => ({ ...current, page: 1, tagId }))
+        }
+        onSelectUncategorized={() =>
+          updateQuery((current) => ({
+            ...current,
+            page: 1,
+            categoryId: undefined,
+            uncategorized: current.uncategorized ? undefined : true,
+          }))
         }
         searchError={searchError}
         searchText={searchText}

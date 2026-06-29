@@ -42,11 +42,11 @@ export function CreateNoteEditor({
     const normalizedSummary = summary.trim();
 
     if (!normalizedTitle) {
-      setFormError("请输入笔记标题");
+      setFormError("请输入文件名");
       return;
     }
     if (normalizedTitle.length > 100) {
-      setFormError("标题不能超过 100 个字符");
+      setFormError("文件名不能超过 100 个字符");
       return;
     }
     if (summary.length > 300) {
@@ -104,13 +104,14 @@ export function CreateNoteEditor({
         <div className="space-y-6">
           <label className="block">
             <span className="text-sm font-semibold text-slate-800">
-              标题 <span className="text-red-500">*</span>
+              文件名 <span className="text-red-500">*</span>
             </span>
             <input
+              aria-label="文件名"
               className="mt-2 h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/70"
               maxLength={100}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="请输入笔记标题"
+              placeholder="请输入文件名"
               value={title}
             />
             <span className="mt-1 block text-right text-xs text-slate-400">

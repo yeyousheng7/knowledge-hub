@@ -15,6 +15,7 @@ export interface NoteListQuery {
   keyword?: string;
   categoryId?: number;
   tagId?: number;
+  uncategorized?: boolean;
 }
 
 function requirePositiveInteger(value: number, field: string): void {
@@ -98,6 +99,52 @@ export function getNotes(
     signal,
     parseData: parseNoteListResponse,
   });
+}
+
+export async function getUncategorizedNotes(
+  query: NoteListQuery,
+  signal?: AbortSignal,
+): Promise<NoteListResponse> {
+  requirePositiveInteger(query.page, "page");
+  requirePositiveInteger(query.size, "size");
+  if (query.size > 100) {
+    throw new RangeError("size must not exceed 100");
+  }
+
+  // TODO: 后端提供原生“未分类”筛选参数后，删除全量分页扫描并改为服务端分页查询。
+  const remotePageSize = 100;
+  const notesById = new Map<number, NoteListResponse["items"][number]>();
+  let remotePage = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = await getNotes(
+      {
+        page: remotePage,
+        size: remotePageSize,
+        keyword: query.keyword,
+        tagId: query.tagId,
+      },
+      signal,
+    );
+    response.items.forEach((note) => notesById.set(note.id, note));
+    hasMore =
+      response.items.length === remotePageSize &&
+      notesById.size < response.total;
+    remotePage += 1;
+  }
+
+  const filteredItems = [...notesById.values()].filter(
+    (note) => note.categoryId === null,
+  );
+  const offset = (query.page - 1) * query.size;
+
+  return {
+    items: filteredItems.slice(offset, offset + query.size),
+    total: filteredItems.length,
+    page: query.page,
+    size: query.size,
+  };
 }
 
 export function getNoteDetail(

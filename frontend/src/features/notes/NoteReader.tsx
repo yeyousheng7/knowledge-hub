@@ -1,22 +1,15 @@
 import {
   AlertTriangle,
-  Clock3,
-  Folder,
   Globe2,
   LoaderCircle,
   LockKeyhole,
   Pencil,
   Settings2,
-  Tag,
   Trash2,
 } from "lucide-react";
 
 import type { NoteDetailResponse } from "@/api/note-contracts";
-import {
-  formatNoteDate,
-  isNotFoundError,
-} from "@/features/notes/note-display";
-import { NoteStatus } from "@/features/notes/NoteStatus";
+import { isNotFoundError } from "@/features/notes/note-display";
 import { MarkdownContent } from "@/shared/markdown/MarkdownContent";
 import { PageState } from "@/shared/layout/PageState";
 
@@ -27,7 +20,6 @@ interface NoteReaderProps {
   rawError: unknown;
   hasSelection: boolean;
   invalidSelection: boolean;
-  categoryName: string;
   onRetry: () => void;
   onEdit: () => void;
   onSettings: () => void;
@@ -45,7 +37,6 @@ export function NoteReader({
   rawError,
   hasSelection,
   invalidSelection,
-  categoryName,
   onRetry,
   onEdit,
   onSettings,
@@ -151,51 +142,21 @@ export function NoteReader({
         </div>
       </header>
 
-      <article className="min-h-0 flex-1 overflow-y-auto px-8 pb-16 pt-9 xl:px-12">
-        <div className="mx-auto max-w-4xl">
+      <article className="min-h-0 flex-1 overflow-y-auto bg-white">
+        <div className="note-document-surface">
           {actionError ? (
-            <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            <div className="mx-8 mt-8 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 xl:mx-12" role="alert">
               {actionError}
             </div>
           ) : null}
           {note.moderationStatus === "TAKEN_DOWN" ? (
-            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            <div className="mx-8 mt-8 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 xl:mx-12" role="alert">
               <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               该笔记已被下架。它仍可在个人工作台查看，但不会出现在公开页面。
             </div>
           ) : null}
 
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">
-            {note.title}
-          </h1>
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 pb-6 text-xs text-slate-500">
-            <NoteStatus
-              moderationStatus={note.moderationStatus}
-              visibility={note.visibility}
-            />
-            <span className="inline-flex items-center gap-1.5">
-              <Folder aria-hidden="true" className="size-3.5" />
-              {categoryName}
-            </span>
-            {note.tags.map((tag) => (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1"
-                key={tag.id}
-              >
-                <Tag aria-hidden="true" className="size-3" />
-                {tag.name}
-              </span>
-            ))}
-            <span className="ml-auto inline-flex items-center gap-1.5">
-              <Clock3 aria-hidden="true" className="size-3.5" />
-              {formatNoteDate(note.updatedAt)}
-            </span>
-          </div>
-
-          <div className="pt-8">
-            <MarkdownContent content={note.contentMd} />
-          </div>
+          <MarkdownContent content={note.contentMd} />
         </div>
       </article>
     </div>

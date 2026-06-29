@@ -181,15 +181,12 @@ describe("NotesWorkspacePage", () => {
     renderWorkspace();
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Note 1" }),
+      await screen.findByRole("heading", { level: 1, name: "Detail 1" }),
     ).toBeVisible();
     expect(screen.getAllByLabelText("公开").length).toBeGreaterThan(0);
     expect(screen.getByRole("alert")).toHaveTextContent("已被下架");
-    expect(screen.getAllByText("Backend").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("未分类（仅标识）")).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(screen.getAllByText("Backend").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("未分类")).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByText(/浏览|评论/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Backend" }));
@@ -249,7 +246,7 @@ describe("NotesWorkspacePage", () => {
     renderWorkspace();
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Note 1" }),
+      await screen.findByRole("heading", { level: 1, name: "Detail 1" }),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "下一页" })).toBeEnabled();
@@ -257,7 +254,7 @@ describe("NotesWorkspacePage", () => {
     await user.click(screen.getByRole("button", { name: "下一页" }));
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Note 21" }),
+      await screen.findByRole("heading", { level: 1, name: "Detail 21" }),
     ).toBeVisible();
     expect(requestedPages.some((query) => query.includes("page=2"))).toBe(true);
     expect(screen.getByText("2 / 2")).toBeVisible();
@@ -295,12 +292,12 @@ describe("NotesWorkspacePage", () => {
     await user.click(screen.getByRole("button", { name: /Note 2/ }));
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Note 2" }),
+      await screen.findByRole("heading", { level: 1, name: "Detail 2" }),
     ).toBeVisible();
     firstDetail.resolve(jsonResponse(envelope(noteDetail(1))));
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: "Note 2" }),
+        screen.getByRole("heading", { level: 1, name: "Detail 2" }),
       ).toBeVisible(),
     );
   });
@@ -448,7 +445,10 @@ describe("NotesWorkspacePage", () => {
     expect(
       await screen.findByRole("heading", { name: "新建笔记" }),
     ).toBeVisible();
-    await user.type(screen.getByPlaceholderText("请输入笔记标题"), "Distributed limiter");
+    await user.type(
+      screen.getByRole("textbox", { name: "文件名" }),
+      "Distributed limiter",
+    );
     await user.type(screen.getByPlaceholderText(/简要描述/), "Design notes");
     await user.type(screen.getByLabelText("Markdown 正文"), "# Limiter\n\nRaw Markdown");
     await user.type(screen.getByLabelText("新分类名称"), "Architecture");
@@ -460,7 +460,7 @@ describe("NotesWorkspacePage", () => {
     expect(
       await screen.findByRole("heading", {
         level: 1,
-        name: "Distributed limiter",
+        name: "Limiter",
       }),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "编辑" })).toBeVisible();
@@ -514,7 +514,7 @@ describe("NotesWorkspacePage", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Note 1" }),
+      await screen.findByRole("heading", { level: 2, name: "Updated" }),
     ).toBeVisible();
     expect(updatedRequest).toMatchObject({
       title: "Note 1",
@@ -524,7 +524,7 @@ describe("NotesWorkspacePage", () => {
     });
   });
 
-  it("updates note settings independently without replacing title or Markdown", async () => {
+  it("updates note settings independently without replacing filename or Markdown", async () => {
     const taxonomy = taxonomyResponse();
     let updatedRequest: Record<string, unknown> | null = null;
     fetchMock.mockImplementation(async (input, init) => {
@@ -555,7 +555,7 @@ describe("NotesWorkspacePage", () => {
     const user = userEvent.setup();
     renderWorkspace("/notes/1");
 
-    await screen.findByRole("heading", { level: 1, name: "Note 1" });
+    await screen.findByRole("heading", { level: 1, name: "Detail 1" });
     await user.click(screen.getByRole("button", { name: "笔记设置" }));
     expect(screen.getByRole("dialog", { name: "笔记设置" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "文件名" })).toHaveValue("Note 1");
@@ -577,7 +577,9 @@ describe("NotesWorkspacePage", () => {
       categoryId: null,
       tagIds: [],
     });
-    expect(screen.getByText("未分类")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Detail 1" }),
+    ).toBeVisible();
   });
 
   it("asks before switching notes with unsaved inline edits", async () => {
@@ -618,7 +620,7 @@ describe("NotesWorkspacePage", () => {
     confirm.mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: /Note 2/ }));
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Note 2" }),
+      await screen.findByRole("heading", { level: 1, name: "Detail 2" }),
     ).toBeVisible();
   });
 
@@ -657,7 +659,7 @@ describe("NotesWorkspacePage", () => {
     const user = userEvent.setup();
     renderWorkspace("/notes/1");
 
-    await screen.findByRole("heading", { level: 1, name: "Note 1" });
+    await screen.findByRole("heading", { level: 1, name: "Detail 1" });
     await user.click(screen.getByRole("button", { name: "发布" }));
     expect(await screen.findByRole("button", { name: "取消发布" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "取消发布" }));

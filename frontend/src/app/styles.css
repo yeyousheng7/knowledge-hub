@@ -106,6 +106,10 @@
     border-radius: 0.75rem;
   }
 
+  .note-document-surface {
+    @apply min-h-full w-full bg-white;
+  }
+
   .note-vditor .vditor-toolbar {
     border-color: rgb(226 232 240);
     background: rgb(248 250 252);
@@ -124,76 +128,131 @@
     display: none;
   }
 
-  .note-vditor--plain .vditor-content {
-    border-top: 0;
+  .note-vditor--plain.vditor {
+    min-height: 100%;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
   }
 
-  .markdown-body {
+  .note-vditor--plain .vditor-content {
+    border-top: 0;
+    background: transparent !important;
+  }
+
+  .note-vditor--plain .vditor-ir,
+  .note-vditor--plain .vditor-reset,
+  .note-vditor--plain .vditor-ir pre.vditor-reset:focus {
+    background: transparent !important;
+  }
+
+  .note-vditor--plain .vditor-reset {
+    color: rgb(51 65 85);
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.75rem;
+  }
+
+  .note-vditor--plain .vditor-ir > .vditor-reset {
+    padding: 2rem 2rem 4rem !important;
+  }
+
+  .markdown-body,
+  .note-vditor--plain .vditor-reset {
     @apply text-[15px] leading-7 text-slate-700;
   }
 
-  .markdown-body > :first-child {
+  .markdown-body {
+    @apply min-h-full px-8 pb-16 pt-8 xl:px-12;
+  }
+
+  .markdown-body > :first-child,
+  .note-vditor--plain .vditor-reset > :first-child,
+  .note-vditor--plain .vditor-reset > :first-child > :first-child {
     @apply mt-0;
   }
 
-  .markdown-body h1 {
+  .markdown-body h1,
+  .note-vditor--plain .vditor-reset h1 {
     @apply mb-4 mt-10 text-2xl font-bold tracking-tight text-slate-950;
   }
 
-  .markdown-body h2 {
+  .markdown-body h2,
+  .note-vditor--plain .vditor-reset h2 {
     @apply mb-3 mt-9 text-xl font-bold tracking-tight text-slate-950;
   }
 
-  .markdown-body h3 {
+  .markdown-body h3,
+  .note-vditor--plain .vditor-reset h3 {
     @apply mb-3 mt-7 text-lg font-semibold text-slate-900;
   }
 
-  .markdown-body p {
+  .markdown-body p,
+  .note-vditor--plain .vditor-reset p {
     @apply my-4;
   }
 
-  .markdown-body ul {
+  .markdown-body ul,
+  .note-vditor--plain .vditor-reset ul {
     @apply my-4 list-disc space-y-1 pl-6;
   }
 
-  .markdown-body ol {
+  .markdown-body ol,
+  .note-vditor--plain .vditor-reset ol {
     @apply my-4 list-decimal space-y-1 pl-6;
   }
 
-  .markdown-body blockquote {
+  .markdown-body blockquote,
+  .note-vditor--plain .vditor-reset blockquote {
     @apply my-5 border-l-4 border-blue-400 bg-blue-50/60 px-4 py-2 text-slate-600;
   }
 
-  .markdown-body a {
+  .markdown-body a,
+  .note-vditor--plain .vditor-reset a {
     @apply font-medium text-primary underline decoration-blue-200 underline-offset-4 hover:decoration-blue-500;
   }
 
-  .markdown-body code {
+  .markdown-body code,
+  .note-vditor--plain .vditor-reset code {
     @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.9em] text-slate-800;
   }
 
-  .markdown-body pre {
+  .markdown-body pre,
+  .note-vditor--plain .vditor-reset pre {
     @apply my-6 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-4;
   }
 
-  .markdown-body pre code {
+  .markdown-body pre code,
+  .note-vditor--plain .vditor-reset pre code {
     @apply bg-transparent p-0;
   }
 
-  .markdown-body table {
+  .markdown-body table,
+  .note-vditor--plain .vditor-reset table {
     @apply my-6 w-full border-collapse text-sm;
   }
 
   .markdown-body th,
-  .markdown-body td {
+  .markdown-body td,
+  .note-vditor--plain .vditor-reset th,
+  .note-vditor--plain .vditor-reset td {
     @apply border border-slate-200 px-3 py-2 text-left;
   }
 
-  .markdown-body th {
+  .markdown-body th,
+  .note-vditor--plain .vditor-reset th {
     @apply bg-slate-50 font-semibold text-slate-800;
   }
 
-  .markdown-body hr {
+  .markdown-body hr,
+  .note-vditor--plain .vditor-reset hr {
     @apply my-8 border-slate-200;
+  }
+
+  @media (min-width: 80rem) {
+    .note-vditor--plain .vditor-ir > .vditor-reset {
+      padding-right: 3rem !important;
+      padding-left: 3rem !important;
+    }
   }
 }

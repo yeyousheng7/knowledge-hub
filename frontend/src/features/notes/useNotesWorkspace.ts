@@ -7,6 +7,7 @@ import type {
 import {
   getNoteDetail,
   getNotes,
+  getUncategorizedNotes,
   type NoteListQuery,
 } from "@/api/notes";
 import type {
@@ -62,7 +63,11 @@ export function useNotesWorkspace(selectedNoteId: number | null) {
   useEffect(() => {
     const controller = new AbortController();
 
-    void getNotes(query, controller.signal)
+    const listRequest = query.uncategorized
+      ? getUncategorizedNotes(query, controller.signal)
+      : getNotes(query, controller.signal);
+
+    void listRequest
       .then((data) => {
         setList({ data, isLoading: false, error: null, rawError: null });
       })
