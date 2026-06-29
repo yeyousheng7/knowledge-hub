@@ -130,16 +130,16 @@ export function ApplicationShell() {
           })}
         </nav>
 
-        <div className="mt-auto space-y-3 border-t border-slate-100 pt-4">
+        <div className="mt-7 px-1">
           <Link
             className={cn(
-              "group relative flex h-11 items-center rounded-xl text-sm font-medium text-slate-500 transition hover:bg-blue-50 hover:text-primary",
+              "group relative flex h-12 items-center rounded-xl text-[15px] font-medium text-slate-600 transition hover:bg-blue-50 hover:text-primary",
               isSidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
             )}
             title={isSidebarCollapsed ? "Feed" : "打开公开知识 Feed"}
             to="/"
           >
-            <Newspaper aria-hidden="true" className="size-4" />
+            <Newspaper aria-hidden="true" className="size-5" strokeWidth={1.8} />
             <span className={cn(isSidebarCollapsed && "sr-only")}>Feed</span>
             <ArrowUpRight
               aria-hidden="true"
@@ -149,7 +149,9 @@ export function ApplicationShell() {
               )}
             />
           </Link>
+        </div>
 
+        <div className="mt-auto space-y-3 border-t border-slate-100 pt-4">
           {auth.status === "authenticated" && auth.user ? (
             <div
               className={cn(
