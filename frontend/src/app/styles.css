@@ -166,6 +166,10 @@
     @apply min-h-full px-8 pb-16 pt-8 xl:px-12;
   }
 
+  .markdown-body.ai-markdown {
+    @apply min-h-0 px-0 pb-0 pt-0;
+  }
+
   .markdown-body > :first-child,
   .note-vditor--plain .vditor-reset > :first-child,
   .note-vditor--plain .vditor-reset > :first-child > :first-child {

@@ -22,7 +22,7 @@ describe("AiWorkspacePage", () => {
     await user.click(screen.getByRole("button", { name: "RAG" }));
 
     expect(screen.getByLabelText("RAG 问题")).toHaveValue("RAG draft");
-    expect(screen.getByRole("button", { name: "发送 RAG 问题" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "发送 RAG 问题" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Agent" }));
     expect(screen.getByLabelText("Agent 消息")).toHaveValue("Agent draft");

@@ -1,6 +1,7 @@
 import { Bot, Database, Info, Send, Sparkles } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { RagWorkspace } from "@/features/ai/rag/RagWorkspace";
 import { cn } from "@/shared/lib/utils";
 
 type AiMode = "rag" | "agent";
@@ -20,17 +21,7 @@ export function AiWorkspacePage() {
   const [mode, setMode] = useState<AiMode>("rag");
   const [ragQuestion, setRagQuestion] = useState("");
   const [agentMessage, setAgentMessage] = useState("");
-  const activeInput = mode === "rag" ? ragQuestion : agentMessage;
   const copy = modeCopy[mode];
-
-  function updateActiveInput(value: string) {
-    if (mode === "rag") {
-      setRagQuestion(value);
-      return;
-    }
-
-    setAgentMessage(value);
-  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,63 +71,48 @@ export function AiWorkspacePage() {
             })}
           </div>
 
-          <section className="mx-auto mt-12 w-full max-w-4xl text-center">
-            <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
-              {mode === "rag" ? (
-                <Database aria-hidden="true" className="size-6" />
-              ) : (
+          {mode === "rag" ? (
+            <RagWorkspace
+              onQuestionChange={setRagQuestion}
+              question={ragQuestion}
+            />
+          ) : (
+            <section className="mx-auto mt-12 w-full max-w-4xl text-center">
+              <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
                 <Sparkles aria-hidden="true" className="size-6" />
-              )}
-            </span>
-            <h2 className="mt-5 text-lg font-semibold text-slate-900">
-              {mode === "rag" ? "从你的知识库开始提问" : "让 Agent 协助整理知识"}
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              {mode === "rag"
-                ? "重建索引后，AI 将基于你的真实笔记提供回答和来源。"
-                : "Agent 对话将在下一阶段接入，当前可以先准备你的消息。"}
-            </p>
-
-            {mode === "rag" ? (
-              <button
-                className="mt-7 inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 px-5 text-sm font-medium text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled
-                type="button"
-              >
-                <Database aria-hidden="true" className="size-4" />
-                重建 RAG 知识库
-              </button>
-            ) : null}
-
-            <form className="mt-8 text-left" onSubmit={handleSubmit}>
-              <label className="sr-only" htmlFor={`ai-${mode}-input`}>
-                {mode === "rag" ? "RAG 问题" : "Agent 消息"}
-              </label>
-              <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
-                <textarea
-                  className="min-h-36 w-full resize-none bg-transparent px-5 pb-16 pt-5 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
-                  id={`ai-${mode}-input`}
-                  maxLength={1000}
-                  onChange={(event) => updateActiveInput(event.target.value)}
-                  placeholder={
-                    mode === "rag"
-                      ? "输入你的第一个问题，开启知识探索之旅…"
-                      : "给 KnowledgeHub AI 发送消息…"
-                  }
-                  value={activeInput}
-                />
-                <button
-                  aria-label={mode === "rag" ? "发送 RAG 问题" : "发送 Agent 消息"}
-                  className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-blue-100 text-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled
-                  title={mode === "rag" ? "RAG 请求将在 F6 接入" : "Agent 请求将在 F7 接入"}
-                  type="submit"
-                >
-                  <Send aria-hidden="true" className="size-4" />
-                </button>
-              </div>
-            </form>
-          </section>
+              </span>
+              <h2 className="mt-5 text-lg font-semibold text-slate-900">
+                让 Agent 协助整理知识
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Agent 对话将在下一阶段接入，当前可以先准备你的消息。
+              </p>
+              <form className="mt-8 text-left" onSubmit={handleSubmit}>
+                <label className="sr-only" htmlFor="ai-agent-input">
+                  Agent 消息
+                </label>
+                <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
+                  <textarea
+                    className="min-h-36 w-full resize-none bg-transparent px-5 pb-16 pt-5 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
+                    id="ai-agent-input"
+                    maxLength={1000}
+                    onChange={(event) => setAgentMessage(event.target.value)}
+                    placeholder="给 KnowledgeHub AI 发送消息…"
+                    value={agentMessage}
+                  />
+                  <button
+                    aria-label="发送 Agent 消息"
+                    className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-blue-100 text-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled
+                    title="Agent 请求将在 F7 接入"
+                    type="submit"
+                  >
+                    <Send aria-hidden="true" className="size-4" />
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
         </div>
       </main>
     </div>
