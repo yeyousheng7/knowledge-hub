@@ -56,7 +56,7 @@ describe("ApplicationShell", () => {
     expect(screen.queryByText("设置")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "公开" }));
-    expect(screen.getByRole("heading", { name: "公开内容" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "公开笔记" })).toBeVisible();
     expect(screen.getByRole("link", { name: "公开" })).toHaveAttribute(
       "aria-current",
       "page",

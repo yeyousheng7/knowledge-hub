@@ -8,7 +8,10 @@ import { RequireAuth } from "@/features/auth/RequireAuth";
 import { AiWorkspacePage } from "@/pages/ai/AiWorkspacePage";
 import { LoginPage } from "@/pages/login/LoginPage";
 import { NotesWorkspaceRoute } from "@/pages/notes/NotesWorkspaceRoute";
-import { PlaceholderPage } from "@/pages/placeholders/PlaceholderPage";
+import { FeedPage } from "@/pages/public/FeedPage";
+import { PublicNoteDetailPage } from "@/pages/public/PublicNoteDetailPage";
+import { PublicNotesPage } from "@/pages/public/PublicNotesPage";
+import { PublicUserPage } from "@/pages/public/PublicUserPage";
 import { RegisterPage } from "@/pages/register/RegisterPage";
 import { ApplicationShell } from "@/shared/layout/ApplicationShell";
 
@@ -51,21 +54,19 @@ export const applicationRoutes: RouteObject[] = [
       },
       {
         path: "/feed",
-        element: (
-          <PlaceholderPage
-            description="公开内容流将在 F8 接入真实接口。"
-            title="Feed"
-          />
-        ),
+        element: <FeedPage />,
       },
       {
         path: "/public",
-        element: (
-          <PlaceholderPage
-            description="公开笔记浏览将在 F8 实现。"
-            title="公开内容"
-          />
-        ),
+        element: <PublicNotesPage />,
+      },
+      {
+        path: "/public/notes/:noteId",
+        element: <PublicNoteDetailPage />,
+      },
+      {
+        path: "/public/users/:username",
+        element: <PublicUserPage />,
       },
     ],
   },
