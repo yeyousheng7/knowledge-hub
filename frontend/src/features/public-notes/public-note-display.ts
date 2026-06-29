@@ -1,7 +1,4 @@
-import type {
-  PublicNoteAuthorResponse,
-  PublicNoteListResponse,
-} from "@/api/public-note-contracts";
+import type { PublicNoteAuthorResponse } from "@/api/public-note-contracts";
 
 export const PUBLIC_NOTE_PAGE_SIZE = 10;
 export const FEED_PAGE_SIZE = 8;
@@ -21,7 +18,7 @@ export function formatRelativePublicTime(value: string): string {
   return formatPublicDateTime(value);
 }
 
-export function totalPages(response: PublicNoteListResponse | null): number {
+export function totalPages(response: { total: number; size: number } | null): number {
   if (!response) {
     return 1;
   }

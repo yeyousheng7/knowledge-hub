@@ -50,15 +50,15 @@ export const applicationRoutes: RouteObject[] = [
             path: "/ai",
             element: <AiWorkspacePage />,
           },
+          {
+            path: "/public",
+            element: <PublicNotesPage />,
+          },
         ],
       },
       {
         path: "/feed",
         element: <FeedPage />,
-      },
-      {
-        path: "/public",
-        element: <PublicNotesPage />,
       },
       {
         path: "/public/notes/:noteId",

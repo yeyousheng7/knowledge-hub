@@ -1,20 +1,20 @@
 import { Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { PublicNoteListCard } from "@/features/public-notes/PublicNoteCards";
+import { OwnPublicNoteCard } from "@/features/public-notes/PublicNoteCards";
 import { PublicPagination } from "@/features/public-notes/PublicPagination";
 import {
   PUBLIC_NOTE_PAGE_SIZE,
   totalPages,
 } from "@/features/public-notes/public-note-display";
-import { usePublicNoteList } from "@/features/public-notes/usePublicNotes";
+import { useOwnPublicNotes } from "@/features/public-notes/useOwnPublicNotes";
 import { PageState } from "@/shared/layout/PageState";
 
 export function PublicNotesPage() {
   const [page, setPage] = useState(1);
   const [keywordDraft, setKeywordDraft] = useState("");
   const [keyword, setKeyword] = useState("");
-  const { data, error, isLoading } = usePublicNoteList({
+  const { data, error, isLoading } = useOwnPublicNotes({
     page,
     size: PUBLIC_NOTE_PAGE_SIZE,
     keyword,
@@ -31,12 +31,12 @@ export function PublicNotesPage() {
       <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col">
         <header>
           <h1 className="text-3xl font-bold tracking-tight text-slate-950">
-            公开笔记
+            我的公开笔记
           </h1>
           <div className="mt-7 flex items-center justify-between gap-6">
             <form className="w-full max-w-sm" onSubmit={handleSearch}>
               <label className="sr-only" htmlFor="public-note-keyword">
-                搜索公开笔记
+                搜索我的公开笔记
               </label>
               <div className="relative">
                 <Search
@@ -48,13 +48,13 @@ export function PublicNotesPage() {
                   id="public-note-keyword"
                   maxLength={100}
                   onChange={(event) => setKeywordDraft(event.target.value)}
-                  placeholder="搜索公开笔记"
+                  placeholder="搜索我的公开笔记"
                   value={keywordDraft}
                 />
               </div>
             </form>
             <span className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-              后端默认排序
+              默认排序
             </span>
           </div>
         </header>
@@ -63,21 +63,21 @@ export function PublicNotesPage() {
           {isLoading ? (
             <PageState
               compact
-              description="正在加载公开笔记。"
+              description="正在加载你的公开笔记。"
               mode="loading"
-              title="加载公开笔记"
+              title="加载我的公开笔记"
             />
           ) : error ? (
             <PageState
               compact
               description={error}
               mode="error"
-              title="公开笔记加载失败"
+              title="我的公开笔记加载失败"
             />
           ) : data && data.items.length > 0 ? (
             <div className="space-y-3">
               {data.items.map((note) => (
-                <PublicNoteListCard key={note.id} note={note} />
+                <OwnPublicNoteCard key={note.id} note={note} />
               ))}
             </div>
           ) : (
@@ -86,10 +86,10 @@ export function PublicNotesPage() {
               description={
                 keyword
                   ? "没有找到匹配的公开笔记。"
-                  : "当前还没有可展示的公开笔记。"
+                  : "你还没有公开笔记。可以在笔记工作台发布笔记后回到这里预览或编辑。"
               }
               mode="empty"
-              title="暂无公开笔记"
+              title="暂无我的公开笔记"
             />
           )}
         </div>

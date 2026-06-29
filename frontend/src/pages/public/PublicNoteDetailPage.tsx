@@ -1,7 +1,10 @@
 import { ArrowLeft, CalendarDays, Tag } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { authorDisplayName, formatPublicDateTime } from "@/features/public-notes/public-note-display";
+import {
+  authorDisplayName,
+  formatPublicDateTime,
+} from "@/features/public-notes/public-note-display";
 import { usePublicNoteDetail } from "@/features/public-notes/usePublicNotes";
 import { Avatar } from "@/shared/avatar/Avatar";
 import { PageState } from "@/shared/layout/PageState";
@@ -18,8 +21,18 @@ function parseNoteId(value: string | undefined): number | null {
 
 export function PublicNoteDetailPage() {
   const params = useParams();
+  const navigate = useNavigate();
   const noteId = parseNoteId(params.noteId);
   const { data, error, isLoading } = usePublicNoteDetail(noteId);
+
+  function handleBack() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/feed");
+  }
 
   if (isLoading) {
     return (
@@ -44,17 +57,18 @@ export function PublicNoteDetailPage() {
   const authorName = authorDisplayName(data.author);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-white">
-      <article className="mx-auto w-full max-w-4xl px-8 py-8 xl:px-4">
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-primary"
-          to="/public"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          返回公开笔记
-        </Link>
+    <div className="h-full min-h-0 overflow-y-auto bg-white px-8 py-6">
+      <button
+        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-primary"
+        onClick={handleBack}
+        type="button"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        返回
+      </button>
 
-        <header className="mt-8 border-b border-slate-100 pb-8">
+      <article className="mx-auto w-full max-w-4xl py-6 xl:px-4">
+        <header className="border-b border-slate-100 pb-8">
           <h1 className="text-4xl font-bold tracking-tight text-slate-950">
             {data.title}
           </h1>

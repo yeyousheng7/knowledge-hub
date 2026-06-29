@@ -1,6 +1,7 @@
-import { CalendarDays, Eye, FileText, Tag, UserRound } from "lucide-react";
+import { CalendarDays, Edit3, Eye, FileText, Tag, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import type { NoteListItemResponse } from "@/api/note-contracts";
 import type { PublicNoteListItemResponse } from "@/api/public-note-contracts";
 import { Avatar } from "@/shared/avatar/Avatar";
 import {
@@ -110,6 +111,59 @@ export function PublicNoteListCard({ note }: PublicNoteCardProps) {
             <span
               className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500"
               key={tag.name}
+            >
+              <Tag aria-hidden="true" className="size-3" />
+              {tag.name}
+            </span>
+          ))}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+export function OwnPublicNoteCard({ note }: { note: NoteListItemResponse }) {
+  const publishedAt = note.publishedAt ?? note.updatedAt;
+
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm shadow-slate-100 transition hover:border-blue-200 hover:shadow-md hover:shadow-blue-50">
+      <div className="flex items-start gap-6">
+        <Link className="min-w-0 flex-1" to={`/public/notes/${note.id}`}>
+          <h2 className="text-xl font-bold tracking-tight text-slate-950 hover:text-primary">
+            {note.title}
+          </h2>
+          <p className="mt-3 line-clamp-2 max-w-3xl text-sm leading-6 text-slate-600">
+            {note.summary || "这篇公开笔记暂未提供摘要。"}
+          </p>
+        </Link>
+        <div className="flex shrink-0 gap-3">
+          <Link
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-primary transition hover:bg-blue-100"
+            to={`/public/notes/${note.id}`}
+          >
+            <Eye aria-hidden="true" className="size-4" />
+            预览
+          </Link>
+          <Link
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:text-primary"
+            to={`/notes/${note.id}/edit`}
+          >
+            <Edit3 aria-hidden="true" className="size-4" />
+            编辑
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-slate-500">
+        <span className="inline-flex items-center gap-2">
+          <CalendarDays aria-hidden="true" className="size-4" />
+          发布于 {formatPublicDateTime(publishedAt)}
+        </span>
+        <span className="ml-auto flex flex-wrap gap-2">
+          {note.tags.map((tag) => (
+            <span
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500"
+              key={tag.id}
             >
               <Tag aria-hidden="true" className="size-3" />
               {tag.name}

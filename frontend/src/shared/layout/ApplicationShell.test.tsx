@@ -44,7 +44,7 @@ describe("ApplicationShell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps public navigation available without authentication", async () => {
+  it("keeps feed available and redirects anonymous users from own public notes", async () => {
     const user = userEvent.setup();
     renderRoute("/feed");
 
@@ -56,11 +56,10 @@ describe("ApplicationShell", () => {
     expect(screen.queryByText("设置")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "公开" }));
-    expect(screen.getByRole("heading", { name: "公开笔记" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "公开" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(
+      await screen.findByRole("heading", { name: "登录知识库" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "用户名" })).toBeVisible();
   });
 
   it("redirects an anonymous user away from a protected navigation target", async () => {
