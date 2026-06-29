@@ -5,6 +5,7 @@ import {
 } from "react-router-dom";
 
 import { RequireAuth } from "@/features/auth/RequireAuth";
+import { AiWorkspacePage } from "@/pages/ai/AiWorkspacePage";
 import { LoginPage } from "@/pages/login/LoginPage";
 import { NotesWorkspaceRoute } from "@/pages/notes/NotesWorkspaceRoute";
 import { PlaceholderPage } from "@/pages/placeholders/PlaceholderPage";
@@ -44,12 +45,7 @@ export const applicationRoutes: RouteObject[] = [
           },
           {
             path: "/ai",
-            element: (
-              <PlaceholderPage
-                description="RAG 与 Agent 工作区将在后续 AI 阶段实现。"
-                title="AI 工作区"
-              />
-            ),
+            element: <AiWorkspacePage />,
           },
         ],
       },
