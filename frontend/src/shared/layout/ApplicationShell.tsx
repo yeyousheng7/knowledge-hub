@@ -1,4 +1,5 @@
 import {
+  ArrowUpRight,
   BookOpenText,
   Globe2,
   LogIn,
@@ -11,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { Avatar } from "@/shared/avatar/Avatar";
@@ -26,7 +27,6 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { label: "笔记", path: "/notes", icon: NotebookTabs },
   { label: "AI", path: "/ai", icon: Sparkles },
-  { label: "Feed", path: "/feed", icon: Newspaper },
   { label: "公开", path: "/public", icon: Globe2 },
 ];
 
@@ -130,7 +130,26 @@ export function ApplicationShell() {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-slate-100 pt-4">
+        <div className="mt-auto space-y-3 border-t border-slate-100 pt-4">
+          <Link
+            className={cn(
+              "group relative flex h-11 items-center rounded-xl text-sm font-medium text-slate-500 transition hover:bg-blue-50 hover:text-primary",
+              isSidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
+            )}
+            title={isSidebarCollapsed ? "Feed" : "打开公开知识 Feed"}
+            to="/"
+          >
+            <Newspaper aria-hidden="true" className="size-4" />
+            <span className={cn(isSidebarCollapsed && "sr-only")}>Feed</span>
+            <ArrowUpRight
+              aria-hidden="true"
+              className={cn(
+                "size-3.5 text-blue-500 opacity-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100",
+                isSidebarCollapsed ? "absolute right-2 top-2" : "ml-auto",
+              )}
+            />
+          </Link>
+
           {auth.status === "authenticated" && auth.user ? (
             <div
               className={cn(

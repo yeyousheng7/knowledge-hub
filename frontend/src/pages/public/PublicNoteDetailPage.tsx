@@ -31,7 +31,7 @@ export function PublicNoteDetailPage() {
       return;
     }
 
-    navigate("/feed");
+    navigate("/");
   }
 
   if (isLoading) {
@@ -57,7 +57,7 @@ export function PublicNoteDetailPage() {
   const authorName = authorDisplayName(data.author);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-white px-8 py-6">
+    <div className="min-h-svh overflow-y-auto bg-white px-8 py-6">
       <button
         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-primary"
         onClick={handleBack}

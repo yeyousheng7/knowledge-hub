@@ -1,5 +1,4 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import {
   RouterProvider,
   createMemoryRouter,
@@ -44,18 +43,9 @@ describe("ApplicationShell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps feed available and redirects anonymous users from own public notes", async () => {
-    const user = userEvent.setup();
-    renderRoute("/feed");
+  it("redirects anonymous users from own public notes", async () => {
+    renderRoute("/public");
 
-    expect(screen.getByRole("heading", { name: "Feed" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "登录" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
-    expect(screen.queryByText("设置")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("link", { name: "公开" }));
     expect(
       await screen.findByRole("heading", { name: "登录知识库" }),
     ).toBeVisible();
@@ -105,6 +95,10 @@ describe("ApplicationShell", () => {
     expect(screen.getByRole("link", { name: "笔记" })).toHaveAttribute(
       "aria-current",
       "page",
+    );
+    expect(screen.getByRole("link", { name: "Feed" })).toHaveAttribute(
+      "href",
+      "/",
     );
   });
 });

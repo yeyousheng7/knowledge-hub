@@ -51,7 +51,7 @@ export function PublicUserPage() {
   const displayName = authorDisplayName(data.profile);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-white px-8 py-8 xl:px-10">
+    <div className="min-h-svh overflow-y-auto bg-white px-8 py-8 xl:px-10">
       <div className="mx-auto w-full max-w-5xl">
         <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-100">
           <div className="flex items-start gap-5">
