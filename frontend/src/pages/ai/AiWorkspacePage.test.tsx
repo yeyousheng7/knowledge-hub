@@ -26,6 +26,6 @@ describe("AiWorkspacePage", () => {
 
     await user.click(screen.getByRole("button", { name: "Agent" }));
     expect(screen.getByLabelText("Agent 消息")).toHaveValue("Agent draft");
-    expect(screen.getByRole("button", { name: "发送 Agent 消息" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "发送 Agent 消息" })).toBeEnabled();
   });
 });

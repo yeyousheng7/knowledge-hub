@@ -1,6 +1,12 @@
 import {
+  parseAiAgentChatResponse,
+  parseAiAgentOperationConfirmResponse,
+  parseAiAgentSessionClearResponse,
   parseAiIndexRebuildResponse,
   parseAiRagAskResponse,
+  type AiAgentChatResponse,
+  type AiAgentOperationConfirmResponse,
+  type AiAgentSessionClearResponse,
   type AiIndexRebuildResponse,
   type AiRagAskResponse,
 } from "@/api/ai-contracts";
@@ -10,16 +16,20 @@ export interface AiRagAskRequest {
   question: string;
 }
 
-function validateQuestion(question: string): string {
-  if (!question.trim()) {
-    throw new RangeError("问题不能为空");
+export interface AiAgentChatRequest {
+  message: string;
+}
+
+function validateAiText(value: string, fieldLabel: string): string {
+  if (!value.trim()) {
+    throw new RangeError(`${fieldLabel}不能为空`);
   }
 
-  if (question.length > 1000) {
-    throw new RangeError("问题不能超过 1000 个字符");
+  if (value.length > 1000) {
+    throw new RangeError(`${fieldLabel}不能超过 1000 个字符`);
   }
 
-  return question;
+  return value;
 }
 
 export function rebuildAiIndex(
@@ -38,8 +48,46 @@ export function askAiRag(
 ): Promise<AiRagAskResponse> {
   return apiClient.request("/ai/rag/ask", {
     method: "POST",
-    body: JSON.stringify({ question: validateQuestion(request.question) }),
+    body: JSON.stringify({ question: validateAiText(request.question, "问题") }),
     signal,
     parseData: parseAiRagAskResponse,
   });
+}
+
+export function chatAiAgent(
+  request: AiAgentChatRequest,
+  signal?: AbortSignal,
+): Promise<AiAgentChatResponse> {
+  return apiClient.request("/ai/agent/chat", {
+    method: "POST",
+    body: JSON.stringify({ message: validateAiText(request.message, "消息") }),
+    signal,
+    parseData: parseAiAgentChatResponse,
+  });
+}
+
+export function clearAiAgentSession(
+  signal?: AbortSignal,
+): Promise<AiAgentSessionClearResponse> {
+  return apiClient.request("/ai/agent/session/clear", {
+    method: "POST",
+    signal,
+    parseData: parseAiAgentSessionClearResponse,
+  });
+}
+
+export function confirmAiAgentOperation(
+  operationId: string,
+): Promise<AiAgentOperationConfirmResponse> {
+  if (!operationId.trim()) {
+    throw new RangeError("operationId must not be blank");
+  }
+
+  return apiClient.request(
+    `/ai/operations/${encodeURIComponent(operationId)}/confirm`,
+    {
+      method: "POST",
+      parseData: parseAiAgentOperationConfirmResponse,
+    },
+  );
 }
