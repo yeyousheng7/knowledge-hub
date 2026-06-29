@@ -59,7 +59,7 @@ export function PublicNoteDetailPage() {
   return (
     <div className="min-h-svh overflow-y-auto bg-white px-8 py-6">
       <button
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-primary"
+        className="fixed left-9 top-6 z-30 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-4 py-2 text-sm font-medium text-slate-600 shadow-md shadow-slate-200/70 backdrop-blur transition hover:border-blue-200 hover:text-primary"
         onClick={handleBack}
         type="button"
       >
@@ -67,7 +67,7 @@ export function PublicNoteDetailPage() {
         返回
       </button>
 
-      <article className="mx-auto w-full max-w-4xl py-6 xl:px-4">
+      <article className="mx-auto w-full max-w-4xl py-14 xl:px-4">
         <header className="border-b border-slate-100 pb-8">
           <h1 className="text-4xl font-bold tracking-tight text-slate-950">
             {data.title}
