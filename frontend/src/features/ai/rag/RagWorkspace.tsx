@@ -1,10 +1,8 @@
 import {
-  CheckCircle2,
   Database,
   Globe2,
   LoaderCircle,
   LockKeyhole,
-  RotateCw,
   Send,
   Sparkles,
 } from "lucide-react";
@@ -17,11 +15,10 @@ import {
 import { Link } from "react-router-dom";
 
 import {
-  type AiIndexRebuildResponse,
   type AiRagAskResponse,
   type AiRagSourceResponse,
 } from "@/api/ai-contracts";
-import { askAiRag, rebuildAiIndex } from "@/api/ai";
+import { askAiRag } from "@/api/ai";
 import { ApiError } from "@/api/errors";
 import { AiMarkdownContent } from "@/shared/markdown/AiMarkdownContent";
 
@@ -103,45 +100,10 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
   const [answeredQuestion, setAnsweredQuestion] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
-  const [rebuildResult, setRebuildResult] =
-    useState<AiIndexRebuildResponse | null>(null);
-  const [rebuildError, setRebuildError] = useState<string | null>(null);
-  const [isRebuilding, setIsRebuilding] = useState(false);
   const askController = useRef<AbortController | null>(null);
-  const rebuildController = useRef<AbortController | null>(null);
   const canAsk = question.trim().length > 0 && question.length <= 1000;
 
-  useEffect(
-    () => () => {
-      askController.current?.abort();
-      rebuildController.current?.abort();
-    },
-    [],
-  );
-
-  async function handleRebuild() {
-    if (isRebuilding) {
-      return;
-    }
-
-    const controller = new AbortController();
-    rebuildController.current = controller;
-    setIsRebuilding(true);
-    setRebuildError(null);
-    setRebuildResult(null);
-
-    try {
-      setRebuildResult(await rebuildAiIndex(controller.signal));
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setRebuildError(describeAiError(error));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setIsRebuilding(false);
-      }
-    }
-  }
+  useEffect(() => () => askController.current?.abort(), []);
 
   async function handleAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -176,7 +138,7 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
   const hasConversation = answer !== null || askError !== null || isAsking;
 
   return (
-    <section className="mx-auto mt-10 w-full max-w-4xl">
+    <section className="mx-auto mt-12 w-full max-w-4xl">
       {!hasConversation ? (
         <div className="text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
@@ -239,32 +201,7 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
         </div>
       )}
 
-      <div className="mt-7 text-center">
-        <button
-          className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 px-5 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isRebuilding}
-          onClick={() => void handleRebuild()}
-          type="button"
-        >
-          {isRebuilding ? (
-            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-          ) : (
-            <RotateCw aria-hidden="true" className="size-4" />
-          )}
-          {isRebuilding ? "正在重建…" : "重建 RAG 知识库"}
-        </button>
-        <div aria-live="polite" className="mt-2 min-h-5 text-xs">
-          {rebuildResult ? (
-            <span className="inline-flex items-center gap-1.5 text-emerald-700">
-              <CheckCircle2 aria-hidden="true" className="size-3.5" />
-              已索引 {rebuildResult.chunkCount} 个内容块，完成于 {formatDateTime(rebuildResult.indexedAt)}
-            </span>
-          ) : null}
-          {rebuildError ? <span className="text-red-600">{rebuildError}</span> : null}
-        </div>
-      </div>
-
-      <form className="mt-5 text-left" onSubmit={(event) => void handleAsk(event)}>
+      <form className="mt-8 text-left" onSubmit={(event) => void handleAsk(event)}>
         <label className="sr-only" htmlFor="ai-rag-input">
           RAG 问题
         </label>

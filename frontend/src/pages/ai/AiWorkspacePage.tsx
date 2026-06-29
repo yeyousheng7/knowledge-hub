@@ -1,6 +1,7 @@
 import { Bot, Database, Info, Send, Sparkles } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { RagRebuildControl } from "@/features/ai/rag/RagRebuildControl";
 import { RagWorkspace } from "@/features/ai/rag/RagWorkspace";
 import { cn } from "@/shared/lib/utils";
 
@@ -29,7 +30,7 @@ export function AiWorkspacePage() {
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-white">
-      <header className="flex min-h-16 shrink-0 items-center border-b border-slate-100 px-7">
+      <header className="flex min-h-16 shrink-0 items-center justify-between gap-6 border-b border-slate-100 px-7">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           {mode === "rag" ? (
             <Database aria-hidden="true" className="size-4 text-blue-500" />
@@ -42,13 +43,12 @@ export function AiWorkspacePage() {
           <span>{copy.description}</span>
           <Info aria-hidden="true" className="size-3.5 text-slate-400" />
         </div>
+        {mode === "rag" ? <RagRebuildControl /> : null}
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto px-8 pb-16 pt-9 xl:px-12">
         <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">AI</h1>
-
-          <div className="mx-auto mt-16 grid w-full max-w-md grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm shadow-slate-100">
+          <div className="mx-auto mt-10 grid w-full max-w-md grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm shadow-slate-100">
             {(["rag", "agent"] as const).map((itemMode) => {
               const Icon = itemMode === "rag" ? Database : Bot;
               const isActive = mode === itemMode;
