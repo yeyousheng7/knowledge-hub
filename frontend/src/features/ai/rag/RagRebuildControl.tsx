@@ -10,6 +10,7 @@ import { rebuildAiIndex } from "@/api/ai";
 import { ApiError } from "@/api/errors";
 
 const LAST_REBUILD_STORAGE_KEY = "knowledgehub.ai.rag.lastRebuild.v1";
+const SUCCESS_MESSAGE_VISIBLE_MS = 4_000;
 
 interface LastRebuildSnapshot {
   chunkCount: number;
@@ -83,8 +84,17 @@ export function RagRebuildControl() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(
+    null,
+  );
 
-  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    controllerRef.current?.abort();
+
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+    }
+  }, []);
 
   async function handleRebuild() {
     if (isRebuilding) {
@@ -93,6 +103,10 @@ export function RagRebuildControl() {
 
     const controller = new AbortController();
     controllerRef.current = controller;
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
     setIsRebuilding(true);
     setResult(null);
     setErrorMessage(null);
@@ -107,6 +121,10 @@ export function RagRebuildControl() {
       setResult(rebuildResult);
       setLastRebuild(snapshot);
       writeLastRebuildSnapshot(snapshot);
+      successTimerRef.current = window.setTimeout(() => {
+        setResult(null);
+        successTimerRef.current = null;
+      }, SUCCESS_MESSAGE_VISIBLE_MS);
     } catch (error) {
       if (!controller.signal.aborted) {
         setErrorMessage(describeRebuildError(error));
@@ -135,9 +153,9 @@ export function RagRebuildControl() {
             </span>
           </span>
         ) : null}
-        {lastRebuild ? (
+        {!result && lastRebuild ? (
           <span
-            className="ml-3 text-slate-400"
+            className="text-slate-400"
             title={`上次重建索引 ${lastRebuild.chunkCount} 个内容块`}
           >
             上次重建：{formatDateTime(lastRebuild.indexedAt)}
