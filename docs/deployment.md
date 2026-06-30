@@ -145,4 +145,4 @@ docker compose up -d mysql redis backend
 
 ## 联调建议
 
-先用默认关闭配置跑普通启动和普通测试，确认基础链路稳定；再按需开启 RAG 或 Agent 环境变量，执行 [smoke-test.md](smoke-test.md) 中对应的可选 smoke test。
+先用默认关闭配置跑普通启动和普通测试，确认基础链路稳定；再按需开启 RAG 或 Agent 环境变量，执行 [api-smoke-test.md](api-smoke-test.md) 中对应的可选 smoke test。

@@ -1,24 +1,38 @@
-# KnowledgeHub Frontend
+# KnowledgeHub 前端
 
-This application is the React frontend for KnowledgeHub. The current F3 baseline includes authentication, the application shell, and the read-only notes workspace.
+本应用是 KnowledgeHub 的 React 前端，已完成认证、应用壳、笔记工作台（阅读/创建/编辑/发布/删除）、AI 工作区（RAG 问答与 Agent 对话，含待确认操作卡片）、公开笔记 Feed、公开笔记详情和用户公开主页。
 
-## Prerequisites
+## 页面路由
 
-- Node.js `^20.19.0` or `>=22.12.0`
-- npm 10 or newer
+| 路由 | 鉴权 | 说明 |
+|---|---|---|
+| `/login` | 否 | 登录 |
+| `/register` | 否 | 注册 |
+| `/` | 否 | 公开笔记 Feed |
+| `/notes` | 是 | 笔记工作台（列表/阅读/创建/编辑） |
+| `/notes/:noteId` | 是 | 指定笔记详情/编辑 |
+| `/ai` | 是 | AI 统一入口，内部切换 RAG/Agent 模式 |
+| `/public` | 是 | 公开笔记搜索 |
+| `/public/notes/:noteId` | 否 | 公开笔记详情 |
+| `/public/users/:username` | 否 | 用户公开主页 |
 
-## Local development
+## 环境要求
+
+- Node.js `^20.19.0` 或 `>=22.12.0`
+- npm 10 或更高版本
+
+## 本地开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-The application is served at the URL printed by Vite. Browser requests use the same-origin `/api/v1` path by default, and Vite proxies `/api` to `http://localhost:8080` during local development. Copy `.env.example` to `.env.local` and set `API_PROXY_TARGET` when the backend is running at another host or port. An explicit `VITE_API_BASE_URL` must include the `/api/v1` prefix.
+应用运行在 Vite 输出的 URL 上。浏览器请求默认使用同源的 `/api/v1` 路径，本地开发时 Vite 会将 `/api` 代理到 `http://localhost:8080`。如果后端运行在其他主机或端口，请复制 `.env.example` 为 `.env.local` 并设置 `API_PROXY_TARGET`。显式设置的 `VITE_API_BASE_URL` 必须包含 `/api/v1` 前缀。
 
-Authentication is persisted under one browser `localStorage` key so a session can be validated with `/auth/me` after a reload. This is required by the current bearer-token contract and means the token is exposed to JavaScript; do not add duplicate token caches or log it.
+认证信息保存在浏览器 `localStorage` 的单一 key 下，以便刷新页面后通过 `/auth/me` 校验会话。这是当前 bearer-token 契约的要求，意味着 token 会暴露给 JavaScript；不要增加额外的 token 缓存或记录其内容。
 
-## Verification
+## 验证
 
 ```bash
 npm run build

@@ -1,4 +1,4 @@
-# KnowledgeHub Smoke Test
+# KnowledgeHub API Smoke Test
 
 联动冒烟测试，验证各模块串联工作正常。
 
