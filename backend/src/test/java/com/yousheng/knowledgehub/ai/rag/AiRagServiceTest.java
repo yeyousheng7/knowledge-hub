@@ -145,7 +145,7 @@ class AiRagServiceTest {
         verify(chatClient).chat(captor.capture());
         String prompt = captor.getValue();
 
-        assertThat(prompt).contains("仅根据下面提供的笔记片段回答");
+        assertThat(prompt).contains("不要编造不存在的笔记内容");
         assertThat(prompt).contains("笔记中没有足够信息来回答这个问题");
         assertThat(prompt).contains("[《笔记标题》](kh-source://note/{noteId})");
     }

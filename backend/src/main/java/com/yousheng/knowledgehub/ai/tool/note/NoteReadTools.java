@@ -43,6 +43,19 @@ public class NoteReadTools {
     }
 
     @Tool(description = """
+            列出当前认证用户自己的笔记。
+            用于用户询问"我有哪些笔记"、"我的笔记列表"等。
+            不用于查询其他用户笔记。
+            不要传 userId。
+            page 默认 1，size 默认 5，最大 10。
+            列表结果不包含 contentMd。""")
+    public AiToolResult<AiToolPage<NoteToolItem>> list_my_notes(
+            @ToolParam(description = "页码，从 1 开始，默认 1", required = false) Integer page,
+            @ToolParam(description = "每页条数，默认 5，最大 10", required = false) Integer size) {
+        return facade.listMyNotes(page, size);
+    }
+
+    @Tool(description = """
             列出当前认证用户自己的已发布笔记。
             用于用户询问"我有哪些公开/已发布笔记"。
             不用于查询其他用户公开笔记。

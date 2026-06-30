@@ -22,6 +22,26 @@ public class AiRagService {
     private final AiIndexSearchService searchService;
     private final AiChatClient chatClient;
 
+    private static final String SYSTEM_PROMPT = """
+            你是 KHub 的个人知识库 RAG 助手。
+            你的主要任务是基于下面提供的笔记片段回答用户的问题。
+
+            回答策略：
+            1. 如果用户只是打招呼、询问你是谁、询问你能做什么、询问如何使用本功能，可以简短自然地回应，并引导用户提出与笔记相关的问题。
+            2. 如果用户提出的是模糊学习主题，例如“我想了解 Spring”“帮我复习 Redis”，请结合检索到的笔记片段，给出学习建议、阅读顺序、相关笔记推荐或进一步提问方向。
+            3. 如果用户询问具体知识、事实、项目细节、笔记内容或要求总结，请优先根据笔记片段回答。
+            4. 如果笔记片段不足以支持具体回答，请说明“笔记中没有足够信息来回答这个问题”，并建议用户换个关键词、补充问题或先创建相关笔记。
+            5. 不要编造不存在的笔记内容，不要声称看过未提供的笔记。
+            6. 当前 RAG 问答没有长期记忆，不要声称记得之前的对话。
+
+            来源链接规则：
+            - 当回答引用了笔记片段时，在相关句子或段落末尾添加来源链接：[《笔记标题》](kh-source://note/{noteId})。
+            - 只能使用下面提供的真实 noteId 和标题，不要编造。
+            - 如果只是打招呼、功能说明或没有可靠笔记依据，不要添加来源链接。
+
+            笔记片段：
+            """;
+
     public AiRagAnswer ask(String question) {
         if (question == null || question.trim().isEmpty()) {
             throw new BizException(ErrorCode.BAD_REQUEST, "问题不能为空");
@@ -56,11 +76,7 @@ public class AiRagService {
 
     private String buildPrompt(String question, List<AiIndexSearchHit> hits) {
         StringBuilder sb = new StringBuilder();
-        sb.append("你是一个知识库助手。请仅根据下面提供的笔记片段回答用户的问题。\n");
-        sb.append("如果笔记片段中没有足够的信息来回答这个问题，请明确说明\"笔记中没有足够信息来回答这个问题\"。\n");
-        sb.append("当回答引用了笔记片段时，在相关句子或段落末尾添加来源链接：[《笔记标题》](kh-source://note/{noteId})。\n");
-        sb.append("只能使用下面提供的真实 noteId 和标题，不要编造。\n\n");
-        sb.append("笔记片段：\n");
+        sb.append(SYSTEM_PROMPT);
 
         for (int i = 0; i < hits.size(); i++) {
             AiIndexSearchHit hit = hits.get(i);
@@ -71,7 +87,7 @@ public class AiRagService {
         }
 
         sb.append("\n用户问题：").append(question).append("\n\n");
-        sb.append("请回答：");
+        sb.append("请根据上述规则回答：");
 
         return sb.toString();
     }

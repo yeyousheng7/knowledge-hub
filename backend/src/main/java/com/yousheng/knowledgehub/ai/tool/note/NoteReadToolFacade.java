@@ -86,6 +86,40 @@ public class NoteReadToolFacade {
         }
     }
 
+    public AiToolResult<AiToolPage<NoteToolItem>> listMyNotes(Integer page, Integer size) {
+        AiToolResult<Integer> pageResult = AiToolArguments.normalizePage(page);
+        if (!pageResult.success()) {
+            return AiToolResults.failure(ErrorCode.BAD_REQUEST, pageResult.message());
+        }
+
+        AiToolResult<Integer> sizeResult = AiToolArguments.normalizeSize(size);
+        if (!sizeResult.success()) {
+            return AiToolResults.failure(ErrorCode.BAD_REQUEST, sizeResult.message());
+        }
+
+        List<String> warnings = new ArrayList<>(sizeResult.warnings());
+
+        int pageValue = pageResult.data();
+        int sizeValue = sizeResult.data();
+
+        try {
+            NoteListResponse response = noteService.listMyNotes(pageValue, sizeValue, null, null, null);
+
+            List<NoteToolItem> items = response.items().stream()
+                    .map(NoteReadToolFacade::toToolItem)
+                    .toList();
+
+            boolean hasMore = (long) pageValue * sizeValue < response.total();
+            AiToolPage<NoteToolItem> toolPage = new AiToolPage<>(pageValue, sizeValue, items.size(), hasMore, items);
+
+            return warnings.isEmpty()
+                    ? AiToolResults.success(toolPage)
+                    : AiToolResults.success(toolPage, warnings);
+        } catch (BizException e) {
+            return AiToolResults.failure(e);
+        }
+    }
+
     public AiToolResult<AiToolPage<NoteToolItem>> listMyPublishedNotes(Integer page, Integer size) {
         AiToolResult<Integer> pageResult = AiToolArguments.normalizePage(page);
         if (!pageResult.success()) {

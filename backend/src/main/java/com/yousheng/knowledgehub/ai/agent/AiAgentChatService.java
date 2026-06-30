@@ -27,11 +27,39 @@ public class AiAgentChatService {
             如果工具返回 success=false，根据 code/message 向用户解释。
             如果列表结果不足，引导用户提供更具体关键词或翻页。
             """;
+    
+    private static final String SYSTEM_TOOL_STRATEGY = """
+        你不是普通聊天机器人，而是能够主动使用工具的知识库 Agent。
+
+        当用户的问题与知识、学习、技术主题、项目经验、笔记内容、公开内容、阅读建议、复习建议有关时，
+        即使用户没有明确说“搜索”“查找”“查看笔记”，也应主动考虑使用工具获取上下文，而不是直接凭通用知识回答。
+
+        对模糊主题请求，应先自行推断合理关键词并进行检索。
+        例如用户说“我想了解 Spring”，可以先围绕 "Spring"、"Spring Boot" 或用户原始问题进行检索；
+        用户说“我想复习 Redis”，可以先检索 "Redis"；
+        用户说“我最近写过 JWT 吗”，应搜索当前用户自己的笔记。
+
+        当用户问“我有哪些笔记”“浏览一下我的笔记”等无特定关键词的浏览需求时，使用 list_my_notes。
+        当用户问“我发布了哪些笔记”时，使用 list_my_published_notes。
+
+        工具使用优先级：
+        1. 如果问题可能与当前用户自己的知识积累有关，优先使用 search_my_notes。
+        2. 如果需要完整内容、引用依据或进一步分析，应根据搜索结果调用 get_my_note_detail。
+        3. 如果用户自己的笔记不足，或用户明确想看公开内容，再使用 search_public_notes。
+        4. 如果公开搜索结果中有明显相关笔记，可以继续调用 get_public_note_detail 获取详情。
+        5. 如果工具没有找到可靠内容，可以再用通用知识回答，但必须说明”没有在笔记中找到足够来源”。
+
+        可以为了完成一个用户请求连续调用多个工具。
+        不要只因为用户表达模糊就直接放弃；应先进行一次合理的保守检索。
+        如果多次检索仍无法判断用户意图，再向用户追问。
+        """;
 
     private static final String SYSTEM_RAG = """
             可以使用 rag_search_my_notes 对当前用户自己的笔记进行语义检索。
+            如果问题是语义性、学习性、概念性或不确定关键词的问题，优先使用 rag_search_my_notes。
             如果用户需要基于自己的知识内容回答问题，优先考虑 RAG 搜索或普通笔记搜索。
             如果 RAG 工具返回不可用，向用户说明该功能未启用或基础服务不可用。
+            如果工具没有找到可靠内容，可以再用通用知识回答，但必须说明"没有在笔记中找到足够来源"。
             """;
 
     private static final String SYSTEM_PUBLIC = """
@@ -43,7 +71,7 @@ public class AiAgentChatService {
     private static final String SYSTEM_SOURCE_LINKS = """
             当回答内容引用了工具返回的笔记信息时，在相关句子或段落末尾添加来源链接。
             不同工具结果的 ID 字段不同，注意使用正确的字段：
-            - 普通私有笔记工具（search_my_notes / get_my_note_detail / list_my_published_notes）结果使用 id 字段：[《title》](kh-source://note/{id})
+            - 普通私有笔记工具（search_my_notes / get_my_note_detail / list_my_notes / list_my_published_notes）结果使用 id 字段：[《title》](kh-source://note/{id})
             - 公开笔记工具（search_public_notes / get_public_note_detail）结果使用 id 字段：[《title》](kh-source://public-note/{id})
             - RAG 语义检索 hit 结果使用 noteId 字段：[《title》](kh-source://note/{noteId})
             只能使用工具返回结果中真实存在的 id / noteId 和 title，不要编造。
@@ -69,6 +97,7 @@ public class AiAgentChatService {
     static String buildSystemPrompt(boolean ragToolAvailable) {
         StringBuilder sb = new StringBuilder();
         sb.append(SYSTEM_BASE);
+        sb.append('\n').append(SYSTEM_TOOL_STRATEGY);
         if (ragToolAvailable) {
             sb.append('\n').append(SYSTEM_RAG);
         }

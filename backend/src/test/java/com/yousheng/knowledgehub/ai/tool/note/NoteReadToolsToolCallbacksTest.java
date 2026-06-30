@@ -16,7 +16,7 @@ import static org.mockito.Mockito.mock;
 class NoteReadToolsToolCallbacksTest {
 
     @Test
-    void noteReadTools_hasThreeToolMethods() {
+    void noteReadTools_hasFourToolMethods() {
         NoteReadToolFacade facade = mock(NoteReadToolFacade.class);
         NoteReadTools tools = new NoteReadTools(facade);
 
@@ -25,7 +25,7 @@ class NoteReadToolsToolCallbacksTest {
                 .filter(m -> m.isAnnotationPresent(Tool.class))
                 .count();
 
-        assertThat(toolMethodCount).isEqualTo(3);
+        assertThat(toolMethodCount).isEqualTo(4);
     }
 
     @Test
@@ -41,6 +41,7 @@ class NoteReadToolsToolCallbacksTest {
         assertThat(toolNames).containsExactlyInAnyOrder(
                 "search_my_notes",
                 "get_my_note_detail",
+                "list_my_notes",
                 "list_my_published_notes"
         );
     }

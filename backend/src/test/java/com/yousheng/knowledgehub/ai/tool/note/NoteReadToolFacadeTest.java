@@ -254,6 +254,62 @@ class NoteReadToolFacadeTest {
                 .isSameAs(runtimeEx);
     }
 
+    // --- listMyNotes ---
+
+    @Test
+    void listMyNotes_defaultsPageAndSize() {
+        NoteListResponse response = new NoteListResponse(List.of(), 0, 1, 5);
+        when(noteService.listMyNotes(1, 5, null, null, null)).thenReturn(response);
+
+        AiToolResult<AiToolPage<NoteToolItem>> result = facade.listMyNotes(null, null);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.data().page()).isEqualTo(1);
+        assertThat(result.data().size()).isEqualTo(5);
+        verify(noteService).listMyNotes(1, 5, null, null, null);
+    }
+
+    @Test
+    void listMyNotes_sizeAbove10_clampsAndWarns() {
+        NoteListResponse response = new NoteListResponse(List.of(), 0, 1, 10);
+        when(noteService.listMyNotes(1, 10, null, null, null)).thenReturn(response);
+
+        AiToolResult<AiToolPage<NoteToolItem>> result = facade.listMyNotes(1, 20);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.data().size()).isEqualTo(10);
+        assertThat(result.warnings()).anyMatch(w -> w.contains("10"));
+    }
+
+    @Test
+    void listMyNotes_itemDoesNotContainContentMd() {
+        NoteTagResponse tag = new NoteTagResponse(1L, "java");
+        NoteListItemResponse item = new NoteListItemResponse(
+                1L, "title", "summary", null, List.of(tag),
+                "PRIVATE", "NORMAL", LocalDateTime.now(), LocalDateTime.now(), null);
+        NoteListResponse response = new NoteListResponse(List.of(item), 1, 1, 5);
+        when(noteService.listMyNotes(1, 5, null, null, null)).thenReturn(response);
+
+        AiToolResult<AiToolPage<NoteToolItem>> result = facade.listMyNotes(1, 5);
+
+        NoteToolItem toolItem = result.data().items().get(0);
+        assertThat(toolItem.id()).isEqualTo(1L);
+        assertThat(toolItem.title()).isEqualTo("title");
+    }
+
+    @Test
+    void listMyNotes_bizException_convertsToFailure() {
+        BizException bizEx = new BizException(ErrorCode.USER_DISABLED);
+        when(noteService.listMyNotes(1, 5, null, null, null)).thenThrow(bizEx);
+
+        AiToolResult<AiToolPage<NoteToolItem>> result = facade.listMyNotes(1, 5);
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.code()).isEqualTo(ErrorCode.USER_DISABLED.getCode());
+    }
+
+    // --- listMyPublishedNotes ---
+
     @Test
     void listMyPublishedNotes_defaultsPageAndSize() {
         NoteListResponse response = new NoteListResponse(List.of(), 0, 1, 5);

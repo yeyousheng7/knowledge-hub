@@ -64,6 +64,30 @@ class NoteReadToolsTest {
     }
 
     @Test
+    void list_my_notes_delegatesToFacade() {
+        AiToolPage<NoteToolItem> page = new AiToolPage<>(1, 5, 3, false, List.of());
+        AiToolResult<AiToolPage<NoteToolItem>> expected = new AiToolResult<>(true, 0, "OK", page, List.of());
+        when(facade.listMyNotes(1, 5)).thenReturn(expected);
+
+        AiToolResult<AiToolPage<NoteToolItem>> result = tools.list_my_notes(1, 5);
+
+        assertThat(result).isSameAs(expected);
+        verify(facade).listMyNotes(1, 5);
+    }
+
+    @Test
+    void list_my_notes_nullPageAndSize_delegatesToFacade() {
+        AiToolPage<NoteToolItem> page = new AiToolPage<>(1, 5, 0, false, List.of());
+        AiToolResult<AiToolPage<NoteToolItem>> expected = new AiToolResult<>(true, 0, "OK", page, List.of());
+        when(facade.listMyNotes(null, null)).thenReturn(expected);
+
+        AiToolResult<AiToolPage<NoteToolItem>> result = tools.list_my_notes(null, null);
+
+        assertThat(result).isSameAs(expected);
+        verify(facade).listMyNotes(null, null);
+    }
+
+    @Test
     void list_my_published_notes_delegatesToFacade() {
         AiToolPage<NoteToolItem> page = new AiToolPage<>(1, 5, 2, false, List.of());
         AiToolResult<AiToolPage<NoteToolItem>> expected = new AiToolResult<>(true, 0, "OK", page, List.of());
