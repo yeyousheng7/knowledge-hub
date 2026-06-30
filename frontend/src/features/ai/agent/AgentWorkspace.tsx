@@ -36,6 +36,8 @@ import { AiMarkdownContent } from "@/shared/markdown/AiMarkdownContent";
 interface AgentWorkspaceProps {
   initialMessages?: AgentTranscriptMessage[];
   message: string;
+  onBeforeSend?: () => Promise<void>;
+  onConversationStart?: () => void;
   onMessageChange: (value: string) => void;
   onMessagesChange?: (messages: AgentTranscriptMessage[]) => void;
   resetVersion: number;
@@ -344,6 +346,8 @@ function ActionCard({ action }: { action: AiAgentAction }) {
 export function AgentWorkspace({
   initialMessages = [],
   message,
+  onBeforeSend,
+  onConversationStart,
   onMessageChange,
   onMessagesChange,
   resetVersion,
@@ -396,19 +400,21 @@ export function AgentWorkspace({
     setChatError(null);
     setIsSending(true);
     onMessageChange("");
-    setMessages((current) =>
-      trimAgentMessages([
-        ...current,
-        {
-          id: nextMessageId("user"),
-          role: "user",
-          content: sentMessage,
-          actions: [],
-        },
-      ]),
-    );
 
     try {
+      await onBeforeSend?.();
+      onConversationStart?.();
+      setMessages((current) =>
+        trimAgentMessages([
+          ...current,
+          {
+            id: nextMessageId("user"),
+            role: "user",
+            content: sentMessage,
+            actions: [],
+          },
+        ]),
+      );
       const response = await chatAiAgent(
         { message: sentMessage },
         controller.signal,

@@ -191,3 +191,14 @@ export function clearAgentTranscript(userId: number | null): void {
     agentMessages: [],
   });
 }
+
+export function clearAiTranscript(userId: number | null): void {
+  if (!userId) {
+    return;
+  }
+
+  writeSnapshot(userId, {
+    ragTurns: [],
+    agentMessages: [],
+  });
+}
