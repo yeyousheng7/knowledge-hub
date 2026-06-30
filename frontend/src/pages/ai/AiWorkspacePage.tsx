@@ -149,7 +149,7 @@ export function AiWorkspacePage() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-8 pb-16 pt-9 xl:px-12">
+      <main className="min-h-0 flex-1 overflow-y-auto px-8 pb-6 pt-9 xl:px-12">
         <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col">
           {!sessionMode ? (
             <div className="relative mx-auto mt-10 grid w-full max-w-md grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm shadow-slate-100">

@@ -26,6 +26,8 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { AiMarkdownContent } from "@/shared/markdown/AiMarkdownContent";
 
+const RAG_VISIBLE_TURN_STEP = 10;
+
 interface RagWorkspaceProps {
   initialTurns?: RagTranscriptTurn[];
   onConversationStart?: () => void;
@@ -102,6 +104,24 @@ function SourceCard({ source }: { source: AiRagSourceResponse }) {
   );
 }
 
+function findScrollParent(element: HTMLElement | null): HTMLElement | null {
+  let current = element?.parentElement ?? null;
+
+  while (current) {
+    const overflowY = window.getComputedStyle(current).overflowY;
+
+    if (overflowY === "auto" || overflowY === "scroll") {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return document.scrollingElement instanceof HTMLElement
+    ? document.scrollingElement
+    : null;
+}
+
 export function RagWorkspace({
   initialTurns = [],
   onConversationStart,
@@ -118,15 +138,83 @@ export function RagWorkspace({
   const [expandedSourceTurnIds, setExpandedSourceTurnIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [visibleTurnCount, setVisibleTurnCount] = useState(RAG_VISIBLE_TURN_STEP);
   const askController = useRef<AbortController | null>(null);
+  const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const hasScrolledToInitialBottom = useRef(false);
   const idCounter = useRef(initialTurns.length);
   const canAsk = question.trim().length > 0 && question.length <= 1000;
+  const hasConversation =
+    turns.length > 0 || pendingQuestion || isAsking || formError !== null;
 
   useEffect(() => () => askController.current?.abort(), []);
 
   useEffect(() => {
     onTurnsChange?.(turns);
   }, [onTurnsChange, turns]);
+
+  useEffect(() => {
+    const input = questionInputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    input.style.height = "0px";
+    input.style.height = `${Math.min(Math.max(input.scrollHeight, 72), 160)}px`;
+    input.style.overflowY = input.scrollHeight > 160 ? "auto" : "hidden";
+  }, [question]);
+
+  useEffect(() => {
+    if (!hasConversation || hasScrolledToInitialBottom.current) {
+      return;
+    }
+
+    hasScrolledToInitialBottom.current = true;
+    window.setTimeout(() => {
+      bottomRef.current?.scrollIntoView?.({ block: "end" });
+    }, 0);
+  }, [hasConversation]);
+
+  useEffect(() => {
+    if (!hasConversation || !hasScrolledToInitialBottom.current) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      bottomRef.current?.scrollIntoView?.({ block: "end", behavior: "smooth" });
+    }, 0);
+  }, [formError, hasConversation, isAsking, pendingQuestion, turns.length]);
+
+  useEffect(() => {
+    if (!hasConversation) {
+      return;
+    }
+
+    const scrollParent = findScrollParent(sectionRef.current);
+
+    if (!scrollParent) {
+      return;
+    }
+
+    const parent = scrollParent;
+
+    function handleScroll() {
+      if (parent.scrollTop > 80) {
+        return;
+      }
+
+      setVisibleTurnCount((current) =>
+        Math.min(current + RAG_VISIBLE_TURN_STEP, turns.length),
+      );
+    }
+
+    parent.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => parent.removeEventListener("scroll", handleScroll);
+  }, [hasConversation, turns.length]);
 
   async function handleAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -216,11 +304,13 @@ export function RagWorkspace({
     });
   }
 
-  const hasConversation =
-    turns.length > 0 || pendingQuestion || isAsking || formError !== null;
+  const visibleTurns = turns.slice(-visibleTurnCount);
 
   return (
-    <section className="mx-auto mt-12 w-full max-w-4xl">
+    <section
+      className="mx-auto mt-12 flex w-full max-w-4xl flex-1 flex-col"
+      ref={sectionRef}
+    >
       {!hasConversation ? (
         <div className="text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
@@ -241,7 +331,13 @@ export function RagWorkspace({
             </div>
           ) : null}
 
-          {turns.map((turn) => (
+          {turns.length > visibleTurns.length ? (
+            <div className="text-center text-xs text-slate-400">
+              向上滚动加载更早对话
+            </div>
+          ) : null}
+
+          {visibleTurns.map((turn) => (
             <div className="space-y-5" key={turn.id}>
               {turn.question ? (
                 <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-5 py-4 text-sm leading-6 text-slate-800">
@@ -316,27 +412,34 @@ export function RagWorkspace({
         </div>
       )}
 
-      <form className="mt-8 text-left" onSubmit={(event) => void handleAsk(event)}>
+      <form
+        className={cn(
+          "z-10 mx-auto w-full max-w-2xl text-left",
+          hasConversation ? "sticky bottom-2 mt-auto pt-8" : "mt-auto pt-8",
+        )}
+        onSubmit={(event) => void handleAsk(event)}
+      >
         <label className="sr-only" htmlFor="ai-rag-input">
           RAG 问题
         </label>
-        <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
+        <div className="relative rounded-2xl border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
           <textarea
-            className="min-h-36 w-full resize-none bg-transparent px-5 pb-16 pt-5 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
+            className="max-h-40 min-h-[4.5rem] w-full resize-none bg-transparent px-5 pb-14 pt-4 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
             disabled={isAsking}
             id="ai-rag-input"
             maxLength={1000}
             onChange={(event) => onQuestionChange(event.target.value)}
             onKeyDown={handleQuestionKeyDown}
             placeholder="输入你的第一个问题，开启知识探索之旅…"
+            ref={questionInputRef}
             value={question}
           />
-          <span className="absolute bottom-5 left-5 text-xs text-slate-400">
+          <span className="absolute bottom-4 left-5 text-xs text-slate-400">
             {question.length}/1000
           </span>
           <button
             aria-label="发送 RAG 问题"
-            className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-100 disabled:text-blue-400 disabled:shadow-none"
+            className="absolute bottom-3 right-4 grid size-10 place-items-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-100 disabled:text-blue-400 disabled:shadow-none"
             disabled={!canAsk || isAsking}
             type="submit"
           >
@@ -347,7 +450,11 @@ export function RagWorkspace({
             )}
           </button>
         </div>
+        <p className="mt-2 text-center text-xs text-slate-400">
+          AI 生成内容仅供参考，请核对重要信息。
+        </p>
       </form>
+      <div ref={bottomRef} />
     </section>
   );
 }

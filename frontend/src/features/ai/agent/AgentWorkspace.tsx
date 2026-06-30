@@ -6,7 +6,6 @@ import {
   LoaderCircle,
   Send,
   Sparkles,
-  XCircle,
 } from "lucide-react";
 import {
   useEffect,
@@ -32,6 +31,8 @@ import {
 } from "@/features/ai/ai-session-storage";
 import { cn } from "@/shared/lib/utils";
 import { AiMarkdownContent } from "@/shared/markdown/AiMarkdownContent";
+
+const AGENT_VISIBLE_MESSAGE_STEP = 20;
 
 interface AgentWorkspaceProps {
   initialMessages?: AgentTranscriptMessage[];
@@ -343,6 +344,24 @@ function ActionCard({ action }: { action: AiAgentAction }) {
   );
 }
 
+function findScrollParent(element: HTMLElement | null): HTMLElement | null {
+  let current = element?.parentElement ?? null;
+
+  while (current) {
+    const overflowY = window.getComputedStyle(current).overflowY;
+
+    if (overflowY === "auto" || overflowY === "scroll") {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return document.scrollingElement instanceof HTMLElement
+    ? document.scrollingElement
+    : null;
+}
+
 export function AgentWorkspace({
   initialMessages = [],
   message,
@@ -357,9 +376,16 @@ export function AgentWorkspace({
   );
   const [chatError, setChatError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [visibleMessageCount, setVisibleMessageCount] = useState(
+    AGENT_VISIBLE_MESSAGE_STEP,
+  );
   const idCounter = useRef(initialMessages.length);
   const lastResetVersion = useRef(resetVersion);
   const chatController = useRef<AbortController | null>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const hasScrolledToInitialBottom = useRef(false);
   const canSend = message.trim().length > 0 && message.length <= 1000;
   const hasConversation = messages.length > 0 || chatError !== null || isSending;
 
@@ -378,6 +404,67 @@ export function AgentWorkspace({
       setIsSending(false);
     }
   }, [resetVersion]);
+
+  useEffect(() => {
+    const input = messageInputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    input.style.height = "0px";
+    input.style.height = `${Math.min(Math.max(input.scrollHeight, 72), 160)}px`;
+    input.style.overflowY = input.scrollHeight > 160 ? "auto" : "hidden";
+  }, [message]);
+
+  useEffect(() => {
+    if (!hasConversation || hasScrolledToInitialBottom.current) {
+      return;
+    }
+
+    hasScrolledToInitialBottom.current = true;
+    window.setTimeout(() => {
+      bottomRef.current?.scrollIntoView?.({ block: "end" });
+    }, 0);
+  }, [hasConversation]);
+
+  useEffect(() => {
+    if (!hasConversation || !hasScrolledToInitialBottom.current) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      bottomRef.current?.scrollIntoView?.({ block: "end", behavior: "smooth" });
+    }, 0);
+  }, [chatError, hasConversation, isSending, messages.length]);
+
+  useEffect(() => {
+    if (!hasConversation) {
+      return;
+    }
+
+    const scrollParent = findScrollParent(sectionRef.current);
+
+    if (!scrollParent) {
+      return;
+    }
+
+    const parent = scrollParent;
+
+    function handleScroll() {
+      if (parent.scrollTop > 80) {
+        return;
+      }
+
+      setVisibleMessageCount((current) =>
+        Math.min(current + AGENT_VISIBLE_MESSAGE_STEP, messages.length),
+      );
+    }
+
+    parent.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => parent.removeEventListener("scroll", handleScroll);
+  }, [hasConversation, messages.length]);
 
   function nextMessageId(prefix: AgentMessage["role"]): string {
     idCounter.current += 1;
@@ -454,8 +541,13 @@ export function AgentWorkspace({
     event.currentTarget.form?.requestSubmit();
   }
 
+  const visibleMessages = messages.slice(-visibleMessageCount);
+
   return (
-    <section className="mx-auto mt-12 w-full max-w-4xl">
+    <section
+      className="mx-auto mt-12 flex w-full max-w-4xl flex-1 flex-col"
+      ref={sectionRef}
+    >
       {!hasConversation ? (
         <div className="text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
@@ -470,7 +562,13 @@ export function AgentWorkspace({
         </div>
       ) : (
         <div aria-live="polite" className="space-y-5">
-          {messages.map((item) =>
+          {messages.length > visibleMessages.length ? (
+            <div className="text-center text-xs text-slate-400">
+              向上滚动加载更早对话
+            </div>
+          ) : null}
+
+          {visibleMessages.map((item) =>
             item.role === "user" ? (
               <div
                 className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-5 py-4 text-sm leading-6 text-slate-800"
@@ -518,27 +616,34 @@ export function AgentWorkspace({
         </div>
       )}
 
-      <form className="mt-8 text-left" onSubmit={(event) => void handleSubmit(event)}>
+      <form
+        className={cn(
+          "z-10 mx-auto w-full max-w-2xl text-left",
+          hasConversation ? "sticky bottom-2 mt-auto pt-8" : "mt-auto pt-8",
+        )}
+        onSubmit={(event) => void handleSubmit(event)}
+      >
         <label className="sr-only" htmlFor="ai-agent-input">
           Agent 消息
         </label>
-        <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
+        <div className="relative rounded-2xl border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
           <textarea
-            className="min-h-36 w-full resize-none bg-transparent px-5 pb-16 pt-5 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
+            className="max-h-40 min-h-[4.5rem] w-full resize-none bg-transparent px-5 pb-14 pt-4 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
             disabled={isSending}
             id="ai-agent-input"
             maxLength={1000}
             onChange={(event) => onMessageChange(event.target.value)}
             onKeyDown={handleMessageKeyDown}
             placeholder="让 Agent 帮你整理、创建或调整笔记…"
+            ref={messageInputRef}
             value={message}
           />
-          <span className="absolute bottom-5 left-5 text-xs text-slate-400">
+          <span className="absolute bottom-4 left-5 text-xs text-slate-400">
             {message.length}/1000
           </span>
           <button
             aria-label="发送 Agent 消息"
-            className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-100 disabled:text-blue-400 disabled:shadow-none"
+            className="absolute bottom-3 right-4 grid size-10 place-items-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-100 disabled:text-blue-400 disabled:shadow-none"
             disabled={!canSend || isSending}
             type="submit"
           >
@@ -549,11 +654,14 @@ export function AgentWorkspace({
             )}
           </button>
         </div>
-        <p className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-          <XCircle aria-hidden="true" className="size-3.5" />
+        <p className="mt-2 text-center text-xs text-slate-400">
+          AI 生成内容仅供参考；Agent 操作必须手动确认后才会执行。
+        </p>
+        <p className="sr-only">
           Agent 返回待确认操作时，不会自动执行；必须手动点击确认。
         </p>
       </form>
+      <div ref={bottomRef} />
     </section>
   );
 }
