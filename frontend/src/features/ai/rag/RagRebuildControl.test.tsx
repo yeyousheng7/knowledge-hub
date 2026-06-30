@@ -14,6 +14,10 @@ vi.mock("@/api/ai", () => ({
   rebuildAiIndex: vi.fn(),
 }));
 
+function pendingPromise<T>(): Promise<T> {
+  return new Promise(() => undefined);
+}
+
 describe("RagRebuildControl", () => {
   afterEach(() => {
     cleanup();
@@ -64,5 +68,27 @@ describe("RagRebuildControl", () => {
 
     expect(screen.queryByText(/已索引 3 个内容块/)).not.toBeInTheDocument();
     expect(screen.getByText(/上次重建/)).toBeInTheDocument();
+  });
+
+  it("hides persisted rebuild history while rebuilding", () => {
+    window.localStorage.setItem(
+      "knowledgehub.ai.rag.lastRebuild.v1",
+      JSON.stringify({
+        chunkCount: 3,
+        indexedAt: "2026-06-30T01:06:00Z",
+      }),
+    );
+    vi.mocked(rebuildAiIndex).mockReturnValue(pendingPromise());
+
+    render(<RagRebuildControl />);
+
+    expect(screen.getByText(/上次重建/)).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "重建 RAG 知识库" }));
+    });
+
+    expect(screen.queryByText(/上次重建/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "正在重建…" })).toBeDisabled();
   });
 });

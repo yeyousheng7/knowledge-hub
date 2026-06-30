@@ -153,7 +153,7 @@ export function RagRebuildControl() {
             </span>
           </span>
         ) : null}
-        {!result && lastRebuild ? (
+        {!isRebuilding && !result && lastRebuild ? (
           <span
             className="text-slate-400"
             title={`上次重建索引 ${lastRebuild.chunkCount} 个内容块`}
