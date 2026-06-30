@@ -50,5 +50,26 @@ describe("RagWorkspace", () => {
         expect.any(AbortSignal),
       ),
     );
+    expect(input).toHaveValue("");
+  });
+
+  it("clears the question after submit even when request fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(askAiRag).mockRejectedValue(new Error("服务异常"));
+
+    render(<RagWorkspaceHarness />);
+
+    const input = screen.getByLabelText("RAG 问题");
+    await user.type(input, "失败也清空");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(askAiRag).toHaveBeenCalledWith(
+        { question: "失败也清空" },
+        expect.any(AbortSignal),
+      ),
+    );
+    expect(input).toHaveValue("");
+    expect(screen.getByText(/请重新输入后重试/)).toBeInTheDocument();
   });
 });

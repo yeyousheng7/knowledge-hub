@@ -116,15 +116,17 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
       return;
     }
 
+    const sentQuestion = question;
     const controller = new AbortController();
     askController.current = controller;
     setIsAsking(true);
     setAskError(null);
-    setAnsweredQuestion(question);
+    setAnsweredQuestion(sentQuestion);
     setAnswer(null);
+    onQuestionChange("");
 
     try {
-      setAnswer(await askAiRag({ question }, controller.signal));
+      setAnswer(await askAiRag({ question: sentQuestion }, controller.signal));
     } catch (error) {
       if (!controller.signal.aborted) {
         setAskError(describeAiError(error));
@@ -182,7 +184,7 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
 
           {askError ? (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {askError} 当前问题已保留，可直接重新发送。
+              {askError} 请重新输入后重试。
             </div>
           ) : null}
 

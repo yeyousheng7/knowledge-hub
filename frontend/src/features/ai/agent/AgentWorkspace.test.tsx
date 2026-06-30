@@ -112,5 +112,26 @@ describe("AgentWorkspace", () => {
         expect.any(AbortSignal),
       ),
     );
+    expect(input).toHaveValue("");
+  });
+
+  it("clears the message after submit even when request fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(chatAiAgent).mockRejectedValue(new Error("服务异常"));
+
+    render(<AgentWorkspaceHarness />);
+
+    const input = screen.getByLabelText("Agent 消息");
+    await user.type(input, "失败也清空");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(chatAiAgent).toHaveBeenCalledWith(
+        { message: "失败也清空" },
+        expect.any(AbortSignal),
+      ),
+    );
+    expect(input).toHaveValue("");
+    expect(screen.getByText(/请重新输入后重试/)).toBeInTheDocument();
   });
 });

@@ -386,6 +386,7 @@ export function AgentWorkspace({
     chatController.current = controller;
     setChatError(null);
     setIsSending(true);
+    onMessageChange("");
     setMessages((current) => [
       ...current,
       {
@@ -410,10 +411,9 @@ export function AgentWorkspace({
           actions: response.actions,
         },
       ]);
-      onMessageChange("");
     } catch (caughtError) {
       if (!controller.signal.aborted) {
-        setChatError(`${describeAgentError(caughtError)} 当前消息已保留，可直接重试。`);
+        setChatError(`${describeAgentError(caughtError)} 请重新输入后重试。`);
       }
     } finally {
       if (!controller.signal.aborted) {
