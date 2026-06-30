@@ -12,11 +12,11 @@ type AiMode = "rag" | "agent";
 const modeCopy: Record<AiMode, { label: string; description: string }> = {
   rag: {
     label: "RAG",
-    description: "基于已索引笔记进行检索增强回答",
+    description: "基于已索引的知识库进行回答",
   },
   agent: {
     label: "Agent",
-    description: "使用知识库上下文协助完成笔记操作",
+    description: "协助完成笔记操作",
   },
 };
 

@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +14,20 @@ vi.mock("@/api/ai", () => ({
   chatAiAgent: vi.fn(),
   confirmAiAgentOperation: vi.fn(),
 }));
+
+function AgentWorkspaceHarness() {
+  const [message, setMessage] = useState("");
+
+  return (
+    <MemoryRouter>
+      <AgentWorkspace
+        message={message}
+        onMessageChange={setMessage}
+        resetVersion={0}
+      />
+    </MemoryRouter>
+  );
+}
 
 describe("AgentWorkspace", () => {
   afterEach(() => {
@@ -71,6 +86,31 @@ describe("AgentWorkspace", () => {
 
     await waitFor(() =>
       expect(confirmAiAgentOperation).toHaveBeenCalledWith("operation-1"),
+    );
+  });
+
+  it("submits with Enter and keeps Shift+Enter as a line break", async () => {
+    const user = userEvent.setup();
+    vi.mocked(chatAiAgent).mockResolvedValue({
+      answer: "收到。",
+      actions: [],
+    });
+
+    render(<AgentWorkspaceHarness />);
+
+    const input = screen.getByLabelText("Agent 消息");
+    await user.type(input, "第一行{Shift>}{Enter}{/Shift}第二行");
+
+    expect(input).toHaveValue("第一行\n第二行");
+    expect(chatAiAgent).not.toHaveBeenCalled();
+
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(chatAiAgent).toHaveBeenCalledWith(
+        { message: "第一行\n第二行" },
+        expect.any(AbortSignal),
+      ),
     );
   });
 });

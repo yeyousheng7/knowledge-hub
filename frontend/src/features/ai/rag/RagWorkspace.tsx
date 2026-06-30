@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent,
 } from "react";
 import { Link } from "react-router-dom";
 
@@ -135,6 +136,19 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
     }
   }
 
+  function handleQuestionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
+
   const hasConversation = answer !== null || askError !== null || isAsking;
 
   return (
@@ -212,6 +226,7 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
             id="ai-rag-input"
             maxLength={1000}
             onChange={(event) => onQuestionChange(event.target.value)}
+            onKeyDown={handleQuestionKeyDown}
             placeholder="输入你的第一个问题，开启知识探索之旅…"
             value={question}
           />

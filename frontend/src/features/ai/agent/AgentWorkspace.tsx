@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent,
 } from "react";
 import { Link } from "react-router-dom";
 
@@ -421,6 +422,19 @@ export function AgentWorkspace({
     }
   }
 
+  function handleMessageKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
+
   return (
     <section className="mx-auto mt-12 w-full max-w-4xl">
       {!hasConversation ? (
@@ -496,6 +510,7 @@ export function AgentWorkspace({
             id="ai-agent-input"
             maxLength={1000}
             onChange={(event) => onMessageChange(event.target.value)}
+            onKeyDown={handleMessageKeyDown}
             placeholder="让 Agent 帮你整理、创建或调整笔记…"
             value={message}
           />
@@ -517,7 +532,7 @@ export function AgentWorkspace({
         </div>
         <p className="mt-3 flex items-center gap-2 text-xs text-slate-400">
           <XCircle aria-hidden="true" className="size-3.5" />
-          Agent 返回待确认操作时，前端不会自动执行；必须手动点击确认。
+          Agent 返回待确认操作时，不会自动执行；必须手动点击确认。
         </p>
       </form>
     </section>
