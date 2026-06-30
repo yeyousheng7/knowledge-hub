@@ -9,11 +9,54 @@ import { type AiIndexRebuildResponse } from "@/api/ai-contracts";
 import { rebuildAiIndex } from "@/api/ai";
 import { ApiError } from "@/api/errors";
 
+const LAST_REBUILD_STORAGE_KEY = "knowledgehub.ai.rag.lastRebuild.v1";
+
+interface LastRebuildSnapshot {
+  chunkCount: number;
+  indexedAt: string;
+}
+
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function readLastRebuildSnapshot(): LastRebuildSnapshot | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawValue = window.localStorage.getItem(LAST_REBUILD_STORAGE_KEY);
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as Partial<LastRebuildSnapshot>;
+
+    if (
+      typeof parsedValue.indexedAt !== "string" ||
+      typeof parsedValue.chunkCount !== "number"
+    ) {
+      return null;
+    }
+
+    return {
+      chunkCount: parsedValue.chunkCount,
+      indexedAt: parsedValue.indexedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeLastRebuildSnapshot(snapshot: LastRebuildSnapshot) {
+  window.localStorage.setItem(
+    LAST_REBUILD_STORAGE_KEY,
+    JSON.stringify(snapshot),
+  );
 }
 
 function describeRebuildError(error: unknown): string {
@@ -34,6 +77,9 @@ function describeRebuildError(error: unknown): string {
 
 export function RagRebuildControl() {
   const [result, setResult] = useState<AiIndexRebuildResponse | null>(null);
+  const [lastRebuild, setLastRebuild] = useState<LastRebuildSnapshot | null>(
+    () => readLastRebuildSnapshot(),
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -52,7 +98,15 @@ export function RagRebuildControl() {
     setErrorMessage(null);
 
     try {
-      setResult(await rebuildAiIndex(controller.signal));
+      const rebuildResult = await rebuildAiIndex(controller.signal);
+      const snapshot = {
+        chunkCount: rebuildResult.chunkCount,
+        indexedAt: rebuildResult.indexedAt,
+      };
+
+      setResult(rebuildResult);
+      setLastRebuild(snapshot);
+      writeLastRebuildSnapshot(snapshot);
     } catch (error) {
       if (!controller.signal.aborted) {
         setErrorMessage(describeRebuildError(error));
@@ -79,6 +133,14 @@ export function RagRebuildControl() {
             <span className="truncate">
               已索引 {result.chunkCount} 个内容块 · {formatDateTime(result.indexedAt)}
             </span>
+          </span>
+        ) : null}
+        {lastRebuild ? (
+          <span
+            className="ml-3 text-slate-400"
+            title={`上次重建索引 ${lastRebuild.chunkCount} 个内容块`}
+          >
+            上次重建：{formatDateTime(lastRebuild.indexedAt)}
           </span>
         ) : null}
         {errorMessage ? (
