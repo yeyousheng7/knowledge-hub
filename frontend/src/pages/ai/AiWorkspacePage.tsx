@@ -1,10 +1,20 @@
 import { Bot, Database, Info } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
+import {
+  clearAgentTranscript,
+  readAgentTranscript,
+  readRagTranscript,
+  writeAgentTranscript,
+  writeRagTranscript,
+  type AgentTranscriptMessage,
+  type RagTranscriptTurn,
+} from "@/features/ai/ai-session-storage";
 import { AgentSessionClearControl } from "@/features/ai/agent/AgentSessionClearControl";
 import { AgentWorkspace } from "@/features/ai/agent/AgentWorkspace";
 import { RagRebuildControl } from "@/features/ai/rag/RagRebuildControl";
 import { RagWorkspace } from "@/features/ai/rag/RagWorkspace";
+import { useAuth } from "@/features/auth/auth-context";
 import { cn } from "@/shared/lib/utils";
 
 type AiMode = "rag" | "agent";
@@ -21,14 +31,40 @@ const modeCopy: Record<AiMode, { label: string; description: string }> = {
 };
 
 export function AiWorkspacePage() {
+  const auth = useAuth();
+  const userId = auth.user?.id ?? null;
   const [mode, setMode] = useState<AiMode>("rag");
   const [ragQuestion, setRagQuestion] = useState("");
   const [agentMessage, setAgentMessage] = useState("");
   const [agentResetVersion, setAgentResetVersion] = useState(0);
+  const [ragTurnsSnapshot, setRagTurnsSnapshot] = useState<RagTranscriptTurn[]>(
+    () => readRagTranscript(userId),
+  );
+  const [agentMessagesSnapshot, setAgentMessagesSnapshot] = useState<
+    AgentTranscriptMessage[]
+  >(() => readAgentTranscript(userId));
   const copy = modeCopy[mode];
+
+  const handleRagTurnsChange = useCallback(
+    (turns: RagTranscriptTurn[]) => {
+      setRagTurnsSnapshot(turns);
+      writeRagTranscript(userId, turns);
+    },
+    [userId],
+  );
+
+  const handleAgentMessagesChange = useCallback(
+    (messages: AgentTranscriptMessage[]) => {
+      setAgentMessagesSnapshot(messages);
+      writeAgentTranscript(userId, messages);
+    },
+    [userId],
+  );
 
   function handleAgentCleared() {
     setAgentMessage("");
+    clearAgentTranscript(userId);
+    setAgentMessagesSnapshot([]);
     setAgentResetVersion((current) => current + 1);
   }
 
@@ -88,12 +124,18 @@ export function AiWorkspacePage() {
 
           {mode === "rag" ? (
             <RagWorkspace
+              initialTurns={ragTurnsSnapshot}
+              key={`rag-${userId ?? "anonymous"}`}
               onQuestionChange={setRagQuestion}
+              onTurnsChange={handleRagTurnsChange}
               question={ragQuestion}
             />
           ) : (
             <AgentWorkspace
+              initialMessages={agentMessagesSnapshot}
+              key={`agent-${userId ?? "anonymous"}`}
               message={agentMessage}
+              onMessagesChange={handleAgentMessagesChange}
               onMessageChange={setAgentMessage}
               resetVersion={agentResetVersion}
             />

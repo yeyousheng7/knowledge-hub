@@ -72,4 +72,29 @@ describe("RagWorkspace", () => {
     expect(input).toHaveValue("");
     expect(screen.getByText(/请重新输入后重试/)).toBeInTheDocument();
   });
+
+  it("restores initial turns and trims to the latest 50 turns", () => {
+    const turns = Array.from({ length: 55 }, (_, index) => ({
+      id: `turn-${index}`,
+      question: `问题 ${index}`,
+      answer: {
+        answer: `回答 ${index}`,
+        sources: [],
+      },
+      error: null,
+    }));
+
+    render(
+      <MemoryRouter>
+        <RagWorkspace
+          initialTurns={turns}
+          onQuestionChange={() => undefined}
+          question=""
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("问题 0")).not.toBeInTheDocument();
+    expect(screen.getByText("问题 54")).toBeInTheDocument();
+  });
 });

@@ -26,21 +26,22 @@ import {
   type PendingOperationPayload,
 } from "@/api/ai-contracts";
 import { ApiError } from "@/api/errors";
+import {
+  trimAgentMessages,
+  type AgentTranscriptMessage,
+} from "@/features/ai/ai-session-storage";
 import { cn } from "@/shared/lib/utils";
 import { AiMarkdownContent } from "@/shared/markdown/AiMarkdownContent";
 
 interface AgentWorkspaceProps {
+  initialMessages?: AgentTranscriptMessage[];
   message: string;
   onMessageChange: (value: string) => void;
+  onMessagesChange?: (messages: AgentTranscriptMessage[]) => void;
   resetVersion: number;
 }
 
-interface AgentMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  actions: AiAgentAction[];
-}
+type AgentMessage = AgentTranscriptMessage;
 
 type ConfirmStatus = "pending" | "submitting" | "executed" | "invalid" | "ignored";
 
@@ -341,20 +342,28 @@ function ActionCard({ action }: { action: AiAgentAction }) {
 }
 
 export function AgentWorkspace({
+  initialMessages = [],
   message,
   onMessageChange,
+  onMessagesChange,
   resetVersion,
 }: AgentWorkspaceProps) {
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [messages, setMessages] = useState<AgentMessage[]>(() =>
+    trimAgentMessages(initialMessages),
+  );
   const [chatError, setChatError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const idCounter = useRef(0);
+  const idCounter = useRef(initialMessages.length);
   const lastResetVersion = useRef(resetVersion);
   const chatController = useRef<AbortController | null>(null);
   const canSend = message.trim().length > 0 && message.length <= 1000;
   const hasConversation = messages.length > 0 || chatError !== null || isSending;
 
   useEffect(() => () => chatController.current?.abort(), []);
+
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
 
   useEffect(() => {
     if (lastResetVersion.current !== resetVersion) {
@@ -387,30 +396,34 @@ export function AgentWorkspace({
     setChatError(null);
     setIsSending(true);
     onMessageChange("");
-    setMessages((current) => [
-      ...current,
-      {
-        id: nextMessageId("user"),
-        role: "user",
-        content: sentMessage,
-        actions: [],
-      },
-    ]);
+    setMessages((current) =>
+      trimAgentMessages([
+        ...current,
+        {
+          id: nextMessageId("user"),
+          role: "user",
+          content: sentMessage,
+          actions: [],
+        },
+      ]),
+    );
 
     try {
       const response = await chatAiAgent(
         { message: sentMessage },
         controller.signal,
       );
-      setMessages((current) => [
-        ...current,
-        {
-          id: nextMessageId("assistant"),
-          role: "assistant",
-          content: response.answer,
-          actions: response.actions,
-        },
-      ]);
+      setMessages((current) =>
+        trimAgentMessages([
+          ...current,
+          {
+            id: nextMessageId("assistant"),
+            role: "assistant",
+            content: response.answer,
+            actions: response.actions,
+          },
+        ]),
+      );
     } catch (caughtError) {
       if (!controller.signal.aborted) {
         setChatError(`${describeAgentError(caughtError)} 请重新输入后重试。`);

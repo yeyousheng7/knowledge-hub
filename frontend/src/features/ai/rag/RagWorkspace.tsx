@@ -15,16 +15,19 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 
-import {
-  type AiRagAskResponse,
-  type AiRagSourceResponse,
-} from "@/api/ai-contracts";
+import { type AiRagSourceResponse } from "@/api/ai-contracts";
 import { askAiRag } from "@/api/ai";
 import { ApiError } from "@/api/errors";
+import {
+  trimRagTurns,
+  type RagTranscriptTurn,
+} from "@/features/ai/ai-session-storage";
 import { AiMarkdownContent } from "@/shared/markdown/AiMarkdownContent";
 
 interface RagWorkspaceProps {
+  initialTurns?: RagTranscriptTurn[];
   onQuestionChange: (value: string) => void;
+  onTurnsChange?: (turns: RagTranscriptTurn[]) => void;
   question: string;
 }
 
@@ -96,22 +99,34 @@ function SourceCard({ source }: { source: AiRagSourceResponse }) {
   );
 }
 
-export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) {
-  const [answer, setAnswer] = useState<AiRagAskResponse | null>(null);
-  const [answeredQuestion, setAnsweredQuestion] = useState("");
-  const [askError, setAskError] = useState<string | null>(null);
+export function RagWorkspace({
+  initialTurns = [],
+  onQuestionChange,
+  onTurnsChange,
+  question,
+}: RagWorkspaceProps) {
+  const [turns, setTurns] = useState<RagTranscriptTurn[]>(() =>
+    trimRagTurns(initialTurns),
+  );
+  const [pendingQuestion, setPendingQuestion] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
   const askController = useRef<AbortController | null>(null);
+  const idCounter = useRef(initialTurns.length);
   const canAsk = question.trim().length > 0 && question.length <= 1000;
 
   useEffect(() => () => askController.current?.abort(), []);
+
+  useEffect(() => {
+    onTurnsChange?.(turns);
+  }, [onTurnsChange, turns]);
 
   async function handleAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canAsk || isAsking) {
       if (!question.trim()) {
-        setAskError("请输入问题后再发送。");
+        setFormError("请输入问题后再发送。");
       }
       return;
     }
@@ -120,22 +135,50 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
     const controller = new AbortController();
     askController.current = controller;
     setIsAsking(true);
-    setAskError(null);
-    setAnsweredQuestion(sentQuestion);
-    setAnswer(null);
+    setFormError(null);
+    setPendingQuestion(sentQuestion);
     onQuestionChange("");
 
     try {
-      setAnswer(await askAiRag({ question: sentQuestion }, controller.signal));
+      const answer = await askAiRag({ question: sentQuestion }, controller.signal);
+      if (!controller.signal.aborted) {
+        setTurns((current) =>
+          trimRagTurns([
+            ...current,
+            {
+              id: nextTurnId(),
+              question: sentQuestion,
+              answer,
+              error: null,
+            },
+          ]),
+        );
+      }
     } catch (error) {
       if (!controller.signal.aborted) {
-        setAskError(describeAiError(error));
+        setTurns((current) =>
+          trimRagTurns([
+            ...current,
+            {
+              id: nextTurnId(),
+              question: sentQuestion,
+              answer: null,
+              error: describeAiError(error),
+            },
+          ]),
+        );
       }
     } finally {
       if (!controller.signal.aborted) {
+        setPendingQuestion("");
         setIsAsking(false);
       }
     }
+  }
+
+  function nextTurnId(): string {
+    idCounter.current += 1;
+    return `rag-turn-${idCounter.current}`;
   }
 
   function handleQuestionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -151,7 +194,8 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
     event.currentTarget.form?.requestSubmit();
   }
 
-  const hasConversation = answer !== null || askError !== null || isAsking;
+  const hasConversation =
+    turns.length > 0 || pendingQuestion || isAsking || formError !== null;
 
   return (
     <section className="mx-auto mt-12 w-full max-w-4xl">
@@ -169,9 +213,58 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
         </div>
       ) : (
         <div aria-live="polite" className="space-y-5">
-          {answeredQuestion ? (
+          {formError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
+          ) : null}
+
+          {turns.map((turn) => (
+            <div className="space-y-5" key={turn.id}>
+              {turn.question ? (
+                <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-5 py-4 text-sm leading-6 text-slate-800">
+                  {turn.question}
+                </div>
+              ) : null}
+
+              {turn.error ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {turn.error} 请重新输入后重试。
+                </div>
+              ) : null}
+
+              {turn.answer ? (
+                <div className="flex items-start gap-3">
+                  <span className="mt-1 grid size-10 shrink-0 place-items-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-200">
+                    <Sparkles aria-hidden="true" className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-100">
+                    <AiMarkdownContent content={turn.answer.answer} />
+                  </div>
+                </div>
+              ) : null}
+
+              {turn.answer && turn.answer.sources.length > 0 ? (
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">
+                    参考来源（{turn.answer.sources.length}）
+                  </h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {turn.answer.sources.map((source) => (
+                      <SourceCard
+                        key={`${turn.id}-${source.noteId}-${source.chunkIndex}`}
+                        source={source}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+
+          {pendingQuestion ? (
             <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-5 py-4 text-sm leading-6 text-slate-800">
-              {answeredQuestion}
+              {pendingQuestion}
             </div>
           ) : null}
 
@@ -179,39 +272,6 @@ export function RagWorkspace({ question, onQuestionChange }: RagWorkspaceProps) 
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-5 text-sm text-slate-500">
               <LoaderCircle aria-hidden="true" className="size-5 animate-spin text-blue-500" />
               正在基于知识库生成完整回答…
-            </div>
-          ) : null}
-
-          {askError ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {askError} 请重新输入后重试。
-            </div>
-          ) : null}
-
-          {answer ? (
-            <div className="flex items-start gap-3">
-              <span className="mt-1 grid size-10 shrink-0 place-items-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-200">
-                <Sparkles aria-hidden="true" className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-100">
-                <AiMarkdownContent content={answer.answer} />
-              </div>
-            </div>
-          ) : null}
-
-          {answer && answer.sources.length > 0 ? (
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-slate-700">
-                参考来源（{answer.sources.length}）
-              </h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                {answer.sources.map((source) => (
-                  <SourceCard
-                    key={`${source.noteId}-${source.chunkIndex}`}
-                    source={source}
-                  />
-                ))}
-              </div>
             </div>
           ) : null}
         </div>

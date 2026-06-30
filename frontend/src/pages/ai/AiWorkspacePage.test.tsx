@@ -3,18 +3,43 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
+import { AuthContext } from "@/features/auth/auth-context";
 import { AiWorkspacePage } from "@/pages/ai/AiWorkspacePage";
 
+const authValue = {
+  status: "authenticated" as const,
+  user: {
+    id: 1,
+    username: "test",
+    nickname: "test",
+    role: "USER" as const,
+  },
+  restoreError: null,
+  login: async () => undefined,
+  logout: async () => undefined,
+  retrySession: () => undefined,
+  discardSession: () => undefined,
+};
+
+function renderAiWorkspacePage() {
+  render(
+    <AuthContext.Provider value={authValue}>
+      <MemoryRouter>
+        <AiWorkspacePage />
+      </MemoryRouter>
+    </AuthContext.Provider>,
+  );
+}
+
 describe("AiWorkspacePage", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    window.sessionStorage.clear();
+  });
 
   it("keeps independent drafts when switching between RAG and Agent", async () => {
     const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <AiWorkspacePage />
-      </MemoryRouter>,
-    );
+    renderAiWorkspacePage();
 
     await user.type(screen.getByLabelText("RAG 问题"), "RAG draft");
     await user.click(screen.getByRole("button", { name: "Agent" }));

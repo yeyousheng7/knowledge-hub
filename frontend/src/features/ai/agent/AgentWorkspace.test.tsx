@@ -134,4 +134,27 @@ describe("AgentWorkspace", () => {
     expect(input).toHaveValue("");
     expect(screen.getByText(/请重新输入后重试/)).toBeInTheDocument();
   });
+
+  it("restores initial messages and trims to the latest 50 rounds", () => {
+    const messages = Array.from({ length: 110 }, (_, index) => ({
+      id: `message-${index}`,
+      role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      content: `消息 ${index}`,
+      actions: [],
+    }));
+
+    render(
+      <MemoryRouter>
+        <AgentWorkspace
+          initialMessages={messages}
+          message=""
+          onMessageChange={() => undefined}
+          resetVersion={0}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("消息 0")).not.toBeInTheDocument();
+    expect(screen.getByText("消息 109")).toBeInTheDocument();
+  });
 });
