@@ -11,6 +11,11 @@ target/
 .env
 application-local.yml
 
+# Frontend development artifacts
+docs/frontend-api/
+docs/knowledgeHub_frontend_ui_images/
+docs/frontend-implementation-plan.md
+
 # OS
 .DS_Store
 Thumbs.db

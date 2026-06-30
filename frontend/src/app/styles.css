@@ -1,0 +1,262 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.002 247.8);
+  --foreground: oklch(0.21 0.034 264.7);
+  --border: oklch(0.922 0.013 255.5);
+  --muted: oklch(0.967 0.003 264.5);
+  --muted-foreground: oklch(0.551 0.027 264.4);
+  --primary: oklch(0.488 0.243 264.4);
+  --primary-foreground: oklch(0.985 0.002 247.8);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply m-0 min-w-80 bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  .auth-page {
+    background:
+      radial-gradient(circle at 50% 0%, rgb(255 255 255 / 0.96), transparent 42%),
+      linear-gradient(145deg, #f8faff 0%, #f3f6ff 48%, #edf3ff 100%);
+  }
+
+  .auth-orbit,
+  .auth-wave,
+  .auth-dot-grid {
+    @apply pointer-events-none absolute;
+  }
+
+  .auth-orbit {
+    border: 1px solid rgb(96 132 255 / 0.11);
+    border-radius: 9999px;
+  }
+
+  .auth-orbit-one {
+    right: -34rem;
+    top: 6rem;
+    height: 62rem;
+    width: 62rem;
+  }
+
+  .auth-orbit-two {
+    right: -26rem;
+    top: 13rem;
+    height: 48rem;
+    width: 48rem;
+  }
+
+  .auth-wave {
+    border-radius: 50%;
+    transform: rotate(18deg);
+  }
+
+  .auth-wave-one {
+    bottom: -31rem;
+    left: -18rem;
+    height: 43rem;
+    width: 68rem;
+    background: rgb(213 225 255 / 0.34);
+  }
+
+  .auth-wave-two {
+    bottom: -34rem;
+    left: -12rem;
+    height: 43rem;
+    width: 72rem;
+    border: 1px solid rgb(96 132 255 / 0.12);
+    background: rgb(242 246 255 / 0.65);
+  }
+
+  .auth-dot-grid {
+    height: 3.25rem;
+    width: 3.25rem;
+    background-image: radial-gradient(circle, rgb(74 115 255 / 0.2) 1.4px, transparent 1.6px);
+    background-size: 0.75rem 0.75rem;
+  }
+
+  .note-vditor.vditor {
+    border: 0;
+    border-radius: 0.75rem;
+  }
+
+  .note-document-surface {
+    @apply min-h-full w-full bg-white;
+  }
+
+  .note-vditor .vditor-toolbar {
+    border-color: rgb(226 232 240);
+    background: rgb(248 250 252);
+  }
+
+  .note-vditor .vditor-ir {
+    background: white;
+  }
+
+  .note-vditor .vditor-reset {
+    color: rgb(51 65 85);
+    font-family: inherit;
+  }
+
+  .note-vditor--plain .vditor-toolbar {
+    display: none;
+  }
+
+  .note-vditor--plain.vditor {
+    min-height: 100%;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .note-vditor--plain .vditor-content {
+    border-top: 0;
+    background: transparent !important;
+  }
+
+  .note-vditor--plain .vditor-ir,
+  .note-vditor--plain .vditor-reset,
+  .note-vditor--plain .vditor-ir pre.vditor-reset:focus {
+    background: transparent !important;
+  }
+
+  .note-vditor--plain .vditor-reset {
+    color: rgb(51 65 85);
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.75rem;
+  }
+
+  .note-vditor--plain .vditor-ir > .vditor-reset {
+    padding: 2rem 2rem 4rem !important;
+  }
+
+  .markdown-body,
+  .note-vditor--plain .vditor-reset {
+    @apply text-[15px] leading-7 text-slate-700;
+  }
+
+  .markdown-body {
+    @apply min-h-full px-8 pb-16 pt-8 xl:px-12;
+  }
+
+  .markdown-body.ai-markdown {
+    @apply min-h-0 px-0 pb-0 pt-0;
+  }
+
+  .markdown-body > :first-child,
+  .note-vditor--plain .vditor-reset > :first-child,
+  .note-vditor--plain .vditor-reset > :first-child > :first-child {
+    @apply mt-0;
+  }
+
+  .markdown-body h1,
+  .note-vditor--plain .vditor-reset h1 {
+    @apply mb-4 mt-10 text-2xl font-bold tracking-tight text-slate-950;
+  }
+
+  .markdown-body h2,
+  .note-vditor--plain .vditor-reset h2 {
+    @apply mb-3 mt-9 text-xl font-bold tracking-tight text-slate-950;
+  }
+
+  .markdown-body h3,
+  .note-vditor--plain .vditor-reset h3 {
+    @apply mb-3 mt-7 text-lg font-semibold text-slate-900;
+  }
+
+  .markdown-body p,
+  .note-vditor--plain .vditor-reset p {
+    @apply my-4;
+  }
+
+  .markdown-body ul,
+  .note-vditor--plain .vditor-reset ul {
+    @apply my-4 list-disc space-y-1 pl-6;
+  }
+
+  .markdown-body ol,
+  .note-vditor--plain .vditor-reset ol {
+    @apply my-4 list-decimal space-y-1 pl-6;
+  }
+
+  .markdown-body blockquote,
+  .note-vditor--plain .vditor-reset blockquote {
+    @apply my-5 border-l-4 border-blue-400 bg-blue-50/60 px-4 py-2 text-slate-600;
+  }
+
+  .markdown-body a,
+  .note-vditor--plain .vditor-reset a {
+    @apply font-medium text-primary underline decoration-blue-200 underline-offset-4 hover:decoration-blue-500;
+  }
+
+  .markdown-body code,
+  .note-vditor--plain .vditor-reset code {
+    @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.9em] text-slate-800;
+  }
+
+  .markdown-body pre,
+  .note-vditor--plain .vditor-reset pre {
+    @apply my-6 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-4;
+  }
+
+  .markdown-body pre code,
+  .note-vditor--plain .vditor-reset pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .markdown-body table,
+  .note-vditor--plain .vditor-reset table {
+    @apply my-6 w-full border-collapse text-sm;
+  }
+
+  .markdown-body th,
+  .markdown-body td,
+  .note-vditor--plain .vditor-reset th,
+  .note-vditor--plain .vditor-reset td {
+    @apply border border-slate-200 px-3 py-2 text-left;
+  }
+
+  .markdown-body th,
+  .note-vditor--plain .vditor-reset th {
+    @apply bg-slate-50 font-semibold text-slate-800;
+  }
+
+  .markdown-body hr,
+  .note-vditor--plain .vditor-reset hr {
+    @apply my-8 border-slate-200;
+  }
+
+  @media (min-width: 80rem) {
+    .note-vditor--plain .vditor-ir > .vditor-reset {
+      padding-right: 3rem !important;
+      padding-left: 3rem !important;
+    }
+  }
+}
