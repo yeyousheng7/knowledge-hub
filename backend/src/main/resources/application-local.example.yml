@@ -1,34 +1,28 @@
 # Local developer profile template.
 # Copy this file to application-local.yml when running the backend from IDEA or Maven.
+# The copied application-local.yml is ignored by Git and may contain local API keys.
+# Shared defaults and advanced tuning values live in application.yml.
 # For full Docker Compose startup, use application-docker.yml instead.
 
 spring:
   ai:
     model:
-      chat: ${SPRING_AI_MODEL_CHAT:none}
-      embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
-      image: none
-      audio:
-        speech: none
-        transcription: none
-      moderation: none
+      chat: ${SPRING_AI_MODEL_CHAT:openai}
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:openai}
     openai:
       chat:
-        base-url: ${AI_CHAT_BASE_URL:}
-        api-key: ${AI_CHAT_API_KEY:}
+        base-url: ${AI_CHAT_BASE_URL:https://api.deepseek.com}
+        api-key: ${AI_CHAT_API_KEY:replace-with-chat-api-key}
         options:
-          model: ${AI_CHAT_MODEL:}
+          model: ${AI_CHAT_MODEL:replace-with-chat-model}
       embedding:
-        base-url: ${AI_EMBEDDING_BASE_URL:}
-        api-key: ${AI_EMBEDDING_API_KEY:}
+        base-url: ${AI_EMBEDDING_BASE_URL:https://api.siliconflow.cn}
+        api-key: ${AI_EMBEDDING_API_KEY:replace-with-embedding-api-key}
         options:
-          model: ${AI_EMBEDDING_MODEL:}
-          dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+          model: ${AI_EMBEDDING_MODEL:Qwen/Qwen3-Embedding-8B}
     vectorstore:
       redis:
-        initialize-schema: ${AI_VECTORSTORE_REDIS_INITIALIZE_SCHEMA:false}
-        index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
-        prefix: "${AI_VECTORSTORE_REDIS_PREFIX:kh:ai:note:chunk:}"
+        initialize-schema: ${AI_VECTORSTORE_REDIS_INITIALIZE_SCHEMA:true}
   datasource:
     url: jdbc:mysql://localhost:3306/knowledge_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: knowledgehub
@@ -37,32 +31,28 @@ spring:
     enabled: true
   data:
     redis:
-      host: localhost
-      port: 6379
-      database: 0
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
 
 app:
-  invite-code: dev-invite-code
+  invite-code: ${APP_INVITE_CODE:dev-invite-code}
   jwt:
-    secret: local-dev-jwt-secret-change-me-at-least-32-bytes
-    expire-seconds: 86400
+    secret: ${JWT_SECRET:local-dev-jwt-secret-change-me-at-least-32-bytes}
+    expire-seconds: ${JWT_EXPIRE_SECONDS:86400}
   admin:
     init:
-      enabled: false
-      username: 
-      password: 
-      nickname:
+      enabled: ${ADMIN_INIT_ENABLED:false}
+      username: ${ADMIN_USERNAME:}
+      password: ${ADMIN_PASSWORD:}
+      nickname: ${ADMIN_NICKNAME:}
   ai:
-    enabled: ${AI_ENABLED:false}
-    chat:
-      provider: ${AI_CHAT_PROVIDER:deepseek}
-    embedding:
-      dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+    enabled: ${AI_ENABLED:true}
     index:
-      chunk-size: ${AI_INDEX_CHUNK_SIZE:1024}
-      chunk-overlap: ${AI_INDEX_CHUNK_OVERLAP:50}
-      top-k: ${AI_INDEX_TOP_K:3}
-      vector-index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
-      vector-store: ${AI_INDEX_VECTOR_STORE:none}
+      vector-store: ${AI_INDEX_VECTOR_STORE:redis}
     rag:
-      enabled: ${AI_RAG_ENABLED:false}
+      enabled: ${AI_RAG_ENABLED:true}
+    agent:
+      enabled: ${AI_AGENT_ENABLED:true}
+      memory:
+        enabled: ${AI_AGENT_MEMORY_ENABLED:true}

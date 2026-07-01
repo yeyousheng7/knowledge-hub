@@ -115,11 +115,14 @@ mvnw.cmd test
 
 ## 手动运行（IDE / Maven）
 
-需要本地 MySQL 8.0。推荐复用 Docker Compose 中的 MySQL：
+需要本地 MySQL 8.0；启用 RAG 时还需要 Redis Stack。推荐复用 Docker Compose 中的基础设施：
 
 ```bash
-docker compose up -d mysql
+docker compose up -d mysql redis
 ```
+
+默认会将 MySQL 和 Redis Stack 分别发布到宿主机的 `3306`、`6379` 端口，供本地 Maven/IDE 进程连接。
+根目录 `.env` 只由 Docker Compose 自动读取；若修改端口，本地进程也要同步调整 `application-local.yml` 或设置对应进程环境变量。
 
 如果使用手动安装的 MySQL，请先创建数据库和用户，并保持账号密码与 `application-local.example.yml` 一致：
 
@@ -130,22 +133,29 @@ GRANT ALL PRIVILEGES ON knowledge_hub.* TO 'knowledgehub'@'%';
 FLUSH PRIVILEGES;
 ```
 
-复制配置模板：
+在仓库根目录复制本地配置模板：
+
+```powershell
+# Windows PowerShell
+Copy-Item backend/src/main/resources/application-local.example.yml backend/src/main/resources/application-local.yml
+```
 
 ```bash
+# Linux / macOS
 cp backend/src/main/resources/application-local.example.yml backend/src/main/resources/application-local.yml
 ```
 
-编辑 `application-local.yml` 填入数据库连接和密钥，然后：
+数据库连接、AI provider 和密钥都写入被 Git 忽略的 `application-local.yml`。随后进入后端目录并启用 `local` profile：
 
 ```bash
-cd backend
-
 # Linux / macOS
+cd backend
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
 
-# Windows
-mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
 

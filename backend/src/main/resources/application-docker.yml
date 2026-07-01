@@ -1,30 +1,6 @@
+# Docker-only infrastructure overrides. Shared application and AI defaults live
+# in application.yml.
 spring:
-  ai:
-    model:
-      chat: ${SPRING_AI_MODEL_CHAT:none}
-      embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
-      image: none
-      audio:
-        speech: none
-        transcription: none
-      moderation: none
-    openai:
-      chat:
-        base-url: ${AI_CHAT_BASE_URL:}
-        api-key: ${AI_CHAT_API_KEY:}
-        options:
-          model: ${AI_CHAT_MODEL:}
-      embedding:
-        base-url: ${AI_EMBEDDING_BASE_URL:}
-        api-key: ${AI_EMBEDDING_API_KEY:}
-        options:
-          model: ${AI_EMBEDDING_MODEL:}
-          dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
-    vectorstore:
-      redis:
-        initialize-schema: ${AI_VECTORSTORE_REDIS_INITIALIZE_SCHEMA:false}
-        index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
-        prefix: "${AI_VECTORSTORE_REDIS_PREFIX:kh:ai:note:chunk:}"
   datasource:
     url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:knowledge_hub}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: ${DB_USERNAME:knowledgehub}
@@ -48,17 +24,3 @@ app:
       username: ${ADMIN_USERNAME:}
       password: ${ADMIN_PASSWORD:}
       nickname: ${ADMIN_NICKNAME:}
-  ai:
-    enabled: ${AI_ENABLED:false}
-    chat:
-      provider: ${AI_CHAT_PROVIDER:deepseek}
-    embedding:
-      dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
-    index:
-      chunk-size: ${AI_INDEX_CHUNK_SIZE:1024}
-      chunk-overlap: ${AI_INDEX_CHUNK_OVERLAP:50}
-      top-k: ${AI_INDEX_TOP_K:3}
-      vector-index-name: ${AI_INDEX_VECTOR_INDEX_NAME:kh_note_chunks}
-      vector-store: ${AI_INDEX_VECTOR_STORE:none}
-    rag:
-      enabled: ${AI_RAG_ENABLED:false}

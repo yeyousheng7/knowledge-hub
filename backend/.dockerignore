@@ -6,7 +6,9 @@ target/
 .vscode/
 *.iml
 *.log
-application-local.yml
+# Local profile copies belong to the developer machine and must not enter the
+# Docker build context. Docker uses application-docker.yml from the JAR.
+src/main/resources/application-local.yml
 
 # Docker
 Dockerfile
