@@ -3,6 +3,7 @@ package com.yousheng.knowledgehub.note.service;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.NoteBatchUnpublishResult;
+import com.yousheng.knowledgehub.note.dto.NoteListItemResponse;
 import com.yousheng.knowledgehub.security.CurrentUserPrincipal;
 import com.yousheng.knowledgehub.user.entity.AppUser;
 import com.yousheng.knowledgehub.user.enums.UserStatus;
@@ -76,6 +77,37 @@ class NoteServiceBatchUnpublishMyPublishedNotesTest {
                         .isEqualTo(ErrorCode.NOTE_NOT_FOUND));
         assertThat(visibilityOf(publicId)).isEqualTo("PUBLIC");
         assertThat(visibilityOf(privateId)).isEqualTo("PRIVATE");
+    }
+
+    @Test
+    void getMyPublishedNotesForBatchUnpublish_returnsOnlySelectedNotesInRequestedOrder() {
+        AppUser user = createEnabledUser("batch_preview", "Batch Preview");
+        setCurrentUser(user);
+        Long firstId = insertNote(user.getId(), "first", "PUBLIC", "NORMAL", LocalDateTime.now());
+        insertNote(user.getId(), "not selected", "PUBLIC", "NORMAL", LocalDateTime.now());
+        Long thirdId = insertNote(user.getId(), "third", "PUBLIC", "NORMAL", LocalDateTime.now());
+
+        List<NoteListItemResponse> result = noteService.getMyPublishedNotesForBatchUnpublish(
+                List.of(thirdId, firstId));
+
+        assertThat(result).extracting(NoteListItemResponse::id).containsExactly(thirdId, firstId);
+        assertThat(visibilityOf(firstId)).isEqualTo("PUBLIC");
+        assertThat(visibilityOf(thirdId)).isEqualTo("PUBLIC");
+    }
+
+    @Test
+    void getMyPublishedNotesForBatchUnpublish_rejectsMoreThanMaximum() {
+        AppUser user = createEnabledUser("batch_limit", "Batch Limit");
+        setCurrentUser(user);
+        List<Long> noteIds = java.util.stream.LongStream
+                .rangeClosed(1, NoteService.MAX_BATCH_UNPUBLISH_NOTES + 1L)
+                .boxed()
+                .toList();
+
+        assertThatThrownBy(() -> noteService.getMyPublishedNotesForBatchUnpublish(noteIds))
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.BAD_REQUEST));
     }
 
     private AppUser createEnabledUser(String username, String nickname) {

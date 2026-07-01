@@ -72,6 +72,22 @@ class PublicNoteToolFacadeTest {
     }
 
     @Test
+    void listPublicNotes_defaultsPaginationAndListsWithoutKeyword() {
+        PublicNoteListItemResponse item = new PublicNoteListItemResponse(
+                2L, "Recent Public Note", "summary", List.of(), null,
+                LocalDateTime.of(2025, 7, 1, 0, 0),
+                LocalDateTime.of(2025, 7, 1, 0, 0));
+        PublicNoteListResponse response = new PublicNoteListResponse(List.of(item), 1, 1, 5);
+        when(publicNoteService.listPublicNotes(1, 5, null)).thenReturn(response);
+
+        AiToolResult<AiToolPage<PublicNoteToolItem>> result = facade.listPublicNotes(null, null);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.data().items()).extracting(PublicNoteToolItem::id).containsExactly(2L);
+        verify(publicNoteService).listPublicNotes(1, 5, null);
+    }
+
+    @Test
     void searchPublicNotes_emptyResult_returnsSuccessWithEmptyItems() {
         PublicNoteListResponse response = new PublicNoteListResponse(List.of(), 0, 1, 5);
         when(publicNoteService.listPublicNotes(1, 5, "nonexistent")).thenReturn(response);

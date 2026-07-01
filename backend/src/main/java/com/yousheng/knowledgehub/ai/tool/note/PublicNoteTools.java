@@ -32,6 +32,19 @@ public class PublicNoteTools {
     }
 
     @Tool(description = """
+            分页列出系统中的公开笔记，按发布时间从新到旧排序。
+            用于用户想浏览公开内容、查看最近公开笔记且没有明确搜索关键词的场景。
+            有明确关键词时请使用 search_public_notes。
+            page 从 1 开始，默认 1。
+            size 默认 5，最大 10。
+            列表结果不包含 contentMd。""")
+    public AiToolResult<AiToolPage<PublicNoteToolItem>> list_public_notes(
+            @ToolParam(description = "页码，从 1 开始，默认 1", required = false) Integer page,
+            @ToolParam(description = "每页条数，默认 5，最大 10", required = false) Integer size) {
+        return facade.listPublicNotes(page, size);
+    }
+
+    @Tool(description = """
             获取一篇系统公开笔记的详情。
             只在已知具体 noteId 时使用，通常来自 search_public_notes 结果。
             noteId 必须为正数。

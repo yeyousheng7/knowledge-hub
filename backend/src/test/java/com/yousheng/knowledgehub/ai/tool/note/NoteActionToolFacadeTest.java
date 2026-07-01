@@ -10,7 +10,6 @@ import com.yousheng.knowledgehub.ai.config.AiProperties;
 import com.yousheng.knowledgehub.common.exception.BizException;
 import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.NoteListItemResponse;
-import com.yousheng.knowledgehub.note.dto.NoteListResponse;
 import com.yousheng.knowledgehub.note.service.NoteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,8 +30,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -76,14 +73,14 @@ class NoteActionToolFacadeTest {
     }
 
     @Test
-    void prepareBatchUnpublishPublishedNotes_withPublishedNotes_returnsPendingOperationActionAndStoresOperation()
+    void prepareBatchUnpublishPublishedNotes_withSelectedNotes_returnsPendingOperationActionAndStoresExactIds()
             throws Exception {
         when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
-        when(noteService.listMyPublishedNotes(1, NoteActionToolFacade.MAX_BATCH_UNPUBLISH_NOTES))
-                .thenReturn(new NoteListResponse(List.of(note(1L, "first"), note(2L, "second")), 2, 1, 20));
+        when(noteService.getMyPublishedNotesForBatchUnpublish(List.of(2L, 1L)))
+                .thenReturn(List.of(note(2L, "second"), note(1L, "first")));
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        String content = facade.prepareBatchUnpublishPublishedNotes();
+        String content = facade.prepareBatchUnpublishPublishedNotes(List.of(2L, 1L));
 
         AiAgentChatResponse response = parser.parse(content);
         assertThat(response.actions()).hasSize(1);
@@ -103,31 +100,20 @@ class NoteActionToolFacadeTest {
         assertThat(stored.get("operationType").asText()).isEqualTo("BATCH_UNPUBLISH_NOTES");
         assertThat(stored.get("userId").asLong()).isEqualTo(7L);
         assertThat(stored.get("status").asText()).isEqualTo("PENDING");
-        assertThat(stored.get("noteIds").size()).isEqualTo(2);
-        verify(noteService, never()).unpublishNote(anyLong());
+        assertThat(stored.get("noteIds").get(0).asLong()).isEqualTo(2L);
+        assertThat(stored.get("noteIds").get(1).asLong()).isEqualTo(1L);
+        verify(noteService).getMyPublishedNotesForBatchUnpublish(List.of(2L, 1L));
     }
 
     @Test
-    void prepareBatchUnpublishPublishedNotes_withoutPublishedNotes_returnsNoActionAndDoesNotStoreOperation() {
+    void prepareBatchUnpublishPublishedNotes_withInvalidSelection_returnsNoActionAndDoesNotStoreOperation() {
         when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
-        when(noteService.listMyPublishedNotes(1, NoteActionToolFacade.MAX_BATCH_UNPUBLISH_NOTES))
-                .thenReturn(new NoteListResponse(List.of(), 0, 1, 20));
+        when(noteService.getMyPublishedNotesForBatchUnpublish(List.of(99L)))
+                .thenThrow(new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记当前不可操作"));
 
-        AiAgentChatResponse response = parser.parse(facade.prepareBatchUnpublishPublishedNotes());
+        AiAgentChatResponse response = parser.parse(facade.prepareBatchUnpublishPublishedNotes(List.of(99L)));
 
-        assertThat(response.actions()).isEmpty();
-        verifyNoInteractions(stringRedisTemplate);
-    }
-
-    @Test
-    void prepareBatchUnpublishPublishedNotes_whenTooManyPublishedNotes_returnsNoActionAndDoesNotStoreOperation() {
-        when(sessionService.requireCurrentEnabledUserId()).thenReturn(7L);
-        when(noteService.listMyPublishedNotes(1, NoteActionToolFacade.MAX_BATCH_UNPUBLISH_NOTES))
-                .thenReturn(new NoteListResponse(List.of(note(1L, "first")), 21, 1, 20));
-
-        AiAgentChatResponse response = parser.parse(facade.prepareBatchUnpublishPublishedNotes());
-
-        assertThat(response.answer()).contains("缩小范围");
+        assertThat(response.answer()).contains("当前不可操作");
         assertThat(response.actions()).isEmpty();
         verifyNoInteractions(stringRedisTemplate);
     }
@@ -137,7 +123,7 @@ class NoteActionToolFacadeTest {
         when(sessionService.requireCurrentEnabledUserId())
                 .thenThrow(new BizException(ErrorCode.USER_DISABLED));
 
-        assertThatThrownBy(() -> facade.prepareBatchUnpublishPublishedNotes())
+        assertThatThrownBy(() -> facade.prepareBatchUnpublishPublishedNotes(List.of(1L)))
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.USER_DISABLED));

@@ -32,6 +32,18 @@ public class PublicNoteToolFacade {
             return AiToolResults.failure(ErrorCode.BAD_REQUEST, keywordResult.message());
         }
 
+        return fetchPublicNotes(keywordResult.data(), page, size);
+    }
+
+    public AiToolResult<AiToolPage<PublicNoteToolItem>> listPublicNotes(Integer page, Integer size) {
+        return fetchPublicNotes(null, page, size);
+    }
+
+    private AiToolResult<AiToolPage<PublicNoteToolItem>> fetchPublicNotes(
+            String keyword,
+            Integer page,
+            Integer size) {
+
         AiToolResult<Integer> pageResult = AiToolArguments.normalizePage(page);
         if (!pageResult.success()) {
             return AiToolResults.failure(ErrorCode.BAD_REQUEST, pageResult.message());
@@ -46,10 +58,8 @@ public class PublicNoteToolFacade {
 
         int pageValue = pageResult.data();
         int sizeValue = sizeResult.data();
-        String trimmedKeyword = keywordResult.data();
-
         try {
-            PublicNoteListResponse response = publicNoteService.listPublicNotes(pageValue, sizeValue, trimmedKeyword);
+            PublicNoteListResponse response = publicNoteService.listPublicNotes(pageValue, sizeValue, keyword);
 
             List<PublicNoteToolItem> items = response.items().stream()
                     .map(item -> {

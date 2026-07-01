@@ -224,7 +224,8 @@ class AiAgentConfigurationTest {
                         assertThat(systemText).contains("kh-source://note/{id}");
                         assertThat(systemText).contains("kh-source://public-note/{id}");
                         assertThat(systemText).contains("kh-source://note/{noteId}");
-                        assertThat(systemText).contains("使用 id 字段");
+                        assertThat(systemText).contains("list_public_notes");
+                        assertThat(systemText).contains("真实存在的 id / noteId 和 title");
                     } finally {
                         SecurityContextHolder.clearContext();
                     }

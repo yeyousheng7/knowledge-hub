@@ -206,6 +206,36 @@ class AiAgentChatServiceTest {
         assertThat(repo.findByConversationId("kh:ai:agent:session:1:current")).isNotEmpty();
     }
 
+    @Test
+    void systemPrompt_whenRagAvailable_includesRagRules() {
+        String prompt = AiAgentChatService.buildSystemPrompt(true);
+
+        assertThat(prompt)
+                .contains("rag_search_my_notes")
+                .contains("RAG 返回的是相关片段")
+                .contains("get_my_note_detail");
+    }
+
+    @Test
+    void systemPrompt_whenRagUnavailable_excludesRagRules() {
+        String prompt = AiAgentChatService.buildSystemPrompt(false);
+
+        assertThat(prompt)
+                .doesNotContain("rag_search_my_notes")
+                .contains("list_public_notes")
+                .contains("search_public_notes");
+    }
+
+    @Test
+    void systemPrompt_describesSelectedBatchAndIndependentPendingActions() {
+        String prompt = AiAgentChatService.buildSystemPrompt(false);
+
+        assertThat(prompt)
+                .contains("prepare_batch_unpublish_published_notes")
+                .contains("传入选中笔记的 noteIds，最多 20 个")
+                .contains("生成新操作不会自动取消、替代或使旧操作失效");
+    }
+
     private static class FakeChatModel implements ChatModel {
 
         private final String response;

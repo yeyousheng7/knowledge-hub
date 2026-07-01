@@ -15,12 +15,14 @@ public class NoteActionTools {
 
     @Tool(returnDirect = true, description = """
             为当前认证用户准备批量下架公开笔记的待确认操作。
-            仅用于用户明确要求批量下架公开/已发布笔记时。
+            仅用于用户明确要求下架多篇指定的公开/已发布笔记时。
             不执行真实下架，不调用单篇下架工具。
-            不要传 userId、conversationId 或 noteIds。
-            工具会重新查询当前用户自己的公开笔记，并返回 PENDING_OPERATION action 给前端确认。""")
-    public String prepare_batch_unpublish_published_notes() {
-        return facade.prepareBatchUnpublishPublishedNotes();
+            不要传 userId 或 conversationId。
+            noteIds 必填，必须来自当前用户笔记工具的真实结果，最多 20 个。
+            工具会校验这些笔记仍属于当前用户且处于可下架状态，并返回 PENDING_OPERATION action 给前端确认。""")
+    public String prepare_batch_unpublish_published_notes(
+            @ToolParam(description = "要下架的当前用户公开笔记 ID，必填，最多 20 个") List<Long> noteIds) {
+        return facade.prepareBatchUnpublishPublishedNotes(noteIds);
     }
 
     @Tool(returnDirect = true, description = """

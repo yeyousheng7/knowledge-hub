@@ -8,8 +8,9 @@ import com.yousheng.knowledgehub.ai.agent.dto.AiAgentAction;
 import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperation;
 import com.yousheng.knowledgehub.ai.agent.operation.AiAgentPendingOperationStore;
 import com.yousheng.knowledgehub.ai.config.AiProperties;
+import com.yousheng.knowledgehub.common.exception.BizException;
+import com.yousheng.knowledgehub.common.exception.ErrorCode;
 import com.yousheng.knowledgehub.note.dto.NoteListItemResponse;
-import com.yousheng.knowledgehub.note.dto.NoteListResponse;
 import com.yousheng.knowledgehub.note.service.NoteService;
 
 import java.time.Clock;
@@ -22,7 +23,6 @@ import java.util.UUID;
 
 public class NoteActionToolFacade {
 
-    static final int MAX_BATCH_UNPUBLISH_NOTES = 20;
     public static final String ACTION_TYPE_PENDING_OPERATION = "PENDING_OPERATION";
     public static final String OPERATION_TYPE_BATCH_UNPUBLISH_NOTES = "BATCH_UNPUBLISH_NOTES";
     public static final String OPERATION_TYPE_CREATE_PRIVATE_NOTE = "CREATE_PRIVATE_NOTE";
@@ -63,28 +63,23 @@ public class NoteActionToolFacade {
         this.clock = clock;
     }
 
-    public String prepareBatchUnpublishPublishedNotes() {
+    public String prepareBatchUnpublishPublishedNotes(List<Long> noteIds) {
         Long userId = sessionService.requireCurrentEnabledUserId();
-        NoteListResponse response = noteService.listMyPublishedNotes(1, MAX_BATCH_UNPUBLISH_NOTES);
-
-        if (response.total() == 0) {
-            return toJson(new ActionEnvelope(
-                    "我没有找到需要批量下架的公开笔记。",
-                    List.of()));
-        }
-
-        if (response.total() > MAX_BATCH_UNPUBLISH_NOTES) {
-            return toJson(new ActionEnvelope(
-                    "你当前公开笔记数量为 " + response.total() + " 篇，超过一次可准备的 "
-                            + MAX_BATCH_UNPUBLISH_NOTES + " 篇上限。请先缩小范围后再操作。",
-                    List.of()));
+        List<NoteListItemResponse> notes;
+        try {
+            notes = noteService.getMyPublishedNotesForBatchUnpublish(noteIds);
+        } catch (BizException e) {
+            if (e.getErrorCode() == ErrorCode.BAD_REQUEST || e.getErrorCode() == ErrorCode.NOTE_NOT_FOUND) {
+                return toJson(new ActionEnvelope(e.getMessage(), List.of()));
+            }
+            throw e;
         }
 
         Instant createdAt = clock.instant();
         Duration ttl = operationTtl();
         Instant expiresAt = createdAt.plus(ttl);
         String operationId = UUID.randomUUID().toString();
-        List<Long> noteIds = response.items().stream()
+        List<Long> validatedNoteIds = notes.stream()
                 .map(NoteListItemResponse::id)
                 .toList();
 
@@ -92,17 +87,17 @@ public class NoteActionToolFacade {
                         operationId,
                         OPERATION_TYPE_BATCH_UNPUBLISH_NOTES,
                         userId,
-                        noteIds,
+                        validatedNoteIds,
                         createdAt,
                         expiresAt,
                         STATUS_PENDING),
                 ttl);
 
         return toJson(new ActionEnvelope(
-                "我找到了 " + response.total() + " 篇公开笔记，可以为你生成批量下架确认操作。请确认后再执行。",
+                "已选择 " + notes.size() + " 篇公开笔记，可以为你生成批量下架确认操作。请确认后再执行。",
                 List.of(new AiAgentAction(ACTION_TYPE_PENDING_OPERATION, pendingActionPayload(
                         operationId,
-                        response.items(),
+                        notes,
                         expiresAt)))));
     }
 

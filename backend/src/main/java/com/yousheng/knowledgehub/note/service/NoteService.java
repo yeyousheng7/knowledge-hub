@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Service
 public class NoteService {
+    public static final int MAX_BATCH_UNPUBLISH_NOTES = 20;
+
     private final AppUserMapper appUserMapper;
     private final NoteMapper noteMapper;
     private final CategoryMapper categoryMapper;
@@ -389,24 +391,9 @@ public class NoteService {
     public NoteBatchUnpublishResult batchUnpublishMyPublishedNotes(List<Long> noteIds) {
         Long userId = requireCurrentEnabledUserId();
         List<Long> normalizedNoteIds = normalizeBatchNoteIds(noteIds);
-
-        List<Note> notes = noteMapper.selectList(Wrappers.lambdaQuery(Note.class)
-                .eq(Note::getUserId, userId)
-                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
-                .in(Note::getId, normalizedNoteIds));
-
-        if (notes.size() != normalizedNoteIds.size()) {
-            throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记不存在或不属于当前用户");
-        }
-
+        List<Note> notes = requireBatchUnpublishableNotes(userId, normalizedNoteIds);
         Map<Long, Note> notesById = notes.stream()
                 .collect(Collectors.toMap(Note::getId, note -> note));
-        for (Long noteId : normalizedNoteIds) {
-            Note note = notesById.get(noteId);
-            if (!isBatchUnpublishable(note)) {
-                throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记当前不可操作");
-            }
-        }
 
         Note updateNote = new Note();
         int affectedRows = noteMapper.update(updateNote, Wrappers.lambdaUpdate(Note.class)
@@ -428,6 +415,16 @@ public class NoteService {
         return new NoteBatchUnpublishResult(affectedRows, affectedItems);
     }
 
+    @Transactional(readOnly = true)
+    public List<NoteListItemResponse> getMyPublishedNotesForBatchUnpublish(List<Long> noteIds) {
+        Long userId = requireCurrentEnabledUserId();
+        List<Long> normalizedNoteIds = normalizeBatchNoteIds(noteIds);
+
+        return requireBatchUnpublishableNotes(userId, normalizedNoteIds).stream()
+                .map(note -> toListItemResponse(note, List.of()))
+                .toList();
+    }
+
     private List<Long> normalizeBatchNoteIds(List<Long> noteIds) {
         if (noteIds == null || noteIds.isEmpty()) {
             throw new BizException(ErrorCode.BAD_REQUEST, "待操作笔记不能为空");
@@ -440,7 +437,33 @@ public class NoteService {
             }
             distinct.add(noteId);
         }
+        if (distinct.size() > MAX_BATCH_UNPUBLISH_NOTES) {
+            throw new BizException(
+                    ErrorCode.BAD_REQUEST,
+                    "一次最多操作 " + MAX_BATCH_UNPUBLISH_NOTES + " 篇笔记");
+        }
         return List.copyOf(distinct);
+    }
+
+    private List<Note> requireBatchUnpublishableNotes(Long userId, List<Long> noteIds) {
+        List<Note> notes = noteMapper.selectList(Wrappers.lambdaQuery(Note.class)
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, SoftDeleteConstants.NOT_DELETED)
+                .in(Note::getId, noteIds));
+
+        if (notes.size() != noteIds.size()) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记不存在或不属于当前用户");
+        }
+
+        Map<Long, Note> notesById = notes.stream()
+                .collect(Collectors.toMap(Note::getId, note -> note));
+        List<Note> orderedNotes = noteIds.stream()
+                .map(notesById::get)
+                .toList();
+        if (orderedNotes.stream().anyMatch(note -> !isBatchUnpublishable(note))) {
+            throw new BizException(ErrorCode.NOTE_NOT_FOUND, "待下架笔记当前不可操作");
+        }
+        return orderedNotes;
     }
 
     private boolean isBatchUnpublishable(Note note) {
