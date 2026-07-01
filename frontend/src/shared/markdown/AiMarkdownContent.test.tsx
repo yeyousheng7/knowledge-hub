@@ -28,6 +28,21 @@ describe("AiMarkdownContent", () => {
     expect(screen.getByText("私有笔记详情")).toBeVisible();
   });
 
+  it.each([
+    ["加粗标题", "[**加粗标题**](kh-source://public-note/14)"],
+    ["斜体标题", "[_斜体标题_](kh-source://public-note/14)"],
+    ["代码标题", "[`代码标题`](kh-source://public-note/14)"],
+    ["《混合标题》", "[《**混合标题**》](kh-source://public-note/14)"],
+  ])("uses nested Markdown text as the source title: %s", (title, markdown) => {
+    renderMarkdown(markdown);
+
+    expect(screen.getByRole("link", { name: title })).toHaveAttribute(
+      "href",
+      "/public/notes/14",
+    );
+    expect(screen.queryByText("知识来源")).not.toBeInTheDocument();
+  });
+
   it("renders invalid kh-source links as non-interactive text", () => {
     renderMarkdown("[危险来源](kh-source://unknown/12)");
 

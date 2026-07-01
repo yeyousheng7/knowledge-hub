@@ -1,7 +1,7 @@
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import { Database } from "lucide-react";
-import { type ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 
@@ -34,6 +34,10 @@ function childrenToText(children: ReactNode): string {
 
   if (Array.isArray(children)) {
     return children.map(childrenToText).join("");
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(children)) {
+    return childrenToText(children.props.children);
   }
 
   return "";
