@@ -65,7 +65,7 @@ SPRING_AI_MODEL_CHAT=none
 | **Note** | 创建/查看/更新/软删除，绑定分类与标签，摘要自动生成，关键字搜索 |
 | **Publish** | 发布/取消发布，公开列表、公开详情、用户公开主页 |
 | **Admin** | 笔记审核（下架/恢复）、用户管理（禁用/启用） |
-| **AI / RAG / Agent** | 默认关闭；RAG 问答与来源引用；手动索引重建、generation-based index switch、当前用户向量搜索；Agent 对话（私有笔记搜索/详情、公开笔记搜索/详情、可选 RAG 语义检索）、单篇发布/下架、待确认操作（创建私有笔记、批量下架公开笔记）、operation confirm 一次性消费、Agent 专属 InMemory 多轮会话、会话清除 |
+| **AI / RAG / Agent** | 默认关闭；RAG 问答与来源引用；手动索引重建、generation-based index switch、当前用户向量搜索；Agent 对话（私有/公开笔记搜索、分页浏览与详情、可选 RAG 语义检索）、单篇发布/下架、待确认操作（创建私有笔记、指定笔记批量下架，单次最多 20 篇）、operation confirm 一次性消费、Agent 专属 InMemory 多轮会话、会话清除 |
 | **Frontend** | 认证与路由守卫；笔记工作台（阅读/创建/编辑/发布/删除，Vditor Markdown 编辑器）；AI 工作区（RAG 重建索引/问答/sources + Agent 对话/待确认操作卡片/会话清除）；Feed 公开笔记流、公开笔记搜索/详情、用户公开主页；昵称头像、kh-source:// 安全解析 |
 
 

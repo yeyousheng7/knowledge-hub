@@ -708,6 +708,17 @@ curl -s -X POST "$BASE/ai/agent/chat" \
 
 **预期**: `code: 0`，回答提及 Docker 相关笔记。
 
+**无关键词浏览我的笔记**：
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "列出我最近的笔记，不要按关键词搜索"}' | jq .
+```
+
+**预期**: `code: 0`，Agent 使用 `list_my_notes` 返回当前用户笔记列表。
+
 **公开笔记搜索和详情**：
 
 ```bash
@@ -718,6 +729,17 @@ curl -s -X POST "$BASE/ai/agent/chat" \
 ```
 
 **预期**: `code: 0`，回答包含公开笔记详情。
+
+**无关键词浏览公开笔记**：
+
+```bash
+curl -s -X POST "$BASE/ai/agent/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{"message": "列出最近发布的公开笔记，不要按关键词搜索"}' | jq .
+```
+
+**预期**: `code: 0`，Agent 使用 `list_public_notes` 返回公开笔记列表。
 
 **RAG 语义检索（仅在 RAG 启用时）**：
 
@@ -770,7 +792,23 @@ curl -s -X POST "$BASE/ai/operations/$CREATE_OPERATION_ID/confirm" \
 
 ### 10.6 批量下架公开笔记确认闭环
 
-确保当前用户有 1-2 篇 PUBLIC 笔记后进行：
+先准备 3 篇 PUBLIC 笔记，其中前两篇用于下架，第三篇用于验证未选笔记不受影响：
+
+```bash
+curl -s -X POST "$BASE/notes/$NOTE1_ID/publish" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+
+KEEP_NOTE_ID=$(curl -s -X POST "$BASE/notes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -d '{
+    "title": "批量下架保留对照",
+    "contentMd": "这篇公开笔记不应被本次指定 ID 的批量操作下架。"
+  }' | jq -r '.data.id')
+
+curl -s -X POST "$BASE/notes/$KEEP_NOTE_ID/publish" \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
 
 **Agent chat 准备批量下架**：
 
@@ -778,7 +816,7 @@ curl -s -X POST "$BASE/ai/operations/$CREATE_OPERATION_ID/confirm" \
 UNPUBLISH_ACTION_RESPONSE=$(curl -s -X POST "$BASE/ai/agent/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $USER_TOKEN" \
-  -d '{"message":"请准备把我所有已发布的公开笔记批量下架。只生成待确认操作，不要直接执行。"}')
+  -d '{"message":"请先列出我已发布的笔记，然后只选择标题为‘Spring Boot 与 Docker 部署’和‘Redis Stack 在 RAG 中的作用’的两篇笔记生成批量下架待确认操作。不要下架其他笔记，也不要直接执行。"}')
 
 echo "$UNPUBLISH_ACTION_RESPONSE" | jq .
 
@@ -786,7 +824,7 @@ UNPUBLISH_OPERATION_ID=$(echo "$UNPUBLISH_ACTION_RESPONSE" | jq -r '.data.action
 echo "UNPUBLISH_OPERATION_ID=$UNPUBLISH_OPERATION_ID"
 ```
 
-**预期**: `PENDING_OPERATION`，`operationType == "BATCH_UNPUBLISH_NOTES"`。此时笔记仍公开可见。
+**预期**: `PENDING_OPERATION`，`operationType == "BATCH_UNPUBLISH_NOTES"`；`affectedItems` 只包含 `NOTE1_ID`、`NOTE2_ID`，不包含 `KEEP_NOTE_ID`。此时三篇笔记仍公开可见。
 
 **confirm 执行**：
 
@@ -795,7 +833,7 @@ curl -s -X POST "$BASE/ai/operations/$UNPUBLISH_OPERATION_ID/confirm" \
   -H "Authorization: Bearer $USER_TOKEN" | jq .
 ```
 
-**预期**: `code: 0`，`status == "EXECUTED"`，批量下架成功。
+**预期**: `code: 0`，`status == "EXECUTED"`，`affectedCount == 2`，只下架选定的两篇笔记。
 
 **重复 confirm**：
 
@@ -806,7 +844,7 @@ curl -s -X POST "$BASE/ai/operations/$UNPUBLISH_OPERATION_ID/confirm" \
 
 **预期**: 非 0，不重复执行。
 
-验证公开列表不再显示已下架笔记。
+验证公开列表不再显示 `NOTE1_ID`、`NOTE2_ID`，但仍包含 `KEEP_NOTE_ID`。
 
 ### 10.7 Agent memory / clear session
 

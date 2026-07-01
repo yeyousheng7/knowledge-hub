@@ -32,7 +32,7 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | /api/v1/notes | Yes | 创建私有笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
-| GET | /api/v1/notes | Yes | 我的笔记列表（支持 keyword、categoryId 和 tagId 筛选） |
+| GET | /api/v1/notes | Yes | 我的笔记列表（支持 page、size、keyword、categoryId 和 tagId） |
 | GET | /api/v1/notes/{noteId} | Yes | 我的笔记详情（返回 categoryId 和 tags） |
 | PUT | /api/v1/notes/{noteId} | Yes | 更新我的笔记（支持 categoryId 和 tagIds，summary 为空时自动从正文生成） |
 | DELETE | /api/v1/notes/{noteId} | Yes | 软删除我的笔记（自动清除 note_tag 关联） |
@@ -43,7 +43,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | /api/v1/public/notes | No | 公开笔记列表（支持 keyword 关键字搜索，返回标签名和作者信息） |
+| GET | /api/v1/public/notes | No | 公开笔记列表（支持 page、size 和 keyword，返回标签名和作者信息） |
 | GET | /api/v1/public/notes/{noteId} | No | 公开笔记详情（返回正文、标签名和作者信息） |
 
 ## Public User
@@ -73,7 +73,7 @@
 |--------|------|------|-------------|
 | POST | /api/v1/ai/index/rebuild | Yes | 手动重建当前用户笔记向量索引，返回 `userId`、`chunkCount`、`indexedAt` |
 | POST | /api/v1/ai/rag/ask | Yes | 基于当前用户向量索引进行 RAG 问答，返回 `answer` 和 `sources` |
-| POST | /api/v1/ai/agent/chat | Yes | Agent 对话，支持私有笔记读工具、公开笔记读工具、可选 RAG 检索工具、单篇发布/下架工具，以及创建笔记/批量下架等待确认 action |
+| POST | /api/v1/ai/agent/chat | Yes | Agent 对话，支持私有/公开笔记搜索、分页浏览与详情工具、可选 RAG 检索、单篇发布/下架，以及创建笔记/指定笔记批量下架的待确认 action |
 | POST | /api/v1/ai/agent/session/clear | Yes | 清除当前用户 Agent 会话上下文，返回 `{ "cleared": true }` |
 | POST | /api/v1/ai/operations/{operationId}/confirm | Yes | 确认并执行 Agent 生成的待确认操作；当前支持创建私有笔记、批量下架公开笔记 |
 
@@ -98,6 +98,7 @@
 客户端处理规则：
 
 - 前端应将 `kh-source://...` 解析为内部跳转协议，不应当成外部 URL 打开
+- Markdown 链接标签可能包含加粗、斜体、行内代码等行内格式；客户端应使用标签渲染后的文本作为来源标题，不应在遇到嵌套节点时丢失标题
 - `kh-source://note/{id}` 可跳转到当前用户笔记详情页
 - `kh-source://public-note/{id}` 可跳转到公开笔记详情页
 - 后端详情接口仍负责权限校验，客户端不应仅凭该链接绕过权限校验
@@ -145,7 +146,9 @@
 - Agent 当前开放以下读工具：
   - `search_my_notes` — 搜索当前用户自己的笔记
   - `get_my_note_detail` — 获取当前用户笔记详情
+  - `list_my_notes` — 分页列出当前用户自己的笔记
   - `list_my_published_notes` — 列出当前用户已发布笔记
+  - `list_public_notes` — 分页列出系统公开笔记
   - `search_public_notes` — 搜索系统公开笔记
   - `get_public_note_detail` — 获取公开笔记详情
   - `rag_search_my_notes` — 对当前用户笔记进行语义检索（仅 RAG 启用时暴露）
@@ -153,10 +156,11 @@
   - `publish_my_note` — 发布单篇笔记
   - `unpublish_my_note` — 下架单篇笔记
 - Agent 当前开放以下待确认操作工具（生成 PENDING_OPERATION，需前端 confirm）：
-  - `prepare_batch_unpublish_published_notes` — 准备批量下架公开笔记
+  - `prepare_batch_unpublish_published_notes` — 根据指定 `noteIds` 准备批量下架公开笔记；ID 必须来自当前用户真实笔记结果，单次最多 20 篇
   - `prepare_create_private_note` — 准备创建私有笔记
 - 普通聊天、read tools 和 direct write tools 返回 `actions: []`。
 - pending action tool 返回 `actions[]`，但不会暴露 raw tool JSON。
+- 每个 pending operation 由独立 `operationId` 标识；生成新操作不会取消、替代或使旧操作失效。当前没有 cancel endpoint，不确认即不会执行，过期后自动失效。
 - 未登录返回 401。
 - Agent 默认关闭（`AI_AGENT_ENABLED=false`），关闭时接口返回 404。
 
@@ -228,7 +232,7 @@ curl -s -X POST "$BASE/ai/operations/$OPERATION_ID/confirm" \
 - confirm 接口不接收 `userId`，只使用当前登录用户。
 - pending operation 使用 Redis 一次性消费，重复 confirm 会失败，不会重复执行。
 - confirm 时重新校验 operation 归属、类型、状态、过期时间和业务状态。
-- `BATCH_UNPUBLISH_NOTES`：执行前重新校验笔记仍属于当前用户、未删除、PUBLIC、NORMAL 且已发布。任一笔记不可操作时整体失败，不做部分下架。
+- `BATCH_UNPUBLISH_NOTES`：只处理 prepare 阶段选定的笔记 ID；单次最多 20 篇。执行前重新校验笔记仍属于当前用户、未删除、PUBLIC、NORMAL 且已发布。任一笔记不可操作时整体失败，不做部分下架。
 - `CREATE_PRIVATE_NOTE`：confirm 后创建 PRIVATE 笔记，不自动发布，不自动创建标签。
 - operation 不存在、已过期或已消费，返回 `NOT_FOUND`。
 
