@@ -88,6 +88,7 @@ export function AiWorkspacePage() {
       return;
     }
 
+    const nextMode = activeMode;
     setIsStartingNewConversation(true);
     setNewConversationError(null);
 
@@ -102,7 +103,7 @@ export function AiWorkspacePage() {
       setAgentMessagesSnapshot([]);
       clearAiTranscript(userId);
       setSessionMode(null);
-      setMode("rag");
+      setMode(nextMode);
       setAgentResetVersion((current) => current + 1);
       setWorkspaceResetVersion((current) => current + 1);
     } catch {

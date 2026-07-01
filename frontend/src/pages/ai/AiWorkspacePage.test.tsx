@@ -1,9 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
 import { AuthContext } from "@/features/auth/auth-context";
+import { writeAgentTranscript } from "@/features/ai/ai-session-storage";
 import { AiWorkspacePage } from "@/pages/ai/AiWorkspacePage";
 
 const authValue = {
@@ -36,6 +37,7 @@ describe("AiWorkspacePage", () => {
     cleanup();
     window.sessionStorage.clear();
     window.localStorage.clear();
+    vi.unstubAllGlobals();
   });
 
   it("shows the rebuild control before the first RAG message", async () => {
@@ -67,5 +69,39 @@ describe("AiWorkspacePage", () => {
     await user.click(screen.getByRole("button", { name: "Agent" }));
     expect(screen.getByLabelText("Agent 消息")).toHaveValue("Agent draft");
     expect(screen.getByRole("button", { name: "发送 Agent 消息" })).toBeEnabled();
+  });
+
+  it("keeps Agent selected when starting a new conversation from Agent", async () => {
+    writeAgentTranscript(1, [
+      {
+        id: "agent-message-1",
+        role: "user",
+        content: "previous question",
+        actions: [],
+      },
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({ code: 0, msg: "ok", data: { cleared: true } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderAiWorkspacePage();
+
+    expect(screen.getByText("当前模式：")).toBeVisible();
+    expect(screen.getByText("Agent", { selector: "strong" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "新对话" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Agent" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
+    expect(screen.getByLabelText("Agent 消息")).toBeVisible();
   });
 });
