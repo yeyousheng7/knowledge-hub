@@ -46,4 +46,37 @@ describe("ai-session-storage", () => {
     expect(messages).toHaveLength(AI_TRANSCRIPT_MAX_TURNS * 2);
     expect(messages[0]?.content).toBe("消息 2");
   });
+
+  it("restores the terminal state of an Agent pending operation", () => {
+    writeAgentTranscript(1, [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "操作已执行",
+        actions: [
+          {
+            type: "PENDING_OPERATION",
+            payload: { operationId: "operation-1" },
+            operationResolution: {
+              status: "executed",
+              result: {
+                operationId: "operation-1",
+                operationType: "CREATE_PRIVATE_NOTE",
+                status: "EXECUTED",
+                affectedCount: 1,
+                affectedItems: [{ id: 12, title: "新笔记" }],
+                message: "已创建",
+              },
+              error: null,
+            },
+          },
+        ],
+      },
+    ]);
+
+    const action = readAgentTranscript(1)[0]?.actions[0];
+
+    expect(action?.operationResolution?.status).toBe("executed");
+    expect(action?.operationResolution?.result?.affectedItems[0]?.id).toBe(12);
+  });
 });

@@ -9,6 +9,7 @@ import {
   confirmAiAgentOperation,
 } from "@/api/ai";
 import { AgentWorkspace } from "@/features/ai/agent/AgentWorkspace";
+import { type AgentTranscriptMessage } from "@/features/ai/ai-session-storage";
 
 vi.mock("@/api/ai", () => ({
   chatAiAgent: vi.fn(),
@@ -87,6 +88,80 @@ describe("AgentWorkspace", () => {
     await waitFor(() =>
       expect(confirmAiAgentOperation).toHaveBeenCalledWith("operation-1"),
     );
+  });
+
+  it("keeps a confirmed operation disabled after the workspace remounts", async () => {
+    const user = userEvent.setup();
+    let persistedMessages: AgentTranscriptMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "请确认以下操作。",
+        actions: [
+          {
+            type: "PENDING_OPERATION",
+            payload: {
+              operationId: "operation-persisted",
+              operationType: "CREATE_PRIVATE_NOTE",
+              preview: "创建一篇私有笔记",
+              draft: {
+                title: "持久化状态",
+                summary: null,
+                contentMd: "# 持久化状态",
+                recommendedTags: [],
+              },
+              expiresAt: "2099-01-01T00:00:00Z",
+            },
+          },
+        ],
+      },
+    ];
+    vi.mocked(confirmAiAgentOperation).mockResolvedValue({
+      operationId: "operation-persisted",
+      operationType: "CREATE_PRIVATE_NOTE",
+      status: "EXECUTED",
+      affectedCount: 1,
+      affectedItems: [{ id: 13, title: "持久化状态" }],
+      message: "已创建私有笔记",
+    });
+
+    const firstRender = render(
+      <MemoryRouter>
+        <AgentWorkspace
+          initialMessages={persistedMessages}
+          message=""
+          onMessageChange={() => undefined}
+          onMessagesChange={(messages) => {
+            persistedMessages = messages;
+          }}
+          resetVersion={0}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "确认执行" }));
+    await screen.findByText("已执行");
+    await waitFor(() =>
+      expect(
+        persistedMessages[0]?.actions[0]?.operationResolution?.status,
+      ).toBe("executed"),
+    );
+
+    firstRender.unmount();
+    render(
+      <MemoryRouter>
+        <AgentWorkspace
+          initialMessages={persistedMessages}
+          message=""
+          onMessageChange={() => undefined}
+          resetVersion={0}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("已执行")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认执行" })).toBeDisabled();
+    expect(confirmAiAgentOperation).toHaveBeenCalledTimes(1);
   });
 
   it("submits with Enter and keeps Shift+Enter as a line break", async () => {

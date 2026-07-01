@@ -1,5 +1,7 @@
 import {
+  parseAiAgentOperationConfirmResponse,
   type AiAgentAction,
+  type AiAgentOperationConfirmResponse,
   type AiRagAskResponse,
 } from "@/api/ai-contracts";
 
@@ -18,7 +20,19 @@ export interface AgentTranscriptMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  actions: AiAgentAction[];
+  actions: AgentTranscriptAction[];
+}
+
+export type AgentOperationResolutionStatus = "executed" | "invalid" | "ignored";
+
+export interface AgentOperationResolution {
+  status: AgentOperationResolutionStatus;
+  result: AiAgentOperationConfirmResponse | null;
+  error: string | null;
+}
+
+export interface AgentTranscriptAction extends AiAgentAction {
+  operationResolution?: AgentOperationResolution;
 }
 
 interface AiSessionSnapshot {
@@ -73,10 +87,51 @@ function parseAgentMessage(value: unknown): AgentTranscriptMessage | null {
     id: value.id,
     role: value.role,
     content: value.content,
-    actions: value.actions.filter(isRecord).map((action) => ({
-      type: typeof action.type === "string" ? action.type : "",
-      payload: isRecord(action.payload) ? action.payload : {},
-    })),
+    actions: value.actions.filter(isRecord).map(parseAgentAction),
+  };
+}
+
+function parseAgentAction(action: Record<string, unknown>): AgentTranscriptAction {
+  const parsedAction: AgentTranscriptAction = {
+    type: typeof action.type === "string" ? action.type : "",
+    payload: isRecord(action.payload) ? action.payload : {},
+  };
+  const resolution = parseAgentOperationResolution(action.operationResolution);
+
+  return resolution
+    ? { ...parsedAction, operationResolution: resolution }
+    : parsedAction;
+}
+
+function parseAgentOperationResolution(
+  value: unknown,
+): AgentOperationResolution | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (
+    value.status !== "executed" &&
+    value.status !== "invalid" &&
+    value.status !== "ignored"
+  ) {
+    return null;
+  }
+
+  let result: AiAgentOperationConfirmResponse | null = null;
+
+  if (isRecord(value.result)) {
+    try {
+      result = parseAiAgentOperationConfirmResponse(value.result);
+    } catch {
+      result = null;
+    }
+  }
+
+  return {
+    status: value.status,
+    result,
+    error: typeof value.error === "string" ? value.error : null,
   };
 }
 

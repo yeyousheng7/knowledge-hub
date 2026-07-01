@@ -19,7 +19,6 @@ import { Link } from "react-router-dom";
 import { chatAiAgent, confirmAiAgentOperation } from "@/api/ai";
 import {
   parsePendingOperationAction,
-  type AiAgentAction,
   type AiAgentOperationConfirmResponse,
   type PendingOperationAction,
   type PendingOperationPayload,
@@ -27,6 +26,8 @@ import {
 import { ApiError } from "@/api/errors";
 import {
   trimAgentMessages,
+  type AgentOperationResolution,
+  type AgentTranscriptAction,
   type AgentTranscriptMessage,
 } from "@/features/ai/ai-session-storage";
 import { cn } from "@/shared/lib/utils";
@@ -172,14 +173,30 @@ function BatchPreview({
   );
 }
 
-function PendingOperationCard({ action }: { action: PendingOperationAction }) {
+function PendingOperationCard({
+  action,
+  operationResolution,
+  onOperationResolutionChange,
+}: {
+  action: PendingOperationAction;
+  operationResolution?: AgentOperationResolution;
+  onOperationResolutionChange: (resolution: AgentOperationResolution) => void;
+}) {
   const { payload } = action;
-  const [status, setStatus] = useState<ConfirmStatus>("pending");
-  const [result, setResult] =
-    useState<AiAgentOperationConfirmResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const expiresAtMs = Date.parse(payload.expiresAt);
-  const [hasExpired, setHasExpired] = useState(false);
+  const [status, setStatus] = useState<ConfirmStatus>(
+    () => operationResolution?.status ?? "pending",
+  );
+  const [result, setResult] =
+    useState<AiAgentOperationConfirmResponse | null>(
+      () => operationResolution?.result ?? null,
+    );
+  const [error, setError] = useState<string | null>(
+    () => operationResolution?.error ?? null,
+  );
+  const [hasExpired, setHasExpired] = useState(
+    () => Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now(),
+  );
   const isExpired = hasExpired && status === "pending";
   const isDisabled =
     isExpired ||
@@ -214,10 +231,22 @@ function PendingOperationCard({ action }: { action: PendingOperationAction }) {
       const confirmed = await confirmAiAgentOperation(payload.operationId);
       setResult(confirmed);
       setStatus("executed");
+      onOperationResolutionChange({
+        status: "executed",
+        result: confirmed,
+        error: null,
+      });
     } catch (caughtError) {
       if (caughtError instanceof ApiError && caughtError.status === 404) {
+        const invalidError =
+          "操作已过期、已消费或不存在，请重新发起 Agent 请求。";
         setStatus("invalid");
-        setError("操作已过期、已消费或不存在，请重新发起 Agent 请求。");
+        setError(invalidError);
+        onOperationResolutionChange({
+          status: "invalid",
+          result: null,
+          error: invalidError,
+        });
         return;
       }
 
@@ -292,7 +321,15 @@ function PendingOperationCard({ action }: { action: PendingOperationAction }) {
             <button
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={status !== "pending" || isExpired}
-              onClick={() => setStatus("ignored")}
+              onClick={() => {
+                setStatus("ignored");
+                setError(null);
+                onOperationResolutionChange({
+                  status: "ignored",
+                  result: null,
+                  error: null,
+                });
+              }}
               type="button"
             >
               忽略
@@ -315,7 +352,13 @@ function PendingOperationCard({ action }: { action: PendingOperationAction }) {
   );
 }
 
-function ActionCard({ action }: { action: AiAgentAction }) {
+function ActionCard({
+  action,
+  onOperationResolutionChange,
+}: {
+  action: AgentTranscriptAction;
+  onOperationResolutionChange: (resolution: AgentOperationResolution) => void;
+}) {
   if (action.type === "PENDING_OPERATION") {
     let pendingAction: PendingOperationAction | undefined;
     let malformedPayload = false;
@@ -327,7 +370,13 @@ function ActionCard({ action }: { action: AiAgentAction }) {
     }
 
     if (!malformedPayload && pendingAction) {
-      return <PendingOperationCard action={pendingAction} />;
+      return (
+        <PendingOperationCard
+          action={pendingAction}
+          onOperationResolutionChange={onOperationResolutionChange}
+          operationResolution={action.operationResolution}
+        />
+      );
     }
 
     return (
@@ -541,6 +590,27 @@ export function AgentWorkspace({
     event.currentTarget.form?.requestSubmit();
   }
 
+  function handleOperationResolutionChange(
+    messageId: string,
+    actionIndex: number,
+    resolution: AgentOperationResolution,
+  ) {
+    setMessages((current) =>
+      current.map((item) =>
+        item.id === messageId
+          ? {
+              ...item,
+              actions: item.actions.map((action, index) =>
+                index === actionIndex
+                  ? { ...action, operationResolution: resolution }
+                  : action,
+              ),
+            }
+          : item,
+      ),
+    );
+  }
+
   const visibleMessages = messages.slice(-visibleMessageCount);
 
   return (
@@ -592,6 +662,13 @@ export function AgentWorkspace({
                       <ActionCard
                         action={action}
                         key={`${item.id}-${action.type}-${index}`}
+                        onOperationResolutionChange={(resolution) =>
+                          handleOperationResolutionChange(
+                            item.id,
+                            index,
+                            resolution,
+                          )
+                        }
                       />
                     ))}
                   </div>

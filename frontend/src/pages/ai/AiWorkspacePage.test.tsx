@@ -35,6 +35,21 @@ describe("AiWorkspacePage", () => {
   afterEach(() => {
     cleanup();
     window.sessionStorage.clear();
+    window.localStorage.clear();
+  });
+
+  it("shows the rebuild control before the first RAG message", async () => {
+    const user = userEvent.setup();
+    renderAiWorkspacePage();
+
+    expect(
+      screen.getByRole("button", { name: "重建 RAG 知识库" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Agent" }));
+    expect(
+      screen.queryByRole("button", { name: "重建 RAG 知识库" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps independent drafts when switching between RAG and Agent", async () => {
